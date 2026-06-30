@@ -106,9 +106,10 @@ body.touch #touch { display: block; pointer-events: auto; }
   <div class="tbtn" id="bPause" data-code="Escape">II</div>
 </div>
 
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peer.min.js"></script>
 <script>
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v19';
+const GAME_VERSION = 'v20';
 const W = 1280, H = 720;
 const WORLD_COUNT = 6;            // FOREST, CAVE, SNOW, LAVA, SKY, VALLE
 const LAST_WORLD = WORLD_COUNT-1; // index of the final world
@@ -947,7 +948,7 @@ function uiBtn(x,y,w,h,label,sel,color=UI.gold){
 let sceneTrans = { active:false, t:0, dur:0.34, from:'menu', to:'menu', mode:'in' };
 function changeScene(next, instant=false){
   if(next===gs.scene && !sceneTrans.active) return;
-  if(instant){ gs.scene=next; sceneTrans.active=false; return; }
+  if(instant){ gs.scene=next; sceneTrans.active=false; mpHostBroadcast(); return; }
   if(sceneTrans.active) return;
   sceneTrans = { active:true, t:0, dur:0.34, from:gs.scene, to:next, mode:'out' };
 }
@@ -958,6 +959,157 @@ function updateSceneTrans(dt){
     gs.scene=sceneTrans.to; sceneTrans.mode='in'; sceneTrans.t=0;
   } else if(sceneTrans.mode==='in' && sceneTrans.t>=sceneTrans.dur){
     sceneTrans.active=false;
+    mpHostBroadcast();
+  }
+}
+
+// ── Multiplayer online (PeerJS P2P — invitar amigos) ───────────────────────
+const mp = {
+  active:false, role:null, peer:null, conn:null,
+  roomCode:'', connected:false, status:'', errMsg:'',
+  remote:null, remoteChar:1, remoteName:'Amigo',
+  syncAcc:0, joinBuf:'', autoJoin:false, menuSel:0, createT:0
+};
+function mpGenCode(){
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s=''; for(let i=0;i<6;i++) s+=c[(Math.random()*c.length)|0];
+  return s;
+}
+function mpDisconnect(){
+  mp.active=false; mp.connected=false; mp.remote=null; mp.role=null; mp.roomCode=''; mp.status=''; mp.errMsg='';
+  if(mp.conn){ try{mp.conn.close();}catch(e){} mp.conn=null; }
+  if(mp.peer){ try{mp.peer.destroy();}catch(e){} mp.peer=null; }
+}
+function mpSend(obj){
+  if(!mp.conn||!mp.connected) return;
+  try{ mp.conn.send(JSON.stringify(obj)); }catch(e){}
+}
+function mpInviteUrl(){
+  const u=new URL(location.href); u.searchParams.set('sala', mp.roomCode); return u.href;
+}
+async function mpCopyInvite(){
+  const url=mpInviteUrl(), txt='Super Bear Adventure — Codigo: '+mp.roomCode+'\n'+url;
+  try{
+    if(navigator.share) await navigator.share({title:'Super Bear Adventure', text:'Juguemos juntos! Codigo: '+mp.roomCode, url});
+    else if(navigator.clipboard) await navigator.clipboard.writeText(txt);
+    mp.status='Enlace copiado — envialo a tu amigo';
+    sfx.select();
+  }catch(e){ mp.status='Codigo: '+mp.roomCode; }
+}
+function mpSetupConn(conn){
+  conn.on('open', ()=>{
+    mp.connected=true;
+    mp.status=mp.role==='host' ? 'Amigo conectado!' : 'Conectado al anfitrion';
+    mpSend({t:'hi', char:gs.character, name:(CHARACTERS[gs.character]||CHARACTERS[0]).name});
+    if(mp.role==='host') mpHostBroadcast();
+    unlockAch('coop');
+    sfx.star();
+  });
+  conn.on('data', d=>{ try{mpHandle(JSON.parse(d));}catch(e){} });
+  conn.on('close', ()=>{ mp.connected=false; mp.status='Amigo desconectado'; mp.remote=null; });
+}
+function mpHostCreate(){
+  if(typeof Peer==='undefined'){ mp.errMsg='PeerJS no cargo — revisa internet'; return; }
+  mpDisconnect();
+  mp.active=true; mp.role='host'; mp.roomCode=mpGenCode();
+  mp.status='Creando sala...';
+  mp.peer=new Peer('sbear-'+mp.roomCode);
+  mp.peer.on('open', ()=>{ mp.status='Comparte el codigo con tu amigo'; });
+  mp.peer.on('connection', conn=>{ mp.conn=conn; mpSetupConn(conn); });
+  mp.peer.on('error', ()=>{ mp.errMsg='Error al crear sala — reintenta'; mp.status='Error'; });
+}
+function mpGuestJoin(code){
+  if(typeof Peer==='undefined'){ mp.errMsg='PeerJS no cargo — revisa internet'; return; }
+  code=(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+  if(code.length<6){ mp.errMsg='Codigo de 6 caracteres'; return; }
+  mpDisconnect();
+  mp.active=true; mp.role='guest'; mp.roomCode=code;
+  mp.status='Conectando a '+code+'...'; mp.errMsg='';
+  mp.peer=new Peer();
+  mp.peer.on('open', ()=>{
+    const conn=mp.peer.connect('sbear-'+code, {reliable:true});
+    mp.conn=conn; mpSetupConn(conn);
+  });
+  mp.peer.on('error', ()=>{ mp.errMsg='No se encontro la sala — revisa el codigo'; mp.status='Error'; });
+}
+function mpHostBroadcast(){
+  if(!mp.active||mp.role!=='host'||!mp.connected) return;
+  const syncScenes=['worldmap','gameplay','pause','levelcomplete','gameover','victory','charselect'];
+  if(!syncScenes.includes(gs.scene)) return;
+  mpSend({t:'scene', scene:gs.scene, world:gs.world, level:gs.level,
+    lives:gs.lives, score:gs.score, coins:gs.coins, wmSel, wmLvl, char:gs.character});
+}
+function mpApplyScene(msg){
+  if(mp.role!=='guest') return;
+  if(['mpcreate','mpjoin','multimenu','menu'].includes(msg.scene)) return;
+  if(typeof msg.lives==='number') gs.lives=msg.lives;
+  if(typeof msg.score==='number') gs.score=msg.score;
+  if(typeof msg.coins==='number') gs.coins=msg.coins;
+  if(typeof msg.wmSel==='number') wmSel=msg.wmSel;
+  if(typeof msg.wmLvl==='number') wmLvl=msg.wmLvl;
+  if(msg.scene==='gameplay'){
+    const need=gs.world!==msg.world||gs.level!==msg.level||gs.scene!=='gameplay';
+    gs.world=msg.world; gs.level=msg.level;
+    if(need){ startLevel(); changeScene('gameplay', true); }
+    else if(gs.scene!=='gameplay') changeScene('gameplay', true);
+  } else if(msg.scene && msg.scene!==gs.scene){
+    changeScene(msg.scene, true);
+  }
+}
+function mpHandle(msg){
+  switch(msg.t){
+    case 'hi':
+      mp.remoteChar=msg.char??1; mp.remoteName=msg.name||'Amigo';
+      break;
+    case 'scene':
+    case 'sync':
+      mpApplyScene(msg);
+      break;
+    case 'pos':
+      if(!mp.remote) mp.remote=mkRemotePlayer();
+      mp.remote.tx=msg.x; mp.remote.ty=msg.y;
+      mp.remote.vx=msg.vx||0; mp.remote.vy=msg.vy||0;
+      mp.remote.facing=msg.facing||1;
+      mp.remote.char=msg.char??mp.remoteChar;
+      mp.remote.inv=msg.inv||0; mp.remote.shield=msg.sh||0;
+      mp.remoteChar=msg.char??mp.remoteChar;
+      break;
+  }
+}
+function mkRemotePlayer(){
+  return {x:140,y:570,tx:140,ty:570,vx:0,vy:0,facing:-1,w:PLAYER_W,h:PLAYER_H,char:1,inv:0,shield:0};
+}
+function mpTick(dt){
+  if(!mp.active||!mp.connected) return;
+  mp.syncAcc+=dt;
+  if(mp.syncAcc>=0.05 && player && gs.scene==='gameplay'){
+    mp.syncAcc=0;
+    mpSend({t:'pos', x:player.x, y:player.y, vx:player.vx, vy:player.vy,
+      facing:player.facing, char:gs.character,
+      inv:player.invTimer>0?1:0, sh:player.shieldTimer>0?1:0});
+  }
+  if(mp.remote){
+    mp.remote.x=lerp(mp.remote.x, mp.remote.tx, 0.38);
+    mp.remote.y=lerp(mp.remote.y, mp.remote.ty, 0.38);
+  }
+}
+function drawRemotePlayer(){
+  if(!mp.remote||!mp.connected||gs.scene!=='gameplay') return;
+  const rp=mp.remote;
+  const x=rp.x-cam.x, y=rp.y-cam.y;
+  const fake={facing:rp.facing, shieldTimer:rp.shield?1.5:0, invTimer:rp.inv?0.5:0};
+  (CHARACTERS[rp.char]||CHARACTERS[1]).draw(fake, x, y);
+  fillRR(x+PLAYER_W/2-28, y-24, 56, 16, 5, 'rgba(0,180,255,0.55)');
+  hud(mp.remoteName||'Amigo', x+PLAYER_W/2, y-12, '#fff', 11, 'center');
+}
+function mpJoinKeys(){
+  for(const k in keyDown){
+    if(k==='Backspace'){ mp.joinBuf=mp.joinBuf.slice(0,-1); sfx.select(); return; }
+    if(k==='Enter' && mp.joinBuf.length===6){ mpGuestJoin(mp.joinBuf); return; }
+    if(k.startsWith('Key') && mp.joinBuf.length<6){
+      const ch=k.slice(3); if(ch.length===1 && ch>='A' && ch<='Z'){ mp.joinBuf+=ch; sfx.select(); return; }
+    }
+    if(k.startsWith('Digit') && mp.joinBuf.length<6){ mp.joinBuf+=k.slice(5); sfx.select(); return; }
   }
 }
 function drawSceneTrans(){
@@ -1282,6 +1434,7 @@ const ACHIEVEMENTS = [
   { id:'shopper',   name:'Comprador',       desc:'Compra algo en la tienda' },
   { id:'allchars',  name:'Equipo completo', desc:'Desbloquea todos los personajes' },
   { id:'allworlds', name:'Leyenda',         desc:'Completa los 6 mundos' },
+  { id:'coop',      name:'Equipo online',   desc:'Juega con un amigo en linea' },
 ];
 function unlockAch(id){
   if (gs.ach[id]) return;
@@ -1704,6 +1857,10 @@ let lcStats = null, lcT = 0; // level-complete screen data
 function startLevel() {
   levelData = mkLevel(gs.world, gs.level);
   player = mkPlayer();
+  if(mp.active && mp.connected){
+    player.x = mp.role==='host' ? 80 : 150;
+    player.respawnX = player.x;
+  }
   player.lives = gs.lives;
   enemies = mkEnemies(levelData.enemies.concat(extraEnemies(gs.world, gs.level)));
   items = mkCollectibles(levelData.coins, levelData.stars, levelData.powerups);
@@ -1885,6 +2042,7 @@ function updateGameplay(dt) {
 
   camUpdate(player.x, player.y, ld.levelW);
   if (gs.score > gs.highScore) gs.highScore = gs.score;
+  mpTick(dt);
 
   // Pause
   if (pressed('Escape')||pressed('KeyP')) { gs.scene='pause'; pauseSel=0; }
@@ -1931,6 +2089,7 @@ function drawGameplay(t) {
   drawFx();
   drawParticles();
   drawPlayer(player);
+  drawRemotePlayer();
   cam.x=sx; cam.y=sy;
   drawFlash();
   drawBanner();
@@ -1955,6 +2114,10 @@ function drawHUD(t) {
   hud('TIME '+gameTimer.toFixed(1)+'s', W/2, H-26, UI.cyan, 16, 'center');
   const ch = CHARACTERS[gs.character]||CHARACTERS[0];
   uiPill(W-130,H-28, ch.name, UI.gold);
+  if(mp.active && mp.connected){
+    fillRR(W/2-70, 62, 140, 22, 8, 'rgba(0,180,255,0.35)');
+    hud('ONLINE · '+mp.remoteName, W/2, 74, '#7df', 13, 'center');
+  }
   // Power-up bar
   if (player.power) {
     const pw=150, px2=W-pw-20, py2=H-78;
@@ -1973,9 +2136,88 @@ function drawHUD(t) {
   }
 }
 
+// ── Multiplayer scenes ─────────────────────────────────────────────────────
+const mpMenuItems=['CREAR SALA','UNIRSE A SALA','VOLVER'];
+
+function updateMultiMenu(dt) {
+  const n=mpMenuItems.length;
+  if (pressed('ArrowUp')||pressed('KeyW'))   { mp.menuSel=(mp.menuSel-1+n)%n; sfx.select(); }
+  if (pressed('ArrowDown')||pressed('KeyS')) { mp.menuSel=(mp.menuSel+1)%n; sfx.select(); }
+  if (pressed('Enter')||pressed('Space')) {
+    sfx.select();
+    const it=mpMenuItems[mp.menuSel];
+    if (it==='CREAR SALA') { mpHostCreate(); changeScene('mpcreate'); mp.createT=0; }
+    else if (it==='UNIRSE A SALA') { mp.joinBuf=''; mp.errMsg=''; changeScene('mpjoin'); }
+    else if (it==='VOLVER') { mpDisconnect(); changeScene('menu'); }
+  }
+  if (pressed('Escape')) { mpDisconnect(); changeScene('menu'); }
+}
+
+function drawMultiMenu(t) {
+  uiBgGrad('#0a1428','#1a2848'); uiSparkles(t*0.6, 20);
+  uiTitle('JUGAR EN LINEA', 90, 44);
+  hud('Invita amigos y explorad juntos el mismo nivel', W/2, 138, UI.dim, 17, 'center');
+  uiPanel(W/2-220, 170, 440, 280, 18);
+  for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48);
+  hud('El anfitrion elige el mundo · ambos ven al otro en pantalla', W/2, 490, UI.cyan, 15, 'center');
+  uiFooter('Enter · Esc volver');
+}
+
+function updateMpCreate(dt) {
+  mp.createT+=dt;
+  if (mp.autoJoin) return;
+  if (pressed('KeyC')||(pressed('Enter')&&!mp.connected)) mpCopyInvite();
+  if (mp.connected && (pressed('Space')||pressed('Enter'))) {
+    gs.lives=startLives(); gs.score=0; gs.coins=0;
+    changeScene('worldmap'); wmSel=0; wmLvl=0;
+  }
+  if (pressed('Escape')) { mpDisconnect(); changeScene('multimenu'); }
+}
+
+function drawMpCreate(t) {
+  uiBgGrad('#0a2010','#1a4030'); uiSparkles(t*0.5, 16);
+  uiTitle('SALA CREADA', 80, 40);
+  uiPanel(W/2-280, 130, 560, 380, 20);
+  if (mp.roomCode) {
+    hud('CODIGO DE SALA', W/2, 175, UI.dim, 16, 'center');
+    uiTitle(mp.roomCode, 230, 72, UI.gold);
+    hud('Comparte este codigo o el enlace con tu amigo', W/2, 310, UI.bright, 17, 'center');
+  }
+  const pulse=0.7+Math.sin(t*4)*0.3;
+  ctx.globalAlpha=pulse;
+  hud(mp.connected ? 'Amigo conectado — Enter para ir al mapa' : 'Esperando amigo...', W/2, 360, mp.connected?UI.green:UI.cyan, 18, 'center');
+  ctx.globalAlpha=1;
+  hud(mp.status, W/2, 400, UI.dim, 15, 'center');
+  if (mp.errMsg) hud(mp.errMsg, W/2, 430, UI.red, 15, 'center');
+  uiBtn(W/2-120, 450, 240, 48, 'COPIAR INVITACION', true);
+  hud('C / Enter = copiar enlace', W/2, 520, UI.dim, 14, 'center');
+  uiFooter('Esc = volver');
+}
+
+function updateMpJoin(dt) {
+  if (mp.autoJoin && typeof Peer!=='undefined' && !mp.active) {
+    mp.autoJoin=false; mpGuestJoin(mp.joinBuf);
+  }
+  mpJoinKeys();
+  if (pressed('Escape')) { mpDisconnect(); changeScene('multimenu'); }
+}
+
+function drawMpJoin(t) {
+  uiBgGrad('#140a28','#281848'); uiSparkles(t*0.4, 14);
+  uiTitle('UNIRSE A SALA', 90, 40);
+  uiPanel(W/2-260, 150, 520, 320, 18);
+  hud('Escribe el codigo de 6 letras', W/2, 195, UI.dim, 17, 'center');
+  const code=(mp.joinBuf+'______').slice(0,6).split('').map((c,i)=>mp.joinBuf[i]||'_').join(' ');
+  uiTitle(code, 240, 64, mp.joinBuf.length===6?UI.green:UI.gold);
+  hud(mp.status||'Teclado A-Z y 0-9 · Backspace borrar', W/2, 320, UI.bright, 16, 'center');
+  if (mp.errMsg) hud(mp.errMsg, W/2, 360, UI.red, 16, 'center');
+  if (mp.connected) hud('Conectado — espera a que el anfitrion elija nivel', W/2, 400, UI.green, 17, 'center');
+  uiFooter('Enter unirse · Esc volver');
+}
+
 // ── Menu Scene ─────────────────────────────────────────────────────────────
 let menuSel=0, menuT=0;
-const menuItems=['PLAY','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
+const menuItems=['PLAY','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 
 function updateMenu(dt) {
   menuT+=dt;
@@ -1986,6 +2228,7 @@ function updateMenu(dt) {
     sfx.select();
     const it=menuItems[menuSel];
     if (it==='PLAY')             { gs.lives=startLives(); gs.score=0; gs.coins=0; changeScene('worldmap'); wmSel=gs.world; wmLvl=0; }
+    else if (it==='MULTIJUGADOR'){ mp.menuSel=0; mp.joinBuf=''; mp.errMsg=''; changeScene('multimenu'); }
     else if (it==='CHARACTER')   { changeScene('charselect'); charSel=gs.character; charT=0; }
     else if (it==='TIENDA')      { changeScene('shop'); shopSel=0; }
     else if (it==='LOGROS')      { changeScene('achievements'); }
@@ -2002,7 +2245,7 @@ function drawMenu(t) {
   uiTitle('SUPER BEAR', 130+bob, 68);
   uiTitle('ADVENTURE', 200+bob, 52, '#fff');
   hud('Plataformas 2D · PWA movil', W/2, 238+bob, UI.dim, 18, 'center');
-  uiPanel(W/2-200, 262, 400, 420, 20);
+  uiPanel(W/2-200, 262, 400, 480, 20);
   for (let i=0;i<menuItems.length;i++) uiMenuRow(menuItems[i], 318+i*54, i===menuSel, 360, 44);
   // Info pills top
   uiPill(16, 36, 'Best: '+gs.highScore, UI.cyan);
@@ -2037,6 +2280,8 @@ function drawInstructions() {
     ['TIPOS','Patrulla, perseguidor, volador, saltarin, escupidor'],
     ['+ TIPOS','Cazador  ·  Blindado (embiste)  ·  Mini-jefe (dispara/invoca)'],
     ['GOAL','Reach the green flag → 500 pts'],['',''],
+    ['ONLINE','Menu MULTIJUGADOR: crea sala o unete con codigo de 6 letras'],
+    ['INVITAR','Copia el enlace y envialo — ambos juegan el mismo nivel'],
     ['POWER-UPS','2x=Double Jump  →→=Speed  ★=Invincible'],
   ];
   ctx.textAlign='left'; ctx.font='18px monospace';
@@ -2055,18 +2300,25 @@ const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE'];
 const worldColors=[['#2d6e1a','#1a4010'],['#2a3f5a','#0d1b2a'],['#6090b0','#3060a0'],['#7a2418','#3a0d08'],['#5a86c0','#2b4f7a'],['#a08030','#6a5018']];
 
 function updateWorldMap(dt) {
+  if (mp.active && mp.role==='guest') {
+    if (pressed('Escape')) { changeScene('menu'); return; }
+    return;
+  }
+  const prevSel=wmSel, prevLvl=wmLvl;
   if (pressed('ArrowLeft'))  wmSel=Math.max(0,wmSel-1);
   if (pressed('ArrowRight')) wmSel=Math.min(LAST_WORLD,wmSel+1);
   if (pressed('ArrowUp'))    wmLvl=Math.max(0,wmLvl-1);
   if (pressed('ArrowDown'))  wmLvl=Math.min(2,wmLvl+1);
+  if (wmSel!==prevSel || wmLvl!==prevLvl) mpHostBroadcast();
   if (pressed('Enter')||pressed('Space')) {
     if (gs.worldUnlocked[wmSel]) {
       sfx.select();
       gs.world=wmSel; gs.level=wmLvl;
       startLevel(); changeScene('gameplay');
+      mpHostBroadcast();
     }
   }
-  if (pressed('Escape')) changeScene('menu');
+  if (pressed('Escape')) { if(mp.active) mpDisconnect(); changeScene('menu'); }
 }
 
 function drawWorldMap(t) {
@@ -2111,6 +2363,12 @@ function drawWorldMap(t) {
   uiFooter('Enter=Jugar  Flechas=Navegar  Esc=Menu');
   if(wmSel===LAST_WORLD && gs.worldUnlocked[wmSel]){
     hud('VALLE: mundo grande, pocos enemigos', W/2, H-50, '#c4a050', 14, 'center');
+  }
+  if (mp.active && mp.role==='guest') {
+    fillRR(W/2-220, H-120, 440, 52, 14, 'rgba(0,120,200,0.45)');
+    hud('Esperando al anfitrion...', W/2, H-92, '#7df', 18, 'center');
+  } else if (mp.active && mp.role==='host' && mp.connected) {
+    uiPill(W/2-100, H-100, 'Amigo conectado', UI.green);
   }
 }
 
@@ -2518,6 +2776,9 @@ function loop(ts) {
       case 'charselect': updateCharSelect(dt); break;
       case 'shop':       updateShop(dt); break;
       case 'achievements': updateAchievements(dt); break;
+      case 'multimenu':  updateMultiMenu(dt); break;
+      case 'mpcreate':   updateMpCreate(dt); break;
+      case 'mpjoin':     updateMpJoin(dt); break;
     }
   }
 
@@ -2535,6 +2796,9 @@ function loop(ts) {
     case 'charselect':    drawCharSelect(); break;
     case 'shop':          drawShop(); break;
     case 'achievements':  drawAchievements(); break;
+    case 'multimenu':     drawMultiMenu(t); break;
+    case 'mpcreate':      drawMpCreate(t); break;
+    case 'mpjoin':        drawMpJoin(t); break;
   }
 
   drawSceneTrans();
@@ -2542,6 +2806,13 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+(function(){
+  const code=new URLSearchParams(location.search).get('sala');
+  if(code){
+    mp.joinBuf=code.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    if(mp.joinBuf.length===6){ mp.autoJoin=true; gs.scene='mpjoin'; }
+  }
+})();
 </script>
 </body>
 </html>
