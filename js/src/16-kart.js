@@ -1097,12 +1097,23 @@ function updateKartMenu(dt) {
 }
 function drawKartMenu(t) {
   uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
-  uiTitle('MARIO KART', 80, 52);
-  hud('8 corredores · Copa · Drift · Objetos · Rebufo · Salida con boost', W / 2, 130, UI.cyan, 16, 'center');
-  uiPanel(W / 2 - 240, 155, 480, 340, 18);
-  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 200 + i * 52, i === kartMenuSel, 420, 44, i);
-  hud('Personaliza piloto, chasis, ruedas y planeador', W / 2, 520, UI.dim, 15, 'center');
-  uiFooter('Enter · Esc volver');
+  const lay = mobMenuLayout(kartMenuItems.length);
+  if (lay.mode !== 'desktop') {
+    uiTitle('MARIO KART', lay.mode === 'port' ? 50 : 68, lay.mode === 'port' ? 32 : 44);
+    if (lay.mode === 'land') hud('8 corredores · Copa · Drift · Objetos', W / 2, 118, UI.cyan, 14, 'center');
+    uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
+    for (let i = 0; i < kartMenuItems.length; i++) {
+      uiMenuRow(kartMenuItems[i], lay.startY + i * lay.rowH, i === kartMenuSel, lay.rw, lay.rh, i);
+    }
+    uiFooter('▲▼ · OK confirmar');
+  } else {
+    uiTitle('MARIO KART', 80, 52);
+    hud('8 corredores · Copa · Drift · Objetos · Rebufo · Salida con boost', W / 2, 130, UI.cyan, 16, 'center');
+    uiPanel(W / 2 - 240, 155, 480, 340, 18);
+    for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 200 + i * 52, i === kartMenuSel, 420, 44, i);
+    hud('Personaliza piloto, chasis, ruedas y planeador', W / 2, 520, UI.dim, 15, 'center');
+    uiFooter('Enter · Esc volver');
+  }
 }
 function updateKartCreate(dt) {
   mp.createT += dt;

@@ -41,7 +41,12 @@ body.touch canvas {
   max-height: 100%;
   flex-shrink: 0;
 }
-body.touch.mob-menu,
+body.touch.mob-menu {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: max(4px, env(safe-area-inset-top));
+  padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+}
 body.touch.mob-join {
   align-items: center;
   justify-content: flex-start;
@@ -231,7 +236,7 @@ body.touch.mob-nav-wide #mobRight { display: flex; }
   text-align: center;
   pointer-events: none;
 }
-body.touch.portrait #rotateHint { display: flex; }
+body.touch.portrait.playing #rotateHint { display: flex; }
 #rotateHint .rh-icon { font-size: 56px; line-height: 1; }
 #rotateHint .rh-sub { font-size: 14px; color: rgba(255,255,255,0.75); font-weight: 600; max-width: 280px; }
 @media (orientation: landscape) {
@@ -311,7 +316,7 @@ body.touch.mob-join #mobNav { display: none !important; }
 <div id="rotateHint">
   <div class="rh-icon">📱↔</div>
   <div>Gira el celular en horizontal</div>
-  <div class="rh-sub">El juego se ve mejor en modo paisaje. Usa los botones de abajo para navegar.</div>
+  <div class="rh-sub">Mejor experiencia en horizontal al jugar. En menus usa los botones de abajo.</div>
 </div>
 
 <div id="mpJoinUi">

@@ -370,41 +370,49 @@ function updateKartSelect(dt) {
 function drawKartSelect(t) {
   uiBgGrad('#0a1830', '#1a2848');
   uiSparkles(t * 0.4, 18);
-  uiTitle('PERSONALIZAR KART', 70, 38);
+  const port = mobTouchPortrait();
+  uiTitle('PERSONALIZAR KART', port ? 48 : 70, port ? 28 : 38);
+  const tabY = port ? 82 : 115;
+  const tabW = port ? 72 : 88;
+  const tabGap = port ? 4 : 8;
+  const totalW = kartSelectTabs.length * tabW + (kartSelectTabs.length - 1) * tabGap;
   for (let i = 0; i < kartSelectTabs.length; i++) {
-    const x = W / 2 - 180 + i * 95;
+    const x = W / 2 - totalW / 2 + i * (tabW + tabGap);
     const active = i === kartSelectTab;
-    fillRR(x, 115, 88, 32, 8, active ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.06)');
-    hud(kartSelectTabs[i], x + 44, 135, active ? UI.gold : UI.dim, 12, 'center');
+    fillRR(x, tabY, tabW, 28, 8, active ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.06)');
+    hud(kartSelectTabs[i], x + tabW / 2, tabY + 18, active ? UI.gold : UI.dim, port ? 10 : 12, 'center');
   }
-  uiPanel(W / 2 - 300, 160, 600, 340, 18);
+  const ph = port ? 300 : 340;
+  const py = port ? 118 : 160;
+  uiPanel(W / 2 - (port ? 260 : 300), py, port ? 520 : 600, ph, 18);
   const st = kartPlayerStats();
   const ch = CHARACTERS[kartSelectDriver] || CHARACTERS[0];
+  const cy = port ? 230 : 300;
   if (kartSelectTab === 0) {
     ctx.save();
-    ctx.translate(W / 2, 300);
-    ctx.scale(2.2, 2.2);
+    ctx.translate(W / 2, cy);
+    ctx.scale(port ? 1.6 : 2.2, port ? 1.6 : 2.2);
     ch.draw({ facing: 1, power: null, invTimer: 0, shieldTimer: 0 }, -PLAYER_W / 2, -PLAYER_H / 2);
     ctx.restore();
-    uiTitle(ch.name, 250, 44, UI.gold);
-    hud(ch.desc, W / 2, 400, UI.bright, 16, 'center');
-    hud('Clase: ' + st.archetype, W / 2, 425, st.archeColor, 15, 'center');
+    uiTitle(ch.name, port ? 200 : 250, port ? 32 : 44, UI.gold);
+    hud(ch.desc, W / 2, port ? 310 : 400, UI.bright, port ? 14 : 16, 'center');
+    hud('Clase: ' + st.archetype, W / 2, port ? 332 : 425, st.archeColor, port ? 13 : 15, 'center');
   } else if (kartSelectTab === 1) {
     const p = KART_CHASSIS[kartSelectChassis];
-    uiTitle(p.name, 250, 48, UI.gold);
-    hud('Acel: ' + Math.round(p.accel * 100) + '% · Vel: ' + Math.round(p.topSpeed * 100) + '%', W / 2, 380, UI.cyan, 15, 'center');
+    uiTitle(p.name, port ? 200 : 250, port ? 36 : 48, UI.gold);
+    hud('Acel: ' + Math.round(p.accel * 100) + '% · Vel: ' + Math.round(p.topSpeed * 100) + '%', W / 2, port ? 300 : 380, UI.cyan, port ? 13 : 15, 'center');
   } else if (kartSelectTab === 2) {
     const p = KART_WHEELS[kartSelectWheels];
-    uiTitle(p.name, 250, 48, UI.gold);
-    hud('Agarre: ' + Math.round(p.grip * 100) + '% · Acel: ' + Math.round(p.accel * 100) + '%', W / 2, 380, UI.cyan, 15, 'center');
+    uiTitle(p.name, port ? 200 : 250, port ? 36 : 48, UI.gold);
+    hud('Agarre: ' + Math.round(p.grip * 100) + '% · Acel: ' + Math.round(p.accel * 100) + '%', W / 2, port ? 300 : 380, UI.cyan, port ? 13 : 15, 'center');
   } else {
     const p = KART_GLIDERS[kartSelectGlider];
-    uiTitle(p.name, 250, 48, UI.gold);
-    hud('Vel: ' + Math.round(p.topSpeed * 100) + '% · Manejo: ' + Math.round(p.handling * 100) + '%', W / 2, 380, UI.cyan, 15, 'center');
+    uiTitle(p.name, port ? 200 : 250, port ? 36 : 48, UI.gold);
+    hud('Vel: ' + Math.round(p.topSpeed * 100) + '% · Manejo: ' + Math.round(p.handling * 100) + '%', W / 2, port ? 300 : 380, UI.cyan, port ? 13 : 15, 'center');
   }
   hud('Acel ' + Math.round(st.accel * 100) + '% · Vel ' + Math.round(st.topSpeed * 100) + '% · Peso ' + Math.round(st.weight * 100) + '%',
-    W / 2, 460, UI.dim, 14, 'center');
-  uiFooter('←→ pestañas · ↑↓ elegir · Enter confirmar · Esc volver');
+    W / 2, port ? 380 : 460, UI.dim, port ? 12 : 14, 'center');
+  uiFooter(port ? '◀▶ pestañas · ▲▼ elegir · OK confirmar' : '←→ pestañas · ↑↓ elegir · Enter confirmar · Esc volver');
 }
 
 function updateKartCup(dt) {
@@ -425,23 +433,28 @@ function updateKartCup(dt) {
 function drawKartCup(t) {
   uiBgGrad('#180828', '#301848');
   uiSparkles(t * 0.5, 20);
-  uiTitle('MODO COPA', 80, 44);
-  hud('3 carreras · Puntos estilo Mario Kart (15-12-10-8-6-4-2-1)', W / 2, 130, UI.cyan, 16, 'center');
+  const port = mobTouchPortrait();
+  uiTitle('MODO COPA', port ? 48 : 80, port ? 30 : 44);
+  if (!port) hud('3 carreras · Puntos estilo Mario Kart (15-12-10-8-6-4-2-1)', W / 2, 130, UI.cyan, 16, 'center');
+  const rowH = port ? 62 : 90;
+  const startY = port ? 100 : 200;
   for (let i = 0; i < KART_CUPS.length; i++) {
     const cup = KART_CUPS[i];
-    const y = 200 + i * 90;
+    const y = startY + i * rowH;
     const sel = i === kartCupSel;
-    uiPanel(W / 2 - 280, y - 30, 560, 72, 14, sel);
-    ctx.font = 'bold 26px monospace';
+    uiPanel(W / 2 - (port ? 250 : 280), y - (port ? 24 : 30), port ? 500 : 560, port ? 54 : 72, 14, sel);
+    ctx.font = 'bold ' + (port ? 20 : 26) + 'px monospace';
     ctx.textAlign = 'left';
     ctx.fillStyle = sel ? UI.gold : UI.bright;
-    ctx.fillText(cup.icon + '  ' + cup.name, W / 2 - 250, y + 10);
-    const names = cup.tracks.map(ti => KART_TRACKS[ti].name).join(' · ');
-    ctx.font = '13px monospace';
-    ctx.fillStyle = UI.dim;
-    ctx.fillText(names, W / 2 - 250, y + 32);
+    ctx.fillText(cup.icon + '  ' + cup.name, W / 2 - (port ? 220 : 250), y + (port ? 6 : 10));
+    if (!port) {
+      const names = cup.tracks.map(ti => KART_TRACKS[ti].name).join(' · ');
+      ctx.font = '13px monospace';
+      ctx.fillStyle = UI.dim;
+      ctx.fillText(names, W / 2 - 250, y + 32);
+    }
   }
-  uiFooter('Enter elegir copa · Esc volver');
+  uiFooter(port ? '▲▼ elegir · OK confirmar' : 'Enter elegir copa · Esc volver');
 }
 
 function updateKartCupResults(dt) {

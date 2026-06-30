@@ -72,12 +72,21 @@ function updateMultiMenu(dt) {
 
 function drawMultiMenu(t) {
   uiBgGrad('#0a1428','#1a2848'); uiSparkles(t*0.6, 20);
-  uiTitle('JUGAR EN LINEA', 90, 44);
-  hud('Invita amigos y explorad juntos el mismo nivel', W/2, 138, UI.dim, 17, 'center');
-  uiPanel(W/2-220, 170, 440, 280, 18);
-  for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48, i);
-  hud('El anfitrion elige el mundo · ambos ven al otro en pantalla', W/2, 490, UI.cyan, 15, 'center');
-  uiFooter('Enter · Esc volver');
+  const lay = mobMenuLayout(mpMenuItems.length);
+  if (lay.mode !== 'desktop') {
+    uiTitle('JUGAR EN LINEA', lay.mode === 'port' ? 52 : 72, lay.mode === 'port' ? 30 : 40);
+    if (lay.mode === 'land') hud('Invita amigos y explorad juntos', W/2, 128, UI.dim, 15, 'center');
+    uiPanel(W/2 - lay.pw/2, lay.py, lay.pw, lay.ph, 14);
+    for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], lay.startY + i*lay.rowH, i===mp.menuSel, lay.rw, lay.rh, i);
+    uiFooter('▲▼ · OK confirmar');
+  } else {
+    uiTitle('JUGAR EN LINEA', 90, 44);
+    hud('Invita amigos y explorad juntos el mismo nivel', W/2, 138, UI.dim, 17, 'center');
+    uiPanel(W/2-220, 170, 440, 280, 18);
+    for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48, i);
+    hud('El anfitrion elige el mundo · ambos ven al otro en pantalla', W/2, 490, UI.cyan, 15, 'center');
+    uiFooter('Enter · Esc volver');
+  }
 }
 
 function updateMpCreate(dt) {
@@ -165,20 +174,22 @@ function updateMenu(dt) {
 
 function drawMenu(t) {
   uiBgGrad('#0a2010','#1a5c1a'); uiSparkles(t);
-  const bob = Math.sin(t * 2) * (mobTouchLand() ? 4 : 8);
+  const lay = mobMenuLayout(menuItems.length);
+  const bob = Math.sin(t * 2) * (lay.mode !== 'desktop' ? 4 : 8);
 
-  if (mobTouchLand()) {
-    uiTitle('SUPER BEAR', 68 + bob, 40);
-    uiTitle('ADVENTURE', 112 + bob, 30, '#fff');
-    hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
-    uiPanel(W / 2 - 300, 158, 600, 400, 16);
-    const rowH = 38, startY = 192;
+  if (lay.mode !== 'desktop') {
+    const t1 = lay.mode === 'port' ? 48 : 68;
+    const t2 = lay.mode === 'port' ? 78 : 112;
+    uiTitle('SUPER BEAR', t1 + bob, lay.mode === 'port' ? 28 : 40);
+    uiTitle('ADVENTURE', t2 + bob, lay.mode === 'port' ? 22 : 30, '#fff');
+    if (lay.mode === 'land') hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
+    uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
     for (let i = 0; i < menuItems.length; i++) {
-      uiMenuRow(menuItems[i], startY + i * rowH, i === menuSel, 520, 34, i);
+      uiMenuRow(menuItems[i], lay.startY + i * lay.rowH, i === menuSel, lay.rw, lay.rh, i);
     }
-    uiPill(12, 26, 'Best: ' + gs.highScore, UI.cyan);
-    drawCoinIcon(12, 46, 8); hud(' ' + gs.wallet, 26, 52, UI.gold, 15);
-    uiPill(12, 72, CHARACTERS[gs.character].name, UI.gold);
+    uiPill(12, 22, 'Best: ' + gs.highScore, UI.cyan);
+    drawCoinIcon(12, 42, 8); hud(' ' + gs.wallet, 26, 48, UI.gold, 14);
+    uiPill(12, 64, CHARACTERS[gs.character].name, UI.gold);
     uiFooter('▲▼ navegar · OK confirmar');
   } else {
     drawBearSil(80, H - 160, 60); drawBearSil(W - 140, H - 160, 60);

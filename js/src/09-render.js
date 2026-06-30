@@ -61,9 +61,11 @@ function uiPanel(x,y,w,h,r=18,bg=UI.panel,border=UI.panelBorder){
   fillRR(x,y,w,h,r,bg); ctx.shadowBlur=0; ctx.shadowOffsetY=0; strokeRR(x,y,w,h,r,border,2);
 }
 function uiMenuRow(label,y,sel,w=340,h=48,rowIdx){
+  const port = mobTouchPortrait();
+  if (port) { h = Math.min(h, 30); w = Math.min(w, 480); }
   const x=W/2-w/2, ty=y-h+16;
-  if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font='bold 26px monospace'; }
-  else { fillRR(x,ty,w,h,'rgba(255,255,255,0.05)',12); ctx.fillStyle='#b8c8d8'; ctx.font='24px monospace'; }
+  if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font= port?'bold 20px monospace':'bold 26px monospace'; }
+  else { fillRR(x,ty,w,h,'rgba(255,255,255,0.05)',12); ctx.fillStyle='#b8c8d8'; ctx.font= port?'20px monospace':'24px monospace'; }
   ctx.textAlign='center'; ctx.fillText(label,W/2,y);
   if(rowIdx!==undefined) mobRegisterRow(x,ty,w,h,rowIdx);
 }

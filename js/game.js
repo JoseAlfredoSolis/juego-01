@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v34';
+const GAME_VERSION = 'v35';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -1130,9 +1130,11 @@ function uiPanel(x,y,w,h,r=18,bg=UI.panel,border=UI.panelBorder){
   fillRR(x,y,w,h,r,bg); ctx.shadowBlur=0; ctx.shadowOffsetY=0; strokeRR(x,y,w,h,r,border,2);
 }
 function uiMenuRow(label,y,sel,w=340,h=48,rowIdx){
+  const port = mobTouchPortrait();
+  if (port) { h = Math.min(h, 30); w = Math.min(w, 480); }
   const x=W/2-w/2, ty=y-h+16;
-  if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font='bold 26px monospace'; }
-  else { fillRR(x,ty,w,h,'rgba(255,255,255,0.05)',12); ctx.fillStyle='#b8c8d8'; ctx.font='24px monospace'; }
+  if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font= port?'bold 20px monospace':'bold 26px monospace'; }
+  else { fillRR(x,ty,w,h,'rgba(255,255,255,0.05)',12); ctx.fillStyle='#b8c8d8'; ctx.font= port?'20px monospace':'24px monospace'; }
   ctx.textAlign='center'; ctx.fillText(label,W/2,y);
   if(rowIdx!==undefined) mobRegisterRow(x,ty,w,h,rowIdx);
 }
@@ -2723,12 +2725,21 @@ function updateMultiMenu(dt) {
 
 function drawMultiMenu(t) {
   uiBgGrad('#0a1428','#1a2848'); uiSparkles(t*0.6, 20);
-  uiTitle('JUGAR EN LINEA', 90, 44);
-  hud('Invita amigos y explorad juntos el mismo nivel', W/2, 138, UI.dim, 17, 'center');
-  uiPanel(W/2-220, 170, 440, 280, 18);
-  for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48, i);
-  hud('El anfitrion elige el mundo · ambos ven al otro en pantalla', W/2, 490, UI.cyan, 15, 'center');
-  uiFooter('Enter · Esc volver');
+  const lay = mobMenuLayout(mpMenuItems.length);
+  if (lay.mode !== 'desktop') {
+    uiTitle('JUGAR EN LINEA', lay.mode === 'port' ? 52 : 72, lay.mode === 'port' ? 30 : 40);
+    if (lay.mode === 'land') hud('Invita amigos y explorad juntos', W/2, 128, UI.dim, 15, 'center');
+    uiPanel(W/2 - lay.pw/2, lay.py, lay.pw, lay.ph, 14);
+    for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], lay.startY + i*lay.rowH, i===mp.menuSel, lay.rw, lay.rh, i);
+    uiFooter('▲▼ · OK confirmar');
+  } else {
+    uiTitle('JUGAR EN LINEA', 90, 44);
+    hud('Invita amigos y explorad juntos el mismo nivel', W/2, 138, UI.dim, 17, 'center');
+    uiPanel(W/2-220, 170, 440, 280, 18);
+    for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48, i);
+    hud('El anfitrion elige el mundo · ambos ven al otro en pantalla', W/2, 490, UI.cyan, 15, 'center');
+    uiFooter('Enter · Esc volver');
+  }
 }
 
 function updateMpCreate(dt) {
@@ -2816,20 +2827,22 @@ function updateMenu(dt) {
 
 function drawMenu(t) {
   uiBgGrad('#0a2010','#1a5c1a'); uiSparkles(t);
-  const bob = Math.sin(t * 2) * (mobTouchLand() ? 4 : 8);
+  const lay = mobMenuLayout(menuItems.length);
+  const bob = Math.sin(t * 2) * (lay.mode !== 'desktop' ? 4 : 8);
 
-  if (mobTouchLand()) {
-    uiTitle('SUPER BEAR', 68 + bob, 40);
-    uiTitle('ADVENTURE', 112 + bob, 30, '#fff');
-    hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
-    uiPanel(W / 2 - 300, 158, 600, 400, 16);
-    const rowH = 38, startY = 192;
+  if (lay.mode !== 'desktop') {
+    const t1 = lay.mode === 'port' ? 48 : 68;
+    const t2 = lay.mode === 'port' ? 78 : 112;
+    uiTitle('SUPER BEAR', t1 + bob, lay.mode === 'port' ? 28 : 40);
+    uiTitle('ADVENTURE', t2 + bob, lay.mode === 'port' ? 22 : 30, '#fff');
+    if (lay.mode === 'land') hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
+    uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
     for (let i = 0; i < menuItems.length; i++) {
-      uiMenuRow(menuItems[i], startY + i * rowH, i === menuSel, 520, 34, i);
+      uiMenuRow(menuItems[i], lay.startY + i * lay.rowH, i === menuSel, lay.rw, lay.rh, i);
     }
-    uiPill(12, 26, 'Best: ' + gs.highScore, UI.cyan);
-    drawCoinIcon(12, 46, 8); hud(' ' + gs.wallet, 26, 52, UI.gold, 15);
-    uiPill(12, 72, CHARACTERS[gs.character].name, UI.gold);
+    uiPill(12, 22, 'Best: ' + gs.highScore, UI.cyan);
+    drawCoinIcon(12, 42, 8); hud(' ' + gs.wallet, 26, 48, UI.gold, 14);
+    uiPill(12, 64, CHARACTERS[gs.character].name, UI.gold);
     uiFooter('▲▼ navegar · OK confirmar');
   } else {
     drawBearSil(80, H - 160, 60); drawBearSil(W - 140, H - 160, 60);
@@ -4637,12 +4650,23 @@ function updateKartMenu(dt) {
 }
 function drawKartMenu(t) {
   uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
-  uiTitle('MARIO KART', 80, 52);
-  hud('8 corredores · Copa · Drift · Objetos · Rebufo · Salida con boost', W / 2, 130, UI.cyan, 16, 'center');
-  uiPanel(W / 2 - 240, 155, 480, 340, 18);
-  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 200 + i * 52, i === kartMenuSel, 420, 44, i);
-  hud('Personaliza piloto, chasis, ruedas y planeador', W / 2, 520, UI.dim, 15, 'center');
-  uiFooter('Enter · Esc volver');
+  const lay = mobMenuLayout(kartMenuItems.length);
+  if (lay.mode !== 'desktop') {
+    uiTitle('MARIO KART', lay.mode === 'port' ? 50 : 68, lay.mode === 'port' ? 32 : 44);
+    if (lay.mode === 'land') hud('8 corredores · Copa · Drift · Objetos', W / 2, 118, UI.cyan, 14, 'center');
+    uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
+    for (let i = 0; i < kartMenuItems.length; i++) {
+      uiMenuRow(kartMenuItems[i], lay.startY + i * lay.rowH, i === kartMenuSel, lay.rw, lay.rh, i);
+    }
+    uiFooter('▲▼ · OK confirmar');
+  } else {
+    uiTitle('MARIO KART', 80, 52);
+    hud('8 corredores · Copa · Drift · Objetos · Rebufo · Salida con boost', W / 2, 130, UI.cyan, 16, 'center');
+    uiPanel(W / 2 - 240, 155, 480, 340, 18);
+    for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 200 + i * 52, i === kartMenuSel, 420, 44, i);
+    hud('Personaliza piloto, chasis, ruedas y planeador', W / 2, 520, UI.dim, 15, 'center');
+    uiFooter('Enter · Esc volver');
+  }
 }
 function updateKartCreate(dt) {
   mp.createT += dt;
@@ -4769,12 +4793,13 @@ function drawKartLobby(t) {
 // ── Mobile UI (touch menus, tap targets, scene chrome) ───────────────────────
 const MOB_PLAY_SCENES = ['gameplay', 'kart'];
 const MOB_MENU_SCENES = [
-  'menu', 'multimenu', 'kartmenu', 'settings', 'shop', 'pause', 'worldmap',
+  'menu', 'multimenu', 'kartmenu', 'kartselect', 'kartcup', 'kartcupresults',
+  'settings', 'shop', 'pause', 'worldmap',
   'charselect', 'achievements', 'kartlobby', 'kartresults', 'gameover',
   'levelcomplete', 'instructions', 'credits', 'mpcreate', 'kartcreate', 'victory',
 ];
 const MOB_JOIN_SCENES = ['mpjoin', 'kartjoin'];
-const MOB_NAV_WIDE_SCENES = ['worldmap', 'kartlobby', 'charselect', 'shop'];
+const MOB_NAV_WIDE_SCENES = ['worldmap', 'kartlobby', 'charselect', 'shop', 'kartselect'];
 
 let mobRows = [];
 let mobWorldCards = [];
@@ -4911,6 +4936,24 @@ function mobUiSync() {
 function mobTouchLand() {
   return document.body.classList.contains('touch')
     && window.innerWidth >= window.innerHeight;
+}
+
+function mobTouchPortrait() {
+  return document.body.classList.contains('touch')
+    && window.innerHeight > window.innerWidth;
+}
+
+/** Layout compacto para menus en movil (vertical u horizontal). */
+function mobMenuLayout(itemCount) {
+  if (!document.body.classList.contains('touch')) {
+    return { mode: 'desktop', startY: 318, rowH: 54, pw: 400, ph: 480, py: 262, rw: 360, rh: 44 };
+  }
+  if (mobTouchLand()) {
+    return { mode: 'land', startY: 192, rowH: 38, pw: 600, ph: 400, py: 158, rw: 520, rh: 34 };
+  }
+  const rowH = 34;
+  const ph = Math.min(400, 72 + itemCount * rowH);
+  return { mode: 'port', startY: 118, rowH, pw: 560, ph, py: 96, rw: 480, rh: 30 };
 }
 
 function mobUiPreUpdate() {
@@ -5753,41 +5796,49 @@ function updateKartSelect(dt) {
 function drawKartSelect(t) {
   uiBgGrad('#0a1830', '#1a2848');
   uiSparkles(t * 0.4, 18);
-  uiTitle('PERSONALIZAR KART', 70, 38);
+  const port = mobTouchPortrait();
+  uiTitle('PERSONALIZAR KART', port ? 48 : 70, port ? 28 : 38);
+  const tabY = port ? 82 : 115;
+  const tabW = port ? 72 : 88;
+  const tabGap = port ? 4 : 8;
+  const totalW = kartSelectTabs.length * tabW + (kartSelectTabs.length - 1) * tabGap;
   for (let i = 0; i < kartSelectTabs.length; i++) {
-    const x = W / 2 - 180 + i * 95;
+    const x = W / 2 - totalW / 2 + i * (tabW + tabGap);
     const active = i === kartSelectTab;
-    fillRR(x, 115, 88, 32, 8, active ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.06)');
-    hud(kartSelectTabs[i], x + 44, 135, active ? UI.gold : UI.dim, 12, 'center');
+    fillRR(x, tabY, tabW, 28, 8, active ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.06)');
+    hud(kartSelectTabs[i], x + tabW / 2, tabY + 18, active ? UI.gold : UI.dim, port ? 10 : 12, 'center');
   }
-  uiPanel(W / 2 - 300, 160, 600, 340, 18);
+  const ph = port ? 300 : 340;
+  const py = port ? 118 : 160;
+  uiPanel(W / 2 - (port ? 260 : 300), py, port ? 520 : 600, ph, 18);
   const st = kartPlayerStats();
   const ch = CHARACTERS[kartSelectDriver] || CHARACTERS[0];
+  const cy = port ? 230 : 300;
   if (kartSelectTab === 0) {
     ctx.save();
-    ctx.translate(W / 2, 300);
-    ctx.scale(2.2, 2.2);
+    ctx.translate(W / 2, cy);
+    ctx.scale(port ? 1.6 : 2.2, port ? 1.6 : 2.2);
     ch.draw({ facing: 1, power: null, invTimer: 0, shieldTimer: 0 }, -PLAYER_W / 2, -PLAYER_H / 2);
     ctx.restore();
-    uiTitle(ch.name, 250, 44, UI.gold);
-    hud(ch.desc, W / 2, 400, UI.bright, 16, 'center');
-    hud('Clase: ' + st.archetype, W / 2, 425, st.archeColor, 15, 'center');
+    uiTitle(ch.name, port ? 200 : 250, port ? 32 : 44, UI.gold);
+    hud(ch.desc, W / 2, port ? 310 : 400, UI.bright, port ? 14 : 16, 'center');
+    hud('Clase: ' + st.archetype, W / 2, port ? 332 : 425, st.archeColor, port ? 13 : 15, 'center');
   } else if (kartSelectTab === 1) {
     const p = KART_CHASSIS[kartSelectChassis];
-    uiTitle(p.name, 250, 48, UI.gold);
-    hud('Acel: ' + Math.round(p.accel * 100) + '% · Vel: ' + Math.round(p.topSpeed * 100) + '%', W / 2, 380, UI.cyan, 15, 'center');
+    uiTitle(p.name, port ? 200 : 250, port ? 36 : 48, UI.gold);
+    hud('Acel: ' + Math.round(p.accel * 100) + '% · Vel: ' + Math.round(p.topSpeed * 100) + '%', W / 2, port ? 300 : 380, UI.cyan, port ? 13 : 15, 'center');
   } else if (kartSelectTab === 2) {
     const p = KART_WHEELS[kartSelectWheels];
-    uiTitle(p.name, 250, 48, UI.gold);
-    hud('Agarre: ' + Math.round(p.grip * 100) + '% · Acel: ' + Math.round(p.accel * 100) + '%', W / 2, 380, UI.cyan, 15, 'center');
+    uiTitle(p.name, port ? 200 : 250, port ? 36 : 48, UI.gold);
+    hud('Agarre: ' + Math.round(p.grip * 100) + '% · Acel: ' + Math.round(p.accel * 100) + '%', W / 2, port ? 300 : 380, UI.cyan, port ? 13 : 15, 'center');
   } else {
     const p = KART_GLIDERS[kartSelectGlider];
-    uiTitle(p.name, 250, 48, UI.gold);
-    hud('Vel: ' + Math.round(p.topSpeed * 100) + '% · Manejo: ' + Math.round(p.handling * 100) + '%', W / 2, 380, UI.cyan, 15, 'center');
+    uiTitle(p.name, port ? 200 : 250, port ? 36 : 48, UI.gold);
+    hud('Vel: ' + Math.round(p.topSpeed * 100) + '% · Manejo: ' + Math.round(p.handling * 100) + '%', W / 2, port ? 300 : 380, UI.cyan, port ? 13 : 15, 'center');
   }
   hud('Acel ' + Math.round(st.accel * 100) + '% · Vel ' + Math.round(st.topSpeed * 100) + '% · Peso ' + Math.round(st.weight * 100) + '%',
-    W / 2, 460, UI.dim, 14, 'center');
-  uiFooter('←→ pestañas · ↑↓ elegir · Enter confirmar · Esc volver');
+    W / 2, port ? 380 : 460, UI.dim, port ? 12 : 14, 'center');
+  uiFooter(port ? '◀▶ pestañas · ▲▼ elegir · OK confirmar' : '←→ pestañas · ↑↓ elegir · Enter confirmar · Esc volver');
 }
 
 function updateKartCup(dt) {

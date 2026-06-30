@@ -1,12 +1,13 @@
 // ── Mobile UI (touch menus, tap targets, scene chrome) ───────────────────────
 const MOB_PLAY_SCENES = ['gameplay', 'kart'];
 const MOB_MENU_SCENES = [
-  'menu', 'multimenu', 'kartmenu', 'settings', 'shop', 'pause', 'worldmap',
+  'menu', 'multimenu', 'kartmenu', 'kartselect', 'kartcup', 'kartcupresults',
+  'settings', 'shop', 'pause', 'worldmap',
   'charselect', 'achievements', 'kartlobby', 'kartresults', 'gameover',
   'levelcomplete', 'instructions', 'credits', 'mpcreate', 'kartcreate', 'victory',
 ];
 const MOB_JOIN_SCENES = ['mpjoin', 'kartjoin'];
-const MOB_NAV_WIDE_SCENES = ['worldmap', 'kartlobby', 'charselect', 'shop'];
+const MOB_NAV_WIDE_SCENES = ['worldmap', 'kartlobby', 'charselect', 'shop', 'kartselect'];
 
 let mobRows = [];
 let mobWorldCards = [];
@@ -143,6 +144,24 @@ function mobUiSync() {
 function mobTouchLand() {
   return document.body.classList.contains('touch')
     && window.innerWidth >= window.innerHeight;
+}
+
+function mobTouchPortrait() {
+  return document.body.classList.contains('touch')
+    && window.innerHeight > window.innerWidth;
+}
+
+/** Layout compacto para menus en movil (vertical u horizontal). */
+function mobMenuLayout(itemCount) {
+  if (!document.body.classList.contains('touch')) {
+    return { mode: 'desktop', startY: 318, rowH: 54, pw: 400, ph: 480, py: 262, rw: 360, rh: 44 };
+  }
+  if (mobTouchLand()) {
+    return { mode: 'land', startY: 192, rowH: 38, pw: 600, ph: 400, py: 158, rw: 520, rh: 34 };
+  }
+  const rowH = 34;
+  const ph = Math.min(400, 72 + itemCount * rowH);
+  return { mode: 'port', startY: 118, rowH, pw: 560, ph, py: 96, rw: 480, rh: 30 };
 }
 
 function mobUiPreUpdate() {
