@@ -660,6 +660,10 @@ function kartHostSim(dt) {
   }
 }
 function kartGuestApplyState(msg) {
+  if (!race) {
+    if (typeof msg.tr === 'number') kartTrackSel = msg.tr;
+    startKartRace(false);
+  }
   if (!race) return;
   race.phase = msg.ph || race.phase;
   race.countdown = msg.cd ?? race.countdown;
@@ -717,7 +721,7 @@ function kartTick(dt) {
     if (race.countdown <= 0) { race.phase = 'racing'; race.countdown = 0; showBanner('GO!', '#3f6'); sfx.win(); }
     if (mp.role === 'host' && mp.connected) {
       race.syncAcc = (race.syncAcc || 0) + dt;
-      if (race.syncAcc >= 0.05) { race.syncAcc = 0; kartBroadcastState(); }
+      if (race.syncAcc >= 0.04) { race.syncAcc = 0; kartBroadcastState(); }
     }
     return;
   }
@@ -733,7 +737,7 @@ function kartTick(dt) {
     kartHostSim(dt);
     if (mp.connected && mp.role === 'host') {
       race.syncAcc = (race.syncAcc || 0) + dt;
-      if (race.syncAcc >= 0.05) { race.syncAcc = 0; kartBroadcastState(); }
+      if (race.syncAcc >= 0.04) { race.syncAcc = 0; kartBroadcastState(); }
     }
   }
 }
@@ -978,6 +982,7 @@ function drawKartJoin(t) {
   const code = (mp.joinBuf + '______').slice(0, 6).split('').map((c, i) => mp.joinBuf[i] || '_').join(' ');
   uiTitle(code, 240, 64, mp.joinBuf.length === 6 ? UI.green : UI.gold);
   hud(mp.status || 'Toca el cuadro para escribir · 6 caracteres', W / 2, 320, UI.bright, 16, 'center');
+  if (mp.joinAttempt > 0 && !mp.connected) hud('Reintentando conexion...', W / 2, 290, UI.cyan, 14, 'center');
   if (mp.errMsg) hud(mp.errMsg, W / 2, 360, UI.red, 16, 'center');
   if (mp.connected) hud('Conectado — espera al anfitrion', W / 2, 400, UI.green, 17, 'center');
   uiFooter('Enter unirse · Esc volver');

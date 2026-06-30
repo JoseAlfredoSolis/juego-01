@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v31';
+const GAME_VERSION = 'v32';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -1166,13 +1166,7 @@ function drawHeartIcon(x,y,s,on=true){
   ctx.fillStyle=on?'#ff4d6d':'#3a3040'; ctx.beginPath();
 
 
-// === 10-multiplayer.js (from index.html lines 819-980) ===
-  ctx.moveTo(x,y+s*0.3); ctx.bezierCurveTo(x,y,x-s*0.45,y-s*0.15,x-s*0.45,y+s*0.12);
-  ctx.bezierCurveTo(x-s*0.45,y+s*0.5,x,y+s*0.82,x,y+s);
-  ctx.bezierCurveTo(x,y+s*0.82,x+s*0.45,y+s*0.5,x+s*0.45,y+s*0.12);
-  ctx.bezierCurveTo(x+s*0.45,y-s*0.15,x,y,x,y+s*0.3); ctx.fill();
-  if(on){ ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(x-s*0.12,y+s*0.15,s*0.12,0,Math.PI*2); ctx.fill(); }
-}
+// === 10-multiplayer.js — PeerJS P2P online multiplayer ===
 function drawCoinIcon(x,y,r){
   ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
   ctx.strokeStyle='#a07810'; ctx.lineWidth=2; ctx.stroke();
@@ -1185,7 +1179,7 @@ function uiBtn(x,y,w,h,label,sel,color=UI.gold){
   ctx.fillText(label,x+w/2,y+h/2+7);
 }
 
-// ── Scene transitions (fade between screens) ────────────────────────────────
+// ── Scene transitions ────────────────────────────────────────────────────────
 let sceneTrans = { active:false, t:0, dur:0.34, from:'menu', to:'menu', mode:'in' };
 function changeScene(next, instant=false){
   if(next===gs.scene && !sceneTrans.active) return;
@@ -1204,34 +1198,70 @@ function updateSceneTrans(dt){
   }
 }
 
-// ── Multiplayer online (PeerJS P2P — invitar amigos) ───────────────────────
+// ── Multiplayer online (PeerJS P2P) ──────────────────────────────────────────
+const PEER_SERVER = {
+  host: '0.peerjs.com',
+  port: 443,
+  path: '/',
+  secure: true,
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
+    ],
+  },
+};
+
 const mp = {
   active:false, role:null, peer:null, conn:null,
   roomCode:'', connected:false, status:'', errMsg:'',
   remote:null, remoteChar:1, remoteName:'Amigo',
-  syncAcc:0, joinBuf:'', autoJoin:false, menuSel:0, createT:0,
-  gameMode:'platformer'  // 'platformer' | 'kart'
+  syncAcc:0, pingAcc:0, joinBuf:'', autoJoin:false, menuSel:0, createT:0,
+  gameMode:'platformer',
+  joinAttempt:0, joinTimer:null, sendQueue:[], lastPong:0,
 };
+
 function mpGenCode(){
   const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s=''; for(let i=0;i<6;i++) s+=c[(Math.random()*c.length)|0];
   return s;
 }
+
+function mpClearJoinTimer(){
+  if(mp.joinTimer){ clearTimeout(mp.joinTimer); mp.joinTimer=null; }
+}
+
 function mpDisconnect(){
-  mp.active=false; mp.connected=false; mp.remote=null; mp.role=null; mp.roomCode=''; mp.status=''; mp.errMsg='';
+  mpClearJoinTimer();
+  mp.active=false; mp.connected=false; mp.remote=null; mp.role=null;
+  mp.roomCode=''; mp.status=''; mp.errMsg='';
+  mp.joinAttempt=0; mp.sendQueue.length=0;
   mp.gameMode='platformer';
   if(mp.conn){ try{mp.conn.close();}catch(e){} mp.conn=null; }
   if(mp.peer){ try{mp.peer.destroy();}catch(e){} mp.peer=null; }
 }
-function mpSend(obj){
+
+function mpFlushQueue(){
   if(!mp.conn||!mp.connected) return;
-  try{ mp.conn.send(JSON.stringify(obj)); }catch(e){}
+  while(mp.sendQueue.length){
+    try{ mp.conn.send(mp.sendQueue.shift()); }catch(e){ break; }
+  }
 }
+
+function mpSend(obj){
+  if(!mp.conn) return;
+  const data = JSON.stringify(obj);
+  if(!mp.connected){ mp.sendQueue.push(data); return; }
+  try{ mp.conn.send(data); }catch(e){ mp.sendQueue.push(data); }
+}
+
 function mpInviteUrl(){
-  const u=new URL(location.href); u.searchParams.set('sala', mp.roomCode);
+  const u=new URL(location.href);
+  u.searchParams.set('sala', mp.roomCode);
   if(mp.gameMode==='kart') u.searchParams.set('mode','kart');
   return u.href;
 }
+
 async function mpCopyInvite(){
   const url=mpInviteUrl(), txt='Super Bear Adventure — Codigo: '+mp.roomCode+'\n'+url;
   try{
@@ -1241,42 +1271,122 @@ async function mpCopyInvite(){
     sfx.select();
   }catch(e){ mp.status='Codigo: '+mp.roomCode; }
 }
+
+function mpPeerError(err){
+  const type = err && err.type ? err.type : '';
+  if(type==='unavailable-id'){
+    mp.errMsg='Codigo en uso — crea otra sala';
+  } else if(type==='network' || type==='server-error'){
+    mp.errMsg='Error de red — revisa internet e intenta de nuevo';
+  } else if(type==='peer-unavailable'){
+    mp.errMsg='Sala no encontrada — revisa el codigo';
+  } else {
+    mp.errMsg='Error de conexion — reintenta';
+  }
+  mp.status='Desconectado';
+}
+
 function mpSetupConn(conn){
   conn.on('open', ()=>{
     mp.connected=true;
+    mp.joinAttempt=0;
+    mpClearJoinTimer();
     mp.status=mp.role==='host' ? 'Amigo conectado!' : 'Conectado al anfitrion';
-    mpSend({t:'hi', char:gs.character, name:(CHARACTERS[gs.character]||CHARACTERS[0]).name});
+    mp.errMsg='';
+    mpSend({t:'hi', char:gs.character, name:(CHARACTERS[gs.character]||CHARACTERS[0]).name, mode:mp.gameMode});
+    mpFlushQueue();
     if(mp.role==='host') mpHostBroadcast();
+    if(mp.role==='guest') mpSend({t:'sync_req'});
     unlockAch('coop');
     sfx.star();
   });
-  conn.on('data', d=>{ try{mpHandle(JSON.parse(d));}catch(e){} });
-  conn.on('close', ()=>{ mp.connected=false; mp.status='Amigo desconectado'; mp.remote=null; });
+  conn.on('data', d=>{
+    try{
+      const msg = typeof d === 'string' ? JSON.parse(d) : d;
+      mpHandle(msg);
+    }catch(e){}
+  });
+  conn.on('close', ()=>{
+    mp.connected=false;
+    mp.status=mp.role==='host' ? 'Amigo desconectado' : 'Desconectado del anfitrion';
+    mp.remote=null;
+    mp.sendQueue.length=0;
+  });
+  conn.on('error', ()=>{
+    if(mp.role==='guest' && !mp.connected) return;
+    mp.connected=false;
+    mp.status='Error en la conexion';
+  });
 }
+
 function mpHostCreate(){
   if(typeof Peer==='undefined'){ mp.errMsg='PeerJS no cargo — revisa internet'; return; }
   mpDisconnect();
   mp.active=true; mp.role='host'; mp.roomCode=mpGenCode();
   mp.status='Creando sala...';
-  mp.peer=new Peer('sbear-'+mp.roomCode);
-  mp.peer.on('open', ()=>{ mp.status='Comparte el codigo con tu amigo'; });
-  mp.peer.on('connection', conn=>{ mp.conn=conn; mpSetupConn(conn); });
-  mp.peer.on('error', ()=>{ mp.errMsg='Error al crear sala — reintenta'; mp.status='Error'; });
+  const peerId='sbear-'+mp.roomCode;
+  mp.peer=new Peer(peerId, PEER_SERVER);
+  mp.peer.on('open', ()=>{ mp.status='Codigo: '+mp.roomCode+' — esperando amigo'; });
+  mp.peer.on('connection', conn=>{
+    if(mp.conn && mp.conn.open){
+      try{ mp.conn.close(); }catch(e){}
+    }
+    mp.conn=conn;
+    mpSetupConn(conn);
+  });
+  mp.peer.on('error', err=>{
+    if(err && err.type==='unavailable-id'){
+      mp.roomCode=mpGenCode();
+      try{ mp.peer.destroy(); }catch(e){}
+      mp.peer=new Peer('sbear-'+mp.roomCode, PEER_SERVER);
+      mp.peer.on('open', ()=>{ mp.status='Codigo: '+mp.roomCode; });
+      mp.peer.on('connection', conn=>{ mp.conn=conn; mpSetupConn(conn); });
+      mp.peer.on('error', e=>mpPeerError(e));
+      return;
+    }
+    mpPeerError(err);
+  });
 }
+
+function mpGuestTryConnect(code, attempt){
+  if(!mp.active || mp.role!=='guest') return;
+  mp.joinAttempt=attempt;
+  if(attempt>10){
+    mp.errMsg='No se pudo conectar. Verifica el codigo y que el anfitrion tenga la sala abierta.';
+    mp.status='Fallo de conexion';
+    return;
+  }
+  mp.status='Conectando a '+code+'... ('+(attempt+1)+'/10)';
+  mpClearJoinTimer();
+  let conn;
+  try{
+    conn=mp.peer.connect('sbear-'+code, { reliable:true, serialization:'json' });
+  }catch(e){
+    mp.joinTimer=setTimeout(()=>mpGuestTryConnect(code, attempt+1), 2000);
+    return;
+  }
+  mp.conn=conn;
+  mpSetupConn(conn);
+  mp.joinTimer=setTimeout(()=>{
+    if(!mp.connected && mp.active && mp.role==='guest'){
+      try{ conn.close(); }catch(e){}
+      mpGuestTryConnect(code, attempt+1);
+    }
+  }, 4500);
+}
+
 function mpGuestJoin(code){
   if(typeof Peer==='undefined'){ mp.errMsg='PeerJS no cargo — revisa internet'; return; }
   code=(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
   if(code.length<6){ mp.errMsg='Codigo de 6 caracteres'; return; }
   mpDisconnect();
   mp.active=true; mp.role='guest'; mp.roomCode=code;
-  mp.status='Conectando a '+code+'...'; mp.errMsg='';
-  mp.peer=new Peer();
-  mp.peer.on('open', ()=>{
-    const conn=mp.peer.connect('sbear-'+code, {reliable:true});
-    mp.conn=conn; mpSetupConn(conn);
-  });
-  mp.peer.on('error', ()=>{ mp.errMsg='No se encontro la sala — revisa el codigo'; mp.status='Error'; });
+  mp.status='Iniciando conexion...'; mp.errMsg='';
+  mp.peer=new Peer(undefined, PEER_SERVER);
+  mp.peer.on('open', ()=>{ mpGuestTryConnect(code, 0); });
+  mp.peer.on('error', err=>mpPeerError(err));
 }
+
 function mpHostBroadcast(){
   if(!mp.active||mp.role!=='host'||!mp.connected) return;
   const syncScenes=['worldmap','gameplay','pause','levelcomplete','gameover','victory','charselect',
@@ -1284,28 +1394,45 @@ function mpHostBroadcast(){
   if(!syncScenes.includes(gs.scene)) return;
   const payload={t:'scene', scene:gs.scene, world:gs.world, level:gs.level,
     lives:gs.lives, score:gs.score, coins:gs.coins, wmSel, wmLvl, char:gs.character,
-    kartTrack:kartTrackSel};
+    kartTrack:kartTrackSel, mode:mp.gameMode};
   if(gs.scene==='kart' && race){
-    payload.kartPhase=race.phase; payload.kartCd=race.countdown;
+    payload.kartPhase=race.phase;
+    payload.kartCd=race.countdown;
+    payload.kartTr=kartTrackSel;
   }
   mpSend(payload);
 }
+
+function mpEnsureKartRace(msg){
+  if(typeof msg.kartTrack==='number') kartTrackSel=msg.kartTrack;
+  if(typeof msg.kartTr==='number') kartTrackSel=msg.kartTr;
+  if(!race) startKartRace(false);
+  else if(race.karts.length<2 && mp.connected){
+    const tr=KART_TRACKS[kartTrackSel];
+    race.karts.push(mkKart(1, tr, false));
+  }
+  if(race){
+    if(typeof msg.kartCd==='number') race.countdown=msg.kartCd;
+    if(msg.kartPhase) race.phase=msg.kartPhase;
+  }
+}
+
 function mpApplyScene(msg){
   if(mp.role!=='guest') return;
   if(['mpcreate','mpjoin','multimenu','menu','kartmenu','kartcreate','kartjoin'].includes(msg.scene)) return;
+  if(msg.mode==='kart' || msg.mode==='platformer') mp.gameMode=msg.mode;
   if(typeof msg.lives==='number') gs.lives=msg.lives;
   if(typeof msg.score==='number') gs.score=msg.score;
   if(typeof msg.coins==='number') gs.coins=msg.coins;
   if(typeof msg.wmSel==='number') wmSel=msg.wmSel;
   if(typeof msg.wmLvl==='number') wmLvl=msg.wmLvl;
   if(typeof msg.kartTrack==='number') kartTrackSel=msg.kartTrack;
+
   if(msg.scene==='kart' || msg.scene==='kartlobby'){
     if(typeof msg.kartTrack==='number') kartTrackSel=msg.kartTrack;
-    if(msg.scene==='kart' && gs.scene!=='kart'){
-      startKartRace(false);
-      if(race && typeof msg.kartCd==='number') race.countdown=msg.kartCd;
-      if(race && msg.kartPhase) race.phase=msg.kartPhase;
-      changeScene('kart', true);
+    if(msg.scene==='kart'){
+      mpEnsureKartRace(msg);
+      if(gs.scene!=='kart') changeScene('kart', true);
     } else if(msg.scene==='kartlobby' && gs.scene!=='kartlobby'){
       changeScene('kartlobby', true);
     }
@@ -1324,10 +1451,18 @@ function mpApplyScene(msg){
     changeScene(msg.scene, true);
   }
 }
+
 function mpHandle(msg){
+  if(!msg || !msg.t) return;
   switch(msg.t){
     case 'hi':
-      mp.remoteChar=msg.char??1; mp.remoteName=msg.name||'Amigo';
+      mp.remoteChar=msg.char??1;
+      mp.remoteName=msg.name||'Amigo';
+      if(msg.mode) mp.gameMode=msg.mode;
+      if(mp.role==='host') mpHostBroadcast();
+      break;
+    case 'sync_req':
+      if(mp.role==='host') mpHostBroadcast();
       break;
     case 'scene':
     case 'sync':
@@ -1343,19 +1478,41 @@ function mpHandle(msg){
       mp.remoteChar=msg.char??mp.remoteChar;
       break;
     case 'ks':
-      if(mp.role==='guest') kartGuestApplyState(msg);
+      if(mp.role==='guest'){
+        if(!race && typeof msg.tr==='number'){
+          kartTrackSel=msg.tr;
+          startKartRace(false);
+        }
+        kartGuestApplyState(msg);
+      }
       break;
     case 'ki':
       if(mp.role==='host') kartApplyGuestInput(msg);
       break;
+    case 'ping':
+      mpSend({t:'pong', ts:msg.ts});
+      break;
+    case 'pong':
+      mp.lastPong=Date.now();
+      break;
   }
 }
+
 function mkRemotePlayer(){
   return {x:140,y:570,tx:140,ty:570,vx:0,vy:0,facing:-1,w:PLAYER_W,h:PLAYER_H,char:1,inv:0,shield:0};
 }
+
 function mpTick(dt){
   if(!mp.active||!mp.connected) return;
+
+  mp.pingAcc+=dt;
+  if(mp.pingAcc>=4){
+    mp.pingAcc=0;
+    mpSend({t:'ping', ts:Date.now()});
+  }
+
   if(gs.scene==='kart') return;
+
   mp.syncAcc+=dt;
   if(mp.syncAcc>=0.05 && player && gs.scene==='gameplay'){
     mp.syncAcc=0;
@@ -1363,6 +1520,7 @@ function mpTick(dt){
       facing:player.facing, char:gs.character,
       inv:player.invTimer>0?1:0, sh:player.shieldTimer>0?1:0});
   }
+}
 
 
 // === 11-physics.js (from index.html lines 981-1005) ===
@@ -2624,6 +2782,7 @@ function drawMpJoin(t) {
   const code=(mp.joinBuf+'______').slice(0,6).split('').map((c,i)=>mp.joinBuf[i]||'_').join(' ');
   uiTitle(code, 240, 64, mp.joinBuf.length===6?UI.green:UI.gold);
   hud(mp.status||'Toca el cuadro para escribir · 6 caracteres', W/2, 320, UI.bright, 16, 'center');
+  if (mp.joinAttempt>0 && !mp.connected) hud('Reintentando conexion...', W/2, 290, UI.cyan, 14, 'center');
   if (mp.errMsg) hud(mp.errMsg, W/2, 360, UI.red, 16, 'center');
   if (mp.connected) hud('Conectado — espera a que el anfitrion elija nivel', W/2, 400, UI.green, 17, 'center');
   uiFooter('Enter unirse · Esc volver');
@@ -2743,7 +2902,7 @@ const worldHints=['','','','','','Valle: exploracion tranquila','Ocean: corales 
 function updateWorldMap(dt) {
   if (mp.active && mp.role==='guest') {
     mobBindSwipe(null);
-    if (pressed('Escape')) { changeScene('menu'); return; }
+    if (pressed('Escape')) { mpDisconnect(); changeScene('menu'); return; }
     return;
   }
   mobBindSwipe(dir => {
@@ -4039,6 +4198,10 @@ function kartHostSim(dt) {
   }
 }
 function kartGuestApplyState(msg) {
+  if (!race) {
+    if (typeof msg.tr === 'number') kartTrackSel = msg.tr;
+    startKartRace(false);
+  }
   if (!race) return;
   race.phase = msg.ph || race.phase;
   race.countdown = msg.cd ?? race.countdown;
@@ -4096,7 +4259,7 @@ function kartTick(dt) {
     if (race.countdown <= 0) { race.phase = 'racing'; race.countdown = 0; showBanner('GO!', '#3f6'); sfx.win(); }
     if (mp.role === 'host' && mp.connected) {
       race.syncAcc = (race.syncAcc || 0) + dt;
-      if (race.syncAcc >= 0.05) { race.syncAcc = 0; kartBroadcastState(); }
+      if (race.syncAcc >= 0.04) { race.syncAcc = 0; kartBroadcastState(); }
     }
     return;
   }
@@ -4112,7 +4275,7 @@ function kartTick(dt) {
     kartHostSim(dt);
     if (mp.connected && mp.role === 'host') {
       race.syncAcc = (race.syncAcc || 0) + dt;
-      if (race.syncAcc >= 0.05) { race.syncAcc = 0; kartBroadcastState(); }
+      if (race.syncAcc >= 0.04) { race.syncAcc = 0; kartBroadcastState(); }
     }
   }
 }
@@ -4229,9 +4392,13 @@ function drawKart(t) {
   const me = race.karts[kartLocalIdx()];
   const laps = kartTrackLaps(race.track);
   const cpN = race.track.checkpoints.length;
-  if (me?.item) {
-    const meta = KART_ITEMS[me.item];
-    hud((meta?.icon || '') + ' ' + (meta?.name || me.item), 24, 78, meta?.color || UI.cyan, 14);
+  if (me) {
+    hud('VUELTA ' + Math.min(me.lap + 1, laps) + '/' + laps, 24, 38, UI.gold, 20);
+    hud((race.track.huge ? 'SECTOR ' : 'CP ') + (me.cp + 1) + '/' + cpN, 24, 58, UI.dim, 14);
+    if (me.item) {
+      const meta = KART_ITEMS[me.item];
+      hud((meta?.icon || '') + ' ' + (meta?.name || me.item), 24, 78, meta?.color || UI.cyan, 14);
+    }
   }
   hud(race.track.name, W / 2, 36, UI.bright, 22, 'center');
   if (race.track.huge) hud('~' + Math.round(race.track.length || 0) + ' m por vuelta', W / 2, 58, UI.cyan, 14, 'center');
@@ -4248,7 +4415,7 @@ function drawKart(t) {
   if (mp.connected) uiPill(W / 2 - 60, H - 36, 'ONLINE 1v1', UI.cyan);
   else if (race.solo) uiPill(W / 2 - 50, H - 36, 'VS CPU', UI.green);
   if (race.track.huge && me) kartDrawMiniMap(race.track, me, race.karts);
-  uiFooter('Flechas=Acelerar/Girar · Espacio=Drift · J=Turbo · Esc=Salir');
+  uiFooter('↑↓ Girar · Espacio=Drift turbo · J=Usar objeto · Esc=Salir');
   drawBanner();
 }
 function updateKartResults(dt) {
@@ -4306,7 +4473,7 @@ function updateKartMenu(dt) {
 function drawKartMenu(t) {
   uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
   uiTitle('KART RACE', 80, 52);
-  hud('Carreras en carretera · NFS y Gran Turismo', W / 2, 135, UI.cyan, 18, 'center');
+  hud('Carreras estilo Mario Kart · Drift, objetos y atajos', W / 2, 135, UI.cyan, 18, 'center');
   uiPanel(W / 2 - 240, 165, 480, 300, 18);
   for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 220 + i * 58, i === kartMenuSel, 420, 46, i);
   hud('Invita a un amigo o practica contra la CPU', W / 2, 500, UI.dim, 16, 'center');
@@ -4353,6 +4520,7 @@ function drawKartJoin(t) {
   const code = (mp.joinBuf + '______').slice(0, 6).split('').map((c, i) => mp.joinBuf[i] || '_').join(' ');
   uiTitle(code, 240, 64, mp.joinBuf.length === 6 ? UI.green : UI.gold);
   hud(mp.status || 'Toca el cuadro para escribir · 6 caracteres', W / 2, 320, UI.bright, 16, 'center');
+  if (mp.joinAttempt > 0 && !mp.connected) hud('Reintentando conexion...', W / 2, 290, UI.cyan, 14, 'center');
   if (mp.errMsg) hud(mp.errMsg, W / 2, 360, UI.red, 16, 'center');
   if (mp.connected) hud('Conectado — espera al anfitrion', W / 2, 400, UI.green, 17, 'center');
   uiFooter('Enter unirse · Esc volver');
