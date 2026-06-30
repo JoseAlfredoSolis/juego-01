@@ -1,11 +1,12 @@
 // Service worker for Super Bear Adventure (PWA).
 // Caches the game shell so it works offline once installed.
-const CACHE = 'super-bear-v20';
+const CACHE = 'super-bear-v21';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon.svg'
+  './icon.svg',
+  './peerjs.min.js'
 ];
 
 self.addEventListener('install', event => {

@@ -106,7 +106,13 @@ body.touch #touch { display: block; pointer-events: auto; }
   <div class="tbtn" id="bPause" data-code="Escape">II</div>
 </div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="peerjs.min.js"></script>
+<script>
+// Respaldo CDN si el archivo local no carga (cache vieja, etc.)
+if (typeof Peer === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');
+}
+</script>
 <script>
 // ── Constants ──────────────────────────────────────────────────────────────
 const GAME_VERSION = 'v20';
