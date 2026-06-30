@@ -7,18 +7,12 @@ using SuperBearAdventure.World;
 
 namespace SuperBearAdventure.Scenes
 {
-    /// <summary>
-    /// Core gameplay scene.
-    /// Orchestrates the player, level objects, camera, HUD, and win/lose transitions.
-    /// </summary>
     public sealed class GameplayScene : IScene
     {
-        // ── Events ─────────────────────────────────────────────────────────
         public event Action? OnPause;
         public event Action? OnLevelComplete;
         public event Action? OnGameOver;
 
-        // ── Scene state ────────────────────────────────────────────────────
         private Level        _level;
         private Player       _player;
         private Camera2D     _camera;
@@ -29,12 +23,13 @@ namespace SuperBearAdventure.Scenes
         private readonly int _levelIndex;
 
         private KeyboardState _prevKeys;
-
-        // Stomp detection constants
-        private const float StompThreshold = 6f; // min downward velocity to stomp
-
-        // Brief invulnerability after respawn
         private float _respawnTimer = 0f;
+        private float _levelTimer   = 0f;
+        private float _drawTime     = 0f;
+        private bool  _tookDamage;
+
+        private const float StompThreshold = 6f;
+        private const float MagnetRadius   = 140f;
 
         public GameplayScene(int screenW, int screenH, int world, int level)
         {
@@ -42,7 +37,6 @@ namespace SuperBearAdventure.Scenes
             _screenH    = screenH;
             _worldIndex = world;
             _levelIndex = level;
-
             LoadLevel();
             _prevKeys = Keyboard.GetState();
         }
@@ -50,25 +44,22 @@ namespace SuperBearAdventure.Scenes
         private void LoadLevel()
         {
             _level  = new Level(_worldIndex, _levelIndex);
-            _player = new Player(_level.PlayerStart)
-            {
-                Lives = GameManager.Instance.Lives,
-                Score = GameManager.Instance.Score,
-                Coins = GameManager.Instance.Coins,
-            };
+            _player = new Player(_level.PlayerStart);
             _camera = new Camera2D(_screenW, _screenH);
             _camera.Snap(_level.PlayerStart, _level.Width, _level.Height);
+            _levelTimer = 0f;
+            _tookDamage = false;
         }
-
-        // ── Update ─────────────────────────────────────────────────────────
 
         public void Update(GameTime gameTime)
         {
             float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            var   kb = Keyboard.GetState();
-            var   gm = GameManager.Instance;
+            _drawTime += dt;
+            _levelTimer += dt;
+            var kb = Keyboard.GetState();
+            var gm = GameManager.Instance;
+            float enemyMult = gm.EnemySpeedMultiplier();
 
-            // Pause
             if (IsPressed(kb, _prevKeys, Keys.Escape))
             {
                 OnPause?.Invoke();
@@ -79,50 +70,88 @@ namespace SuperBearAdventure.Scenes
 
             if (_respawnTimer > 0f) _respawnTimer -= dt;
 
-            // Update player
+            foreach (var h in _level.Hazards)
+                h.Update(dt, enemyMult);
+
+            if (gm.Magnet)
+                ApplyMagnet(dt);
+
             _player.Update(gameTime, _level.Platforms);
 
-            // Fell into a pit?
+            float maxX = _level.Width - _player.Bounds.Width;
+            if (_player.Position.X > maxX)
+                _player.Position = new Vector2(maxX, _player.Position.Y);
+
             if (_player.Position.Y > _level.Height + 50 && !_player.IsDead)
             {
-                _player.TakeDamage();
-                if (!_player.IsDead)
-                    RespawnPlayer();
+                DamagePlayer();
+                if (!_player.IsDead) RespawnPlayer();
             }
 
-            // Death animation done → game over
             if (_player.IsDead && _player.DeathAnimationDone)
             {
-                SyncToManager();
+                gm.Save();
                 OnGameOver?.Invoke();
                 return;
             }
 
-            // Update enemies (patrol, chasing)
             foreach (var enemy in _level.Enemies)
             {
                 if (!enemy.IsActive) continue;
-                enemy.ChasePlayer(_player.Position, gameTime);
-                enemy.Update(gameTime, _level.Platforms);
+                enemy.SpeedMult = enemyMult;
+                if (enemy is Boss boss)
+                {
+                    boss.SetTarget(_player.Position);
+                    boss.Update(gameTime, _level.Platforms);
+                }
+                else
+                {
+                    enemy.ChasePlayer(_player.Position, gameTime);
+                    enemy.Update(gameTime, _level.Platforms);
+                }
             }
-
-            // ── Collisions ─────────────────────────────────────────────────
 
             if (_respawnTimer <= 0f && !_player.IsDead)
             {
+                CheckCheckpoints();
                 CheckEnemyCollisions();
+                CheckHazards();
                 CheckCollectibles();
                 CheckPowerUps();
                 CheckGoal();
             }
 
-            // Camera
             _camera.Follow(
                 _player.Position + new Vector2(_player.Bounds.Width / 2f, _player.Bounds.Height / 2f),
                 _level.Width, _level.Height);
         }
 
-        // ── Collision helpers ──────────────────────────────────────────────
+        private void ApplyMagnet(float dt)
+        {
+            var center = _player.Position + new Vector2(_player.Bounds.Width / 2f, _player.Bounds.Height / 2f);
+            foreach (var c in _level.Collectibles)
+            {
+                if (c.IsCollected || c.Type != CollectibleType.Coin) continue;
+                var cp = c.Position + new Vector2(12, 12);
+                float dx = center.X - cp.X, dy = center.Y - cp.Y;
+                float dist = MathF.Sqrt(dx * dx + dy * dy);
+                if (dist > MagnetRadius || dist < 4f) continue;
+                float pull = 420f * dt;
+                c.Nudge(new Vector2(dx / dist * pull, dy / dist * pull));
+            }
+        }
+
+        private void CheckCheckpoints()
+        {
+            var pb = _player.Bounds;
+            foreach (var cp in _level.Checkpoints)
+            {
+                if (cp.Reached) continue;
+                if (!pb.Intersects(cp.Bounds)) continue;
+                cp.Reached = true;
+                _level.RespawnPoint = new Vector2(cp.Position.X - _player.Bounds.Width / 2f, cp.Position.Y - 10);
+            }
+        }
 
         private void CheckEnemyCollisions()
         {
@@ -133,39 +162,62 @@ namespace SuperBearAdventure.Scenes
                 var eb = enemy.Bounds;
                 if (!pb.Intersects(eb)) continue;
 
-                // Stomp: player's bottom edge overlaps enemy's top portion
                 bool stomp = _player.Velocity.Y >= StompThreshold &&
                              pb.Bottom <= eb.Top + eb.Height / 2 + 12;
 
                 if (stomp)
                 {
+                    bool wasBoss = enemy.Type == EnemyType.Boss;
                     enemy.Defeat();
-                    _player.Velocity = new Vector2(_player.Velocity.X, -420f); // bounce
-                    _player.Score   += enemy.Type == EnemyType.Boss ? 1000 : 100;
-                    GameManager.Instance.AddScore(enemy.Type == EnemyType.Boss ? 1000 : 100);
+                    _player.Velocity = new Vector2(_player.Velocity.X, -420f);
+                    GameManager.Instance.AddScore(wasBoss ? 1000 : 100);
+                    if (wasBoss) GameManager.Instance.UnlockAchievement(Achievements.BossSlayer);
                 }
                 else
                 {
-                    _player.TakeDamage();
+                    DamagePlayer();
                     if (!_player.IsDead) RespawnPlayer();
                 }
                 break;
             }
         }
 
+        private void CheckHazards()
+        {
+            if (_player.IsInvincible) return;
+            var pb = _player.Bounds;
+            foreach (var h in _level.Hazards)
+            {
+                if (!pb.Intersects(h.Bounds)) continue;
+                DamagePlayer();
+                if (!_player.IsDead) RespawnPlayer();
+                break;
+            }
+        }
+
+        private void DamagePlayer()
+        {
+            _tookDamage = true;
+            _player.TakeDamage();
+            GameManager.Instance.Save();
+        }
+
         private void CheckCollectibles()
         {
             var pb = _player.Bounds;
+            var gm = GameManager.Instance;
             foreach (var c in _level.Collectibles)
             {
                 if (c.IsCollected) continue;
                 if (!pb.Intersects(c.Bounds)) continue;
                 c.Collect();
-                int pts = c.ScoreValue;
-                _player.Score += pts;
-                _player.Coins += c.Type == CollectibleType.Coin ? 1 : 0;
-                GameManager.Instance.AddScore(pts);
-                GameManager.Instance.Coins = _player.Coins;
+                gm.AddScore(c.ScoreValue);
+                if (c.Type == CollectibleType.Coin)
+                {
+                    gm.Coins++;
+                    gm.AddWalletCoins(1);
+                    gm.UnlockAchievement(Achievements.FirstCoin);
+                }
             }
         }
 
@@ -183,137 +235,128 @@ namespace SuperBearAdventure.Scenes
 
         private void CheckGoal()
         {
+            if (IsBossBlockingGoal()) return;
             if (!_player.Bounds.Intersects(_level.Goal.Bounds)) return;
 
-            // Level complete!
-            int bonus = 500;
-            _player.Score += bonus;
-            GameManager.Instance.AddScore(bonus);
-            SyncToManager();
-            GameManager.Instance.MarkLevelCompleted(_worldIndex, _levelIndex);
+            var gm = GameManager.Instance;
+            gm.AddScore(500);
+            gm.MarkLevelCompleted(_worldIndex, _levelIndex);
+            if (!_tookDamage) gm.UnlockAchievement(Achievements.NoDamage);
+            if (_levelTimer < 20f) gm.UnlockAchievement(Achievements.SpeedRun);
             OnLevelComplete?.Invoke();
+        }
+
+        private bool IsBossBlockingGoal()
+        {
+            foreach (var enemy in _level.Enemies)
+                if (enemy.Type == EnemyType.Boss && enemy.IsActive) return true;
+            return false;
         }
 
         private void RespawnPlayer()
         {
-            _player.Reset(_level.PlayerStart);
-            _camera.Snap(_level.PlayerStart, _level.Width, _level.Height);
+            _player.Reset(_level.RespawnPoint);
+            _camera.Snap(_level.RespawnPoint, _level.Width, _level.Height);
             _respawnTimer = 1.5f;
-            SyncToManager();
+            GameManager.Instance.Save();
         }
-
-        private void SyncToManager()
-        {
-            var gm = GameManager.Instance;
-            gm.Lives = _player.Lives;
-            gm.Score = _player.Score;
-            gm.Coins = _player.Coins;
-        }
-
-        // ── Draw ──────────────────────────────────────────────────────────
 
         public void Draw(SpriteBatch sb, SpriteFont font)
         {
-            var camPos = _camera.Position;
+            float camLeft  = _camera.Position.X;
+            float camRight = camLeft + _screenW;
 
-            // --- World-space pass (with camera transform) ---
-            // Background (drawn in screen space before camera transform,
-            // then world elements with camera transform applied via Game1)
-            _level.DrawBackground(sb, camPos, _screenW, _screenH);
+            _level.DrawBackground(sb, _camera.Position, _screenW, _screenH);
 
-            // Platforms
+            sb.End();
+            sb.Begin(transformMatrix: _camera.GetTransform(), samplerState: SamplerState.PointClamp);
+
             foreach (var p in _level.Platforms)
             {
-                var sr = new Rectangle(
-                    p.Bounds.X - (int)camPos.X,
-                    p.Bounds.Y - (int)camPos.Y,
-                    p.Bounds.Width, p.Bounds.Height);
-                if (sr.Right < 0 || sr.X > _screenW) continue; // cull off-screen
-                DrawHelper.DrawRect(sb, sr, p.Color);
-                // Lighter top edge
-                DrawHelper.DrawRect(sb, sr.X, sr.Y, sr.Width, 4, DrawHelper.Brighten(p.Color, 50));
+                if (p.Bounds.Right < camLeft || p.Bounds.X > camRight) continue;
+                p.Draw(sb);
             }
 
-            // Goal flag
-            _level.Goal.Draw(sb, camPos);
+            foreach (var h in _level.Hazards)
+                h.Draw(sb);
 
-            // Collectibles
+            foreach (var cp in _level.Checkpoints)
+                cp.Draw(sb, _drawTime);
+
+            _level.Goal.Draw(sb, Vector2.Zero);
+
             foreach (var c in _level.Collectibles)
             {
                 if (c.IsCollected) continue;
-                var screenPos = c.Position - camPos;
-                if (screenPos.X < -30 || screenPos.X > _screenW + 30) continue;
-                // Draw at screen position
-                DrawCollectibleAt(sb, (int)screenPos.X, (int)screenPos.Y, c.Type);
+                if (c.Position.X < camLeft - 30 || c.Position.X > camRight + 30) continue;
+                c.Draw(sb);
             }
 
-            // Power-ups
             foreach (var pu in _level.PowerUps)
             {
                 if (pu.IsCollected) continue;
-                var screenPos = pu.Position - camPos;
-                if (screenPos.X < -50 || screenPos.X > _screenW + 50) continue;
-                DrawPowerUpAt(sb, (int)screenPos.X, (int)screenPos.Y, pu.Type);
+                if (pu.Position.X < camLeft - 50 || pu.Position.X > camRight + 50) continue;
+                pu.Draw(sb);
             }
 
-            // Enemies
             foreach (var e in _level.Enemies)
             {
                 if (!e.IsActive) continue;
-                e.Draw(sb, camPos);
+                e.Draw(sb, Vector2.Zero);
             }
 
-            // Player
-            _player.Draw(sb, camPos);
+            _player.Draw(sb, Vector2.Zero);
 
-            // --- HUD (screen space, no camera) ---
+            sb.End();
+            sb.Begin(samplerState: SamplerState.PointClamp);
+
             DrawHUD(sb, font);
 
-            // Respawn overlay
             if (_respawnTimer > 0.8f)
             {
                 int alpha = (int)((_respawnTimer - 0.8f) / 0.7f * 200);
                 DrawHelper.DrawRect(sb, 0, 0, _screenW, _screenH, new Color(0, 0, 0, alpha));
-                CenterText(sb, font, "RESPAWNING...", _screenW / 2, _screenH / 2 - 20, Color.White, 1f);
+                SceneHelpers.CenterText(sb, font, "RESPAWNING...", _screenW / 2, _screenH / 2 - 20, Color.White, 1f);
             }
         }
 
         private void DrawHUD(SpriteBatch sb, SpriteFont font)
         {
             var gm = GameManager.Instance;
-            // Semi-transparent bar at top
             DrawHelper.DrawRect(sb, 0, 0, _screenW, 50, new Color(0, 0, 0, 160));
 
-            // Lives: label + little heart icons
             sb.DrawString(font, "Lives:", new Vector2(20, 12), Color.LightCoral, 0f,
                 Vector2.Zero, 0.9f, SpriteEffects.None, 0f);
             for (int i = 0; i < _player.Lives; i++)
                 DrawHeart(sb, 110 + i * 26, 16);
 
-            // Score
-            CenterText(sb, font, $"Score: {_player.Score}", _screenW / 2, 12, Color.Gold, 0.9f);
-
-            // Coins
-            sb.DrawString(font, $"Coins: {_player.Coins}", new Vector2(_screenW - 200, 12),
+            CenterText(sb, font, $"Score: {gm.Score}", _screenW / 2, 12, Color.Gold, 0.9f);
+            sb.DrawString(font, $"Coins: {gm.Coins}", new Vector2(_screenW - 200, 12),
                 Color.Yellow, 0f, Vector2.Zero, 0.9f, SpriteEffects.None, 0f);
 
-            // World/Level
+            string diff = gm.Difficulty switch
+            {
+                DifficultyLevel.Easy => "FACIL",
+                DifficultyLevel.Hard => "DIFICIL",
+                _ => "NORMAL"
+            };
+            sb.DrawString(font, diff, new Vector2(_screenW - 100, _screenH - 35),
+                Color.LightGray, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
+
             sb.DrawString(font, $"W{_worldIndex + 1}-{_levelIndex + 1}", new Vector2(20, _screenH - 35),
                 Color.White, 0f, Vector2.Zero, 0.8f, SpriteEffects.None, 0f);
 
-            // Power-up timer bar
             if (_player.CurrentPowerUp != PowerUpType.None)
             {
-                string puName = _player.CurrentPowerUp.ToString().ToUpper();
-                Color  puCol  = _player.CurrentPowerUp switch
+                Color puCol = _player.CurrentPowerUp switch
                 {
                     PowerUpType.DoubleJump    => Color.Cyan,
                     PowerUpType.Speed         => Color.LimeGreen,
                     PowerUpType.Invincibility => Color.Gold,
                     _                          => Color.White
                 };
-                sb.DrawString(font, puName, new Vector2(_screenW - 200, _screenH - 50),
-                    puCol, 0f, Vector2.Zero, 0.8f, SpriteEffects.None, 0f);
+                sb.DrawString(font, _player.CurrentPowerUp.ToString().ToUpper(),
+                    new Vector2(_screenW - 200, _screenH - 50), puCol, 0f, Vector2.Zero, 0.8f, SpriteEffects.None, 0f);
                 int barW = 180;
                 float frac = MathHelper.Clamp(_player.PowerUpTimer / 10f, 0f, 1f);
                 DrawHelper.DrawRect(sb, _screenW - 200, _screenH - 26, barW, 12, Color.DarkGray);
@@ -322,61 +365,21 @@ namespace SuperBearAdventure.Scenes
             }
         }
 
-        // ── Mini draw helpers ──────────────────────────────────────────────
-
-        private static void DrawCollectibleAt(SpriteBatch sb, int x, int y, CollectibleType type)
-        {
-            if (type == CollectibleType.Star)
-            {
-                // Five-point-ish star approximated with rectangles
-                Color s = Color.Yellow;
-                DrawHelper.DrawRect(sb, x + 9,  y - 4, 6,  32, s); // vertical spike
-                DrawHelper.DrawRect(sb, x - 4,  y + 9, 32, 6,  s); // horizontal spike
-                DrawHelper.DrawRect(sb, x + 4,  y + 4, 16, 16, s); // core
-                DrawHelper.DrawRect(sb, x + 9,  y + 9, 6,  6,  Color.White);
-                return;
-            }
-
-            Color c = Color.Gold;
-            DrawHelper.DrawRect(sb, x + 6, y,      12, 24, c);
-            DrawHelper.DrawRect(sb, x,     y + 6,  24, 12, c);
-            DrawHelper.DrawRect(sb, x + 9, y + 9,  6,   6, Color.White);
-        }
-
         private static void DrawHeart(SpriteBatch sb, int x, int y)
         {
             Color c = Color.Crimson;
-            // Two bumps on top
-            DrawHelper.DrawRect(sb, x,     y,     6, 6, c);
-            DrawHelper.DrawRect(sb, x + 8, y,     6, 6, c);
-            // Body
-            DrawHelper.DrawRect(sb, x,     y + 4, 14, 6, c);
+            DrawHelper.DrawRect(sb, x, y, 6, 6, c);
+            DrawHelper.DrawRect(sb, x + 8, y, 6, 6, c);
+            DrawHelper.DrawRect(sb, x, y + 4, 14, 6, c);
             DrawHelper.DrawRect(sb, x + 2, y + 9, 10, 4, c);
             DrawHelper.DrawRect(sb, x + 5, y + 12, 4, 3, c);
         }
 
-        private static void DrawPowerUpAt(SpriteBatch sb, int x, int y, PowerUpType type)
-        {
-            Color c = type switch
-            {
-                PowerUpType.DoubleJump    => Color.Cyan,
-                PowerUpType.Speed         => Color.LimeGreen,
-                PowerUpType.Invincibility => Color.Gold,
-                _                          => Color.White
-            };
-            DrawHelper.DrawRect(sb, x, y, 30, 30, c);
-            DrawHelper.DrawOutline(sb, new Rectangle(x, y, 30, 30), Color.Black, 2);
-        }
-
         private static void CenterText(SpriteBatch sb, SpriteFont font,
             string text, int cx, int y, Color color, float scale)
-        {
-            sb.DrawString(font, text, new Vector2(cx, y), color, 0f,
-                new Vector2(font.MeasureString(text).X / 2f, 0f),
-                scale, SpriteEffects.None, 0f);
-        }
+            => SceneHelpers.CenterText(sb, font, text, cx, y, color, scale);
 
         private static bool IsPressed(KeyboardState c, KeyboardState p, Keys k)
-            => c.IsKeyDown(k) && !p.IsKeyDown(k);
+            => SceneHelpers.IsPressed(c, p, k);
     }
 }

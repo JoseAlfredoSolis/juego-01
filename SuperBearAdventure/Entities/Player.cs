@@ -20,10 +20,22 @@ namespace SuperBearAdventure.Entities
         private const float CoyoteTime         = 0.10f; // grace period to jump after leaving ground
         private const float JumpBufferTime     = 0.10f; // remembers a jump press just before landing
 
-        // ── Stats ──────────────────────────────────────────────────────────
-        public int         Lives          { get; set; } = 3;
-        public int         Score          { get; set; } = 0;
-        public int         Coins          { get; set; } = 0;
+        // ── Stats (delegated to GameManager) ───────────────────────────────
+        public int Lives
+        {
+            get => GameManager.Instance.Lives;
+            set => GameManager.Instance.Lives = value;
+        }
+        public int Score
+        {
+            get => GameManager.Instance.Score;
+            set => GameManager.Instance.Score = value;
+        }
+        public int Coins
+        {
+            get => GameManager.Instance.Coins;
+            set => GameManager.Instance.Coins = value;
+        }
         public PowerUpType CurrentPowerUp { get; private set; } = PowerUpType.None;
         public float       PowerUpTimer   { get; private set; } = 0f;
         public bool        IsInvincible   => _invincibleTimer > 0f;
@@ -39,6 +51,7 @@ namespace SuperBearAdventure.Entities
         private int   _animFrame       = 0;
         private bool  _isDead          = false;
         private float _deathTimer      = 0f;
+        private float _deathAlpha      = 1f;
 
         private KeyboardState _prevKeys;
 
@@ -57,13 +70,19 @@ namespace SuperBearAdventure.Entities
 
         public override void Update(GameTime gameTime, List<Platform> platforms)
         {
+            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+
             if (_isDead)
             {
-                _deathTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
+                _deathTimer += dt;
+                _deathAlpha  = MathF.Max(0f, 1f - _deathTimer / 1.4f);
+                Velocity = new Vector2(Velocity.X * 0.98f,
+                    MathF.Min(Velocity.Y + GravityAccel * dt, MaxFallSpeed));
+                Position = new Vector2(Position.X + Velocity.X * dt,
+                                       Position.Y + Velocity.Y * dt);
                 return;
             }
 
-            float dt  = (float)gameTime.ElapsedGameTime.TotalSeconds;
             var   kb  = Keyboard.GetState();
 
             // Timers
@@ -117,7 +136,7 @@ namespace SuperBearAdventure.Entities
 
             if (IsGrounded) _hasDoubleJumped = false;
 
-            // Clamp to left world edge
+            // Clamp to world edges
             if (Position.X < 0f) Position = new Vector2(0f, Position.Y);
 
             // Animation
@@ -169,6 +188,7 @@ namespace SuperBearAdventure.Entities
             IsGrounded       = false;
             _isDead          = false;
             _deathTimer      = 0f;
+            _deathAlpha      = 1f;
             _invincibleTimer = 0f;
             CurrentPowerUp   = PowerUpType.None;
             PowerUpTimer     = 0f;
@@ -182,18 +202,27 @@ namespace SuperBearAdventure.Entities
 
         public override void Draw(SpriteBatch sb, Vector2 camPos)
         {
-            if (_isDead) return;
-            // Flash during invincibility
-            if (IsInvincible && (int)(_invincibleTimer * 8) % 2 == 1) return;
+            if (_isDead && _deathAlpha <= 0f) return;
+            // Flash during invincibility (not while dying)
+            if (!_isDead && IsInvincible && (int)(_invincibleTimer * 8) % 2 == 1) return;
 
             int x = (int)(Position.X - camPos.X);
             int y = (int)(Position.Y - camPos.Y);
 
-            Color body    = Color.SaddleBrown;
-            Color snout   = new Color(210, 150, 110);
-            Color belly   = new Color(210, 160, 110);
-            Color black   = Color.Black;
-            Color noseCol = new Color(160, 60, 60);
+            float scale = _isDead ? MathF.Max(0.3f, 1f - _deathTimer * 0.5f) : 1f;
+            int drawW = (int)(Size.X * scale);
+            int drawH = (int)(Size.Y * scale);
+            int offX  = (int)((Size.X - drawW) / 2f);
+            int offY  = (int)((Size.Y - drawH) / 2f);
+            x += offX;
+            y += offY;
+
+            byte alpha = (byte)(255 * (_isDead ? _deathAlpha : 1f));
+            Color body    = new Color((byte)139, (byte)69, (byte)19, alpha);
+            Color snout   = new Color((byte)210, (byte)150, (byte)110, alpha);
+            Color belly   = new Color((byte)210, (byte)160, (byte)110, alpha);
+            Color black   = new Color((byte)0, (byte)0, (byte)0, alpha);
+            Color noseCol = new Color((byte)160, (byte)60, (byte)60, alpha);
 
             // Ears
             DrawHelper.DrawRect(sb, x + 2,  y - 8, 11, 11, body);

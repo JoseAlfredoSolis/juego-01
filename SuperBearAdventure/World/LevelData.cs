@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 
@@ -5,6 +6,7 @@ namespace SuperBearAdventure.World
 {
     // ── Data-only records ──────────────────────────────────────────────────
 
+    public sealed record HazardDef(int X, int Y, HazardType Type, int Param);
     public sealed record EnemyDef(Vector2 Position, EnemyType Type, float PatrolRange = 160f);
     public sealed record CollectibleDef(Vector2 Position, CollectibleType Type);
     public sealed record PowerUpDef(Vector2 Position, PowerUpType Type);
@@ -13,7 +15,7 @@ namespace SuperBearAdventure.World
     /// All static data that describes one level: dimensions, platforms,
     /// enemies, collectibles, power-ups, goal position, and visual theme.
     /// </summary>
-    public sealed class LevelData
+    public sealed partial class LevelData
     {
         public int           LevelWidth   { get; init; }
         public int           LevelHeight  { get; init; }
@@ -25,13 +27,11 @@ namespace SuperBearAdventure.World
         public List<EnemyDef>       Enemies      { get; init; } = new();
         public List<CollectibleDef> Collectibles { get; init; } = new();
         public List<PowerUpDef>     PowerUps     { get; init; } = new();
+        public List<HazardDef>      Hazards      { get; init; } = new();
 
-        // ── Factory ───────────────────────────────────────────────────────
-
-        /// <summary>Returns the level data for world (0-based) and level (0-based).</summary>
         public static LevelData Get(int world, int level)
         {
-            return (world, level) switch
+            var data = (world, level) switch
             {
                 (0, 0) => Forest1(),
                 (0, 1) => Forest2(),
@@ -42,8 +42,21 @@ namespace SuperBearAdventure.World
                 (2, 0) => Snow1(),
                 (2, 1) => Snow2(),
                 (2, 2) => Snow3(),
-                _      => Forest1()
+                (3, 0) => Lava1(),
+                (3, 1) => Lava2(),
+                (3, 2) => Lava3(),
+                (4, 0) => Sky1(),
+                (4, 1) => Sky2(),
+                (4, 2) => Sky3(),
+                (5, 0) => Valle1(),
+                (5, 1) => Valle2(),
+                (5, 2) => Valle3(),
+                _      => throw new ArgumentOutOfRangeException(
+                    nameof(world), world, $"Invalid world/level: {world},{level}")
             };
+            if (data.Hazards.Count == 0)
+                data.Hazards.AddRange(LevelHazards.Get(world, level));
+            return data;
         }
 
         // ====================================================================
