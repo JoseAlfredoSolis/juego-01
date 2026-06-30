@@ -266,12 +266,13 @@ function kartAIUseItem(k) {
 function kartRubberBandAI(k, tr) {
   if (!k.ai) return 1;
   kartRank();
+  const diff = kartDiff();
   const rank = k.rank || 2;
   const total = race.karts.length;
-  if (rank >= total) return 1.14;
+  if (rank >= total) return diff.catchupMul;
   if (rank === 1) {
-    if (Math.random() < 0.006) k.input.steer = -k.input.steer * 0.6;
-    return 0.9;
+    if (Math.random() < diff.errorRate) k.input.steer = -k.input.steer * 0.6;
+    return diff.leaderMul;
   }
   return 1;
 }

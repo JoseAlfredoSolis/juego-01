@@ -30,7 +30,8 @@ const KART_GLIDERS = [
 const KART_CUPS = [
   { name: 'COPA MUSHROOM', tracks: [0, 1, 2], color: '#e04040', icon: '🍄' },
   { name: 'COPA FLOR',     tracks: [1, 2, 3], color: '#40c040', icon: '🌸' },
-  { name: 'COPA ESTRELLA', tracks: [0, 2, 3], color: '#4080ff', icon: '⭐' },
+  { name: 'COPA ESTRELLA', tracks: [0, 2, 4], color: '#4080ff', icon: '⭐' },
+  { name: 'COPA NEBULA',   tracks: [3, 4, 1], color: '#a040ff', icon: '🌌' },
 ];
 const KART_CPU_NAMES = ['PEACH', 'BOWSER', 'TOAD', 'LUIGI', 'YOSHI', 'WARIO', 'WALUIGI'];
 
@@ -175,6 +176,7 @@ function kartSurfaceGripMod(tr, x, y, baseGrip) {
   if (surf === 'water') return { grip: baseGrip * 0.42, speedMul: 0.55, label: 'AGUA' };
   if (surf === 'offroad') return { grip: baseGrip * 0.65, speedMul: 0.72, label: null };
   if (surf === 'boost') return { grip: baseGrip * 1.05, speedMul: 1.0, label: null };
+  if (surf === 'antigrav') return { grip: baseGrip * 1.12, speedMul: 1.12, label: 'ANTIGRAVEDAD' };
   return { grip: baseGrip, speedMul: 1.0, label: null };
 }
 
