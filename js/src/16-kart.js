@@ -20,6 +20,7 @@ const KART_TRACKS = [
     accent: '#5ee0ff',
     decor: 'palm',
     roadWidth: 108,
+    surfaces: [{ uStart: 0.08, uEnd: 0.16, type: 'water' }, { uStart: 0.48, uEnd: 0.54, type: 'water' }],
     obstacleSpots: [{ u: 0.22, kind: 'rock' }, { u: 0.55, kind: 'crab' }, { u: 0.78, kind: 'rock' }],
     shortcuts: [{
       width: 76,
@@ -42,6 +43,7 @@ const KART_TRACKS = [
     accent: '#ffb060',
     decor: 'rock',
     roadWidth: 96,
+    surfaces: [{ uStart: 0.72, uEnd: 0.82, type: 'offroad' }],
     obstacleSpots: [{ u: 0.3, kind: 'rock' }, { u: 0.65, kind: 'crab' }],
     path: [
       { x: 140, y: 380 }, { x: 260, y: 290 }, { x: 420, y: 200 }, { x: 620, y: 170 },
@@ -151,10 +153,17 @@ function kartLayoutTrack(tr) {
   }
   const st = kartPathTangent(tr, 0.004);
   const nx = -Math.sin(st.angle) * 26, ny = Math.cos(st.angle) * 26;
-  tr.starts = [
-    { x: st.x - nx, y: st.y - ny, a: st.angle },
-    { x: st.x + nx, y: st.y + ny, a: st.angle },
-  ];
+  const cols = [-78, -26, 26, 78], rows = [-44, 44];
+  tr.starts = [];
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < cols.length; c++) {
+      tr.starts.push({
+        x: st.x + Math.cos(st.angle) * rows[r] + nx * (cols[c] / 26),
+        y: st.y + Math.sin(st.angle) * rows[r] + ny * (cols[c] / 26),
+        a: st.angle,
+      });
+    }
+  }
   const itemUs = tr.huge
     ? [0.07, 0.14, 0.22, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.86, 0.93]
     : [0.14, 0.36, 0.58, 0.80];
@@ -472,32 +481,88 @@ function kartPushToTrack(tr, k) {
   k.speed *= 0.45;
   spawnParticles(k.x, k.y, '#ccc', 8, 220);
 }
-function mkKart(idx, tr, solo) {
+function mkKart(idx, tr, cfg) {
   const st = tr.starts[idx] || tr.starts[0];
-  const isHost = idx === 0;
-  const isAI = solo && idx === 1;
+  const stats = kartBuildStats(cfg.char, cfg.chassis, cfg.wheels, cfg.glider);
   return {
     idx, x: st.x, y: st.y, angle: st.a, speed: 0,
     lap: 0, cp: 0, boost: 0, drift: 0, driftCharge: 0,
-    item: null, shieldTimer: 0, stunTimer: 0,
+    item: null, shieldTimer: 0, stunTimer: 0, starTimer: 0,
     finished: false, finishTime: 0, rank: 0,
-    char: isHost ? gs.character : (isAI ? 1 : mp.remoteChar),
-    name: isHost ? (CHARACTERS[gs.character] || CHARACTERS[0]).name
-      : (isAI ? 'CPU' : mp.remoteName),
-    ai: isAI,
+    char: cfg.char,
+    name: cfg.name,
+    ai: !!cfg.ai,
+    stats,
+    slipstream: 0, slipstreamUsed: false,
+    startBoostAttempt: false, pendingStartBoost: 0,
+    chassis: cfg.chassis || 0, wheels: cfg.wheels || 0, glider: cfg.glider || 0,
     input: { steer: 0, accel: 0, brake: 0, drift: false, useItem: false },
   };
+}
+function kartBuildRoster(solo) {
+  const roster = [];
+  if (solo) {
+    const pc = kartSelectDriver ?? gs.character;
+    roster.push({
+      char: pc,
+      name: (CHARACTERS[pc] || CHARACTERS[0]).name,
+      ai: false,
+      chassis: kartSelectChassis || 0,
+      wheels: kartSelectWheels || 0,
+      glider: kartSelectGlider || 0,
+    });
+  } else if (mp.role === 'host') {
+    const hc = kartSelectDriver ?? gs.character;
+    roster.push({
+      char: hc,
+      name: (CHARACTERS[hc] || CHARACTERS[0]).name,
+      ai: false,
+      chassis: kartSelectChassis || 0,
+      wheels: kartSelectWheels || 0,
+      glider: kartSelectGlider || 0,
+    });
+    if (mp.connected) {
+      roster.push({
+        char: mp.remoteChar ?? 1,
+        name: mp.remoteName || 'RIVAL',
+        ai: false,
+        chassis: 0, wheels: 0, glider: 0,
+      });
+    }
+  } else if (mp.role === 'guest') {
+    roster.push({
+      char: mp.remoteChar ?? 0,
+      name: mp.remoteName || 'ANFITRION',
+      ai: false,
+      chassis: 0, wheels: 0, glider: 0,
+    });
+    roster.push({
+      char: gs.character,
+      name: (CHARACTERS[gs.character] || CHARACTERS[0]).name,
+      ai: false,
+      chassis: 0, wheels: 0, glider: 0,
+    });
+  }
+  const playerChar = mp.role === 'guest' ? gs.character : (kartSelectDriver ?? gs.character);
+  const rivalChar = mp.connected && !solo
+    ? (mp.role === 'guest' ? gs.character : mp.remoteChar)
+    : null;
+  const cpus = kartCpuRoster(playerChar, rivalChar);
+  for (const c of cpus) roster.push({ ...c, ai: true });
+  return roster.slice(0, KART_RACER_COUNT);
 }
 function startKartRace(solo) {
   const tr = KART_TRACKS[kartTrackSel];
   tr.items.forEach(b => { b.taken = false; });
-  const count = solo ? 2 : (mp.connected ? 2 : 1);
+  const roster = kartBuildRoster(solo);
   race = {
-    track: tr, solo: !!solo, phase: 'countdown', countdown: 3.5,
+    track: tr, solo: !!solo, phase: 'countdown', countdown: 4.5,
     timer: 0, karts: [],
     itemCd: 0, camX: tr.starts[0].x, camY: tr.starts[0].y, camAngle: 0, syncAcc: 0,
+    cupRace: kartCupState ? kartCupState.raceIdx + 1 : 0,
+    cupTotal: kartCupState ? kartCupState.cup.tracks.length : 0,
   };
-  for (let i = 0; i < count; i++) race.karts.push(mkKart(i, tr, solo));
+  for (let i = 0; i < roster.length; i++) race.karts.push(mkKart(i, tr, roster[i]));
   kartInitRaceExtras(tr);
   kartResultsT = 0;
   sfx.select();
@@ -543,6 +608,13 @@ function kartAIInput(k, tr) {
 }
 function kartSimKart(k, dt, tr) {
   if (k.finished) return;
+  if (race.phase === 'countdown') {
+    if (!k.ai && k.idx === kartLocalIdx()) kartCheckStartBoost(k);
+    k.speed = 0;
+    return;
+  }
+  if (k.pendingStartBoost) kartApplyStartBoost(k);
+  kartUpdateSlipstream(k, dt);
   if (k.stunTimer > 0) {
     k.stunTimer -= dt;
     k.speed *= 0.92;
@@ -551,19 +623,32 @@ function kartSimKart(k, dt, tr) {
     return;
   }
   if (k.shieldTimer > 0) k.shieldTimer -= dt;
+  if (k.starTimer > 0) {
+    k.starTimer -= dt;
+    k.boost = Math.max(k.boost, 160);
+    if (Math.random() < 0.3) spawnParticles(k.x, k.y, '#ffd700', 2, 80);
+  }
   const inp = k.input;
-  const grip = kartGrip(tr, k.x, k.y, k.angle);
-  let turn = KART_TURN * grip * (0.4 + 0.6 * Math.min(1, Math.abs(k.speed) / 260));
+  const st = k.stats || kartBuildStats(k.char, k.chassis, k.wheels, k.glider);
+  let grip = kartGrip(tr, k.x, k.y, k.angle) * (st.grip || 1);
+  const surf = kartSurfaceGripMod(tr, k.x, k.y, grip);
+  grip = surf.grip;
+  if (surf.label && !k._surfWarn) {
+    k._surfWarn = 0.5;
+    spawnText(k.x, k.y - 18, surf.label, '#48f', 13);
+  }
+  if (k._surfWarn > 0) k._surfWarn -= dt;
+  let turn = KART_TURN * grip * (st.handling || 1) * (0.4 + 0.6 * Math.min(1, Math.abs(k.speed) / 260));
   if (inp.drift && inp.steer) turn *= 1.4;
   if (inp.steer) k.angle += inp.steer * turn * dt;
   let target = 0;
   const aiMul = k._aiMul || 1;
-  const topSpd = (tr.huge ? KART_MAX_SPEED * 1.1 : KART_MAX_SPEED) * aiMul;
+  const topSpd = (tr.huge ? KART_MAX_SPEED * 1.1 : KART_MAX_SPEED) * (st.topSpeed || 1) * aiMul * (surf.speedMul || 1);
   const maxSpd = topSpd * (0.74 + grip * 0.26);
   if (inp.accel) target = maxSpd + k.boost;
   if (inp.brake) target = -140;
   if (k.boost > 0) { k.boost -= dt * 130; if (k.boost < 0) k.boost = 0; }
-  const accel = KART_ACCEL * (0.7 + grip * 0.3) * (inp.accel ? 1 : 0.85);
+  const accel = KART_ACCEL * (st.accel || 1) * (0.7 + grip * 0.3) * (inp.accel ? 1 : 0.85);
   if (k.speed < target) k.speed = Math.min(target, k.speed + accel * dt);
   else k.speed = Math.max(target, k.speed - (inp.brake ? KART_BRAKE : KART_FRICTION * (1.05 - grip * 0.2)) * dt);
   if (inp.drift && inp.steer && Math.abs(k.speed) > 140) {
@@ -644,11 +729,11 @@ function kartHostSim(dt) {
   kartUpdateObstacles(dt, race.track);
   kartUpdateHazards(dt);
   kartUpdateProjectiles(dt);
+  kartUpdateBlueShells(dt);
+  const localIdx = kartLocalIdx();
   for (const k of race.karts) {
-    if (k.idx === 0 || (race.solo && k.ai)) {
-      if (k.ai) kartAIInput(k, race.track);
-      else kartReadInput(k);
-    }
+    if (k.ai) kartAIInput(k, race.track);
+    else if (k.idx === localIdx || (race.solo && k.idx === 0)) kartReadInput(k);
     kartSimKart(k, dt, race.track);
   }
   kartRank();
@@ -656,6 +741,20 @@ function kartHostSim(dt) {
   if (allDone && race.phase === 'racing') {
     race.phase = 'done';
     if (mp.connected && mp.role === 'host') { kartBroadcastState(); mpHostBroadcast(); }
+    kartOnRaceFinished();
+  }
+}
+function kartOnRaceFinished() {
+  if (kartCupState && kartRaceMode === 'cup') {
+    if (kartCupAdvance()) {
+      setTimeout(() => {
+        startKartRace(true);
+        changeScene('kart');
+      }, 2200);
+    } else {
+      setTimeout(() => changeScene('kartcupresults'), 1200);
+    }
+  } else {
     setTimeout(() => changeScene('kartresults'), 1200);
   }
 }
@@ -718,7 +817,19 @@ function kartTick(dt) {
   if (!race || gs.scene !== 'kart') return;
   if (race.phase === 'countdown') {
     race.countdown -= dt;
-    if (race.countdown <= 0) { race.phase = 'racing'; race.countdown = 0; showBanner('GO!', '#3f6'); sfx.win(); }
+    const localIdx = kartLocalIdx();
+    const me = race.karts[localIdx];
+    if (me) {
+      if (!me.ai) kartReadInput(me);
+      kartCheckStartBoost(me);
+    }
+    if (race.countdown <= 0) {
+      race.phase = 'racing';
+      race.countdown = 0;
+      for (const k of race.karts) kartApplyStartBoost(k);
+      showBanner('GO!', '#3f6');
+      sfx.win();
+    }
     if (mp.role === 'host' && mp.connected) {
       race.syncAcc = (race.syncAcc || 0) + dt;
       if (race.syncAcc >= 0.04) { race.syncAcc = 0; kartBroadcastState(); }
@@ -779,9 +890,11 @@ function drawKartTrack(tr, t) {
   kartDrawTrackDecor(tr, t || 0, false);
   kartDrawRoadRibbon(tr, t || 0, false);
   kartDrawShortcuts(tr, t || 0);
+  kartDrawWaterZones(tr, t || 0);
   kartDrawObstacles(tr, t || 0);
   kartDrawHazards(tr);
   kartDrawProjectiles(tr);
+  kartDrawBlueShells();
   kartDrawStartLine(tr, t || 0);
   kartDrawCheckpoints(tr);
   kartDrawItemBoxes(tr, t || 0);
@@ -790,7 +903,7 @@ function drawKartEntity(k, tr) {
   const sp = kartToScreen(k.x, k.y);
   const px = sp.x, py = sp.y;
   const visAngle = k.angle - (race.camAngle || 0);
-  const col = ['#e33', '#33e', '#3e3', '#ee3'][k.idx % 4];
+  const col = ['#e33', '#33e', '#3e3', '#ee3', '#e3e', '#3ee', '#f83', '#8af'][k.idx % 8];
   if (k.driftCharge > 0.2 && Math.abs(k.speed) > 120) {
     ctx.fillStyle = tr.accent || '#ff0';
     for (let i = 0; i < 3; i++) {
@@ -821,8 +934,9 @@ function drawKartEntity(k, tr) {
     ctx.fillStyle = '#ff8800';
     ctx.beginPath(); ctx.moveTo(-24, 0); ctx.lineTo(-34, -5); ctx.lineTo(-34, 5); ctx.closePath(); ctx.fill();
   }
-  if (k.shieldTimer > 0) {
-    ctx.strokeStyle = 'rgba(100,200,255,0.75)'; ctx.lineWidth = 3;
+  if (k.shieldTimer > 0 || k.starTimer > 0) {
+    ctx.strokeStyle = k.starTimer > 0 ? 'rgba(255,215,0,0.85)' : 'rgba(100,200,255,0.75)';
+    ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.stroke();
   }
   ctx.restore();
@@ -842,8 +956,9 @@ function drawKartEntity(k, tr) {
     const col = k.driftCharge > 0.85 ? '#f0f' : k.driftCharge > 0.6 ? '#f80' : '#ff0';
     fillRR(px - barW / 2, py + 32, barW * Math.min(1, k.driftCharge), 6, 3, col);
   }
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
-  ctx.fillText(k.name, px, py + 28);
+  kartDrawSlipstreamBar(k, px, py);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(k.name, px, py + 44);
 }
 function drawKart(t) {
   if (!race) return;
@@ -863,19 +978,18 @@ function drawKart(t) {
     }
   }
   hud(race.track.name, W / 2, 36, UI.bright, 22, 'center');
-  if (race.track.huge) hud('~' + Math.round(race.track.length || 0) + ' m por vuelta', W / 2, 58, UI.cyan, 14, 'center');
+  if (race.cupTotal > 0) hud('COPA · Carrera ' + race.cupRace + '/' + race.cupTotal, W / 2, 58, UI.gold, 15, 'center');
+  else if (race.track.huge) hud('~' + Math.round(race.track.length || 0) + ' m por vuelta', W / 2, 58, UI.cyan, 14, 'center');
   else if (race.phase === 'racing') hud(race.timer.toFixed(1) + 's', W / 2, 58, UI.cyan, 16, 'center');
   if (race.track.huge && race.phase === 'racing') hud(race.timer.toFixed(1) + 's', W / 2, 76, UI.dim, 13, 'center');
-  if (race.phase === 'countdown') {
-    const n = Math.ceil(race.countdown);
-    uiTitle(n > 0 ? '' + n : 'GO!', H / 2, n > 0 ? 120 : 80, n > 0 ? UI.gold : UI.green);
-  }
-  fillRR(W - 208, 8, 200, 56, 12, 'rgba(8,12,20,0.85)');
+  if (race.phase === 'countdown') kartDrawTrafficLights(t);
+  const lbH = Math.min(200, 24 + race.karts.length * 16);
+  fillRR(W - 208, 8, 200, lbH, 12, 'rgba(8,12,20,0.85)');
   race.karts.slice().sort((a, b) => a.rank - b.rank).forEach((k, i) => {
-    hud((k.rank || i + 1) + '. ' + k.name + (k.finished ? ' ✓' : ''), W - 108, 24 + i * 18, k.idx === kartLocalIdx() ? UI.gold : UI.bright, 14, 'center');
+    hud((k.rank || i + 1) + '. ' + k.name + (k.finished ? ' ✓' : ''), W - 108, 24 + i * 16, k.idx === kartLocalIdx() ? UI.gold : UI.bright, 12, 'center');
   });
-  if (mp.connected) uiPill(W / 2 - 60, H - 36, 'ONLINE 1v1', UI.cyan);
-  else if (race.solo) uiPill(W / 2 - 50, H - 36, 'VS CPU', UI.green);
+  if (mp.connected) uiPill(W / 2 - 70, H - 36, 'ONLINE 8K', UI.cyan);
+  else if (race.solo) uiPill(W / 2 - 65, H - 36, '8 CORREDORES', UI.green);
   if (race.track.huge && me) kartDrawMiniMap(race.track, me, race.karts);
   uiFooter('↑↓ Girar · Espacio=Drift turbo · J=Usar objeto · Esc=Salir');
   drawBanner();
@@ -892,25 +1006,27 @@ function drawKartResults() {
   uiBgGrad('#0a1420', '#1a2840');
   uiTitle('RESULTADOS', 80, 44);
   if (!race) { uiFooter('Enter para volver'); return; }
-  uiPanel(W / 2 - 300, 130, 600, 380, 20);
+  uiPanel(W / 2 - 300, 110, 600, 420, 20);
   const sorted = [...race.karts].sort((a, b) => a.rank - b.rank);
   sorted.forEach((k, i) => {
-    const y = 180 + i * 72;
-    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
-    ctx.font = 'bold 28px monospace'; ctx.textAlign = 'left';
+    const y = 155 + i * 46;
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.';
+    ctx.font = 'bold 22px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = i === 0 ? UI.gold : UI.bright;
     ctx.fillText(medal + '  ' + k.name, W / 2 - 260, y);
-    ctx.font = '18px monospace'; ctx.fillStyle = UI.dim;
+    ctx.font = '16px monospace'; ctx.fillStyle = UI.cyan;
+    ctx.fillText('+' + (KART_POINTS[i] || 1) + ' pts', W / 2 + 60, y);
+    ctx.font = '16px monospace'; ctx.fillStyle = UI.dim;
     const time = k.finished ? k.finishTime.toFixed(2) + 's' : 'DNF';
-    ctx.fillText(time, W / 2 + 80, y);
+    ctx.fillText(time, W / 2 + 160, y);
   });
   const winner = sorted[0];
-  if (winner) hud('Ganador: ' + winner.name + '!', W / 2, 480, UI.gold, 24, 'center');
+  if (winner) hud('Ganador: ' + winner.name + '!', W / 2, 560, UI.gold, 24, 'center');
   uiFooter('Enter / Esc para volver');
 }
 
 // ── Kart menu / lobby scenes ─────────────────────────────────────────────────
-const kartMenuItems = ['CREAR CARRERA', 'UNIRSE A CARRERA', 'CARRERA SOLO', 'VOLVER'];
+const kartMenuItems = ['COPA KART', 'CARRERA RAPIDA', 'CREAR CARRERA', 'UNIRSE A CARRERA', 'VOLVER'];
 
 function updateKartMenu(dt) {
   mobBindMenu(() => kartMenuSel, v => { kartMenuSel = v; });
@@ -926,19 +1042,28 @@ function updateKartMenu(dt) {
   if (pressed('Enter') || pressed('Space')) {
     sfx.select();
     const it = kartMenuItems[kartMenuSel];
-    if (it === 'CREAR CARRERA') { mp.gameMode = 'kart'; mpHostCreate(); changeScene('kartcreate'); mp.createT = 0; }
+    if (it === 'COPA KART') { mp.gameMode = 'kart'; kartRaceMode = 'cup'; changeScene('kartcup'); }
+    else if (it === 'CARRERA RAPIDA') {
+      mp.gameMode = 'kart'; kartRaceMode = 'single';
+      kartSelectDriver = gs.character;
+      changeScene('kartselect');
+    }
+    else if (it === 'CREAR CARRERA') {
+      mp.gameMode = 'kart'; kartRaceMode = 'online';
+      kartSelectDriver = gs.character;
+      mpHostCreate(); changeScene('kartselect'); mp.createT = 0;
+    }
     else if (it === 'UNIRSE A CARRERA') { mp.gameMode = 'kart'; mp.joinBuf = ''; mp.errMsg = ''; changeScene('kartjoin'); }
-    else if (it === 'CARRERA SOLO') { mp.gameMode = 'kart'; startKartRace(true); changeScene('kart'); }
     else if (it === 'VOLVER') { mpDisconnect(); changeScene('menu'); }
   }
 }
 function drawKartMenu(t) {
   uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
-  uiTitle('KART RACE', 80, 52);
-  hud('Carreras estilo Mario Kart · Drift, objetos y atajos', W / 2, 135, UI.cyan, 18, 'center');
-  uiPanel(W / 2 - 240, 165, 480, 300, 18);
-  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 220 + i * 58, i === kartMenuSel, 420, 46, i);
-  hud('Invita a un amigo o practica contra la CPU', W / 2, 500, UI.dim, 16, 'center');
+  uiTitle('MARIO KART', 80, 52);
+  hud('8 corredores · Copa · Drift · Objetos · Rebufo · Salida con boost', W / 2, 130, UI.cyan, 16, 'center');
+  uiPanel(W / 2 - 240, 155, 480, 340, 18);
+  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 200 + i * 52, i === kartMenuSel, 420, 44, i);
+  hud('Personaliza piloto, chasis, ruedas y planeador', W / 2, 520, UI.dim, 15, 'center');
   uiFooter('Enter · Esc volver');
 }
 function updateKartCreate(dt) {
@@ -1014,6 +1139,7 @@ function updateKartLobby(dt) {
       startKartRace(false);
       changeScene('kart');
     } else {
+      kartRaceMode = 'single';
       startKartRace(true);
       changeScene('kart');
     }

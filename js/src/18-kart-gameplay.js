@@ -3,9 +3,12 @@ const KART_ITEMS = {
   boost:     { name: 'TURBO',     icon: '⚡', color: '#ff8800' },
   banana:    { name: 'BANANA',    icon: '🍌', color: '#ffe040' },
   shell:     { name: 'CAPARAZON', icon: '🐚', color: '#40c878' },
+  blueshell: { name: 'AZUL',      icon: '🔵', color: '#3080ff' },
   lightning: { name: 'RAYO',      icon: '⚡', color: '#aaccff' },
   shield:    { name: 'ESCUDO',    icon: '🛡', color: '#66ccff' },
   coin:      { name: 'MONEDA',    icon: '🪙', color: '#ffd700' },
+  star:      { name: 'ESTRELLA',  icon: '⭐', color: '#ffd700' },
+  mushroom:  { name: 'CHAMPIÑON', icon: '🍄', color: '#e04040' },
 };
 
 function kartRollItem(k) {
@@ -16,25 +19,30 @@ function kartRollItem(k) {
   const last = rank >= total;
   const r = Math.random();
   if (rank === 1) {
-    if (r < 0.38) return 'shield';
-    if (r < 0.72) return 'banana';
-    return 'coin';
+    if (r < 0.32) return 'shield';
+    if (r < 0.58) return 'banana';
+    if (r < 0.78) return 'coin';
+    return 'mushroom';
   }
   if (last) {
-    if (r < 0.28) return 'lightning';
-    if (r < 0.58) return 'shell';
-    if (r < 0.86) return 'boost';
+    if (r < 0.18) return 'lightning';
+    if (r < 0.32) return 'blueshell';
+    if (r < 0.55) return 'shell';
+    if (r < 0.78) return 'boost';
+    if (r < 0.92) return 'star';
     return 'banana';
   }
-  if (r < 0.34) return 'boost';
-  if (r < 0.58) return 'shell';
-  if (r < 0.78) return 'banana';
+  if (r < 0.28) return 'boost';
+  if (r < 0.48) return 'shell';
+  if (r < 0.65) return 'banana';
+  if (r < 0.80) return 'mushroom';
   return 'coin';
 }
 
 function kartInitRaceExtras(tr) {
   race.hazards = [];
   race.projectiles = [];
+  race.blueShells = [];
   race.obstacles = [];
   if (!tr.obstacleSpots) return;
   for (const spot of tr.obstacleSpots) {
@@ -59,7 +67,7 @@ function kartUpdateObstacles(dt, tr) {
     ob.y = kartPathSample(tr, ob.u).y + Math.sin(tg.angle + Math.PI / 2) * lane;
     ob.angle = tg.angle;
     for (const k of race.karts) {
-      if (k.finished || k.shieldTimer > 0) continue;
+      if (k.finished || k.shieldTimer > 0 || k.starTimer > 0) continue;
       if (Math.hypot(k.x - ob.x, k.y - ob.y) < 28) {
         k.speed *= 0.35;
         k.stunTimer = Math.max(k.stunTimer || 0, 0.6);
@@ -77,7 +85,7 @@ function kartUpdateHazards(dt) {
     h.life -= dt;
     if (h.life <= 0) { race.hazards.splice(i, 1); continue; }
     for (const k of race.karts) {
-      if (k.finished || k.idx === h.owner || k.shieldTimer > 0) continue;
+      if (k.finished || k.idx === h.owner || k.shieldTimer > 0 || k.starTimer > 0) continue;
       if (Math.hypot(k.x - h.x, k.y - h.y) < 22) {
         k.speed *= 0.4;
         k.stunTimer = Math.max(k.stunTimer || 0, 1.1);
@@ -102,7 +110,7 @@ function kartUpdateProjectiles(dt) {
     let hit = false;
     for (const k of race.karts) {
       if (k.finished || k.idx === p.owner) continue;
-      if (k.shieldTimer > 0) {
+      if (k.shieldTimer > 0 || k.starTimer > 0) {
         if (Math.hypot(k.x - p.x, k.y - p.y) < 30) {
           spawnRing(k.x, k.y, '#66ccff', 50, 0.3);
           hit = true; break;
@@ -146,6 +154,16 @@ function kartUseItem(k, tr) {
       angle: k.angle, speed: 520, life: 3.5, owner: k.idx,
     });
     sfx.power();
+  } else if (it === 'blueshell') {
+    kartRank();
+    const leader = race.karts.find(o => o.rank === 1 && o.idx !== k.idx);
+    if (leader) {
+      race.blueShells.push({
+        x: k.x, y: k.y, target: leader.idx, speed: 380, life: 12, owner: k.idx, phase: 0,
+      });
+      showBanner('CAPARAZON AZUL!', '#3080ff');
+    }
+    sfx.power();
   } else if (it === 'lightning') {
     for (const o of race.karts) {
       if (o.idx === k.idx || o.finished) continue;
@@ -166,6 +184,69 @@ function kartUseItem(k, tr) {
     k.boost = 80;
     spawnText(k.x, k.y - 16, '+VELOCIDAD', meta.color, 13);
     sfx.coin();
+  } else if (it === 'mushroom') {
+    k.boost = 200;
+    spawnRing(k.x, k.y, '#e04040', 60, 0.35);
+    spawnText(k.x, k.y - 20, 'CHAMPIÑON!', '#e04040', 14);
+    sfx.power();
+  } else if (it === 'star') {
+    k.starTimer = 8;
+    k.boost = 180;
+    spawnRing(k.x, k.y, '#ffd700', 80, 0.45);
+    showBanner('ESTRELLA!', '#ffd700');
+    sfx.power();
+  }
+}
+
+function kartUpdateBlueShells(dt) {
+  if (!race?.blueShells) return;
+  kartRank();
+  for (let i = race.blueShells.length - 1; i >= 0; i--) {
+    const p = race.blueShells[i];
+    p.life -= dt;
+    p.phase += dt * 8;
+    if (p.life <= 0) { race.blueShells.splice(i, 1); continue; }
+    let target = race.karts.find(o => o.idx === p.target && !o.finished);
+    if (!target) target = race.karts.find(o => o.rank === 1 && !o.finished && o.idx !== p.owner);
+    if (!target) { race.blueShells.splice(i, 1); continue; }
+    p.target = target.idx;
+    const dx = target.x - p.x, dy = target.y - p.y;
+    const dist = Math.hypot(dx, dy);
+    const want = Math.atan2(dy, dx);
+    p.angle = want;
+    const spd = p.speed + Math.sin(p.phase) * 40;
+    p.x += Math.cos(want) * spd * dt;
+    p.y += Math.sin(want) * spd * dt;
+    if (dist < 30) {
+      if (target.shieldTimer > 0 || target.starTimer > 0) {
+        spawnRing(target.x, target.y, '#66ccff', 60, 0.35);
+      } else {
+        target.speed *= 0.1;
+        target.stunTimer = Math.max(target.stunTimer || 0, 2.5);
+        spawnParticles(p.x, p.y, '#3080ff', 20, 250);
+        addShake(0.2);
+        showBanner('GOLPE AZUL!', '#3080ff');
+        sfx.hurt();
+      }
+      race.blueShells.splice(i, 1);
+    }
+  }
+}
+
+function kartDrawBlueShells() {
+  if (!race?.blueShells) return;
+  for (const p of race.blueShells) {
+    const sp = kartToScreen(p.x, p.y);
+    ctx.fillStyle = '#2060e0';
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#aaf'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff';
+    for (let s = 0; s < 3; s++) {
+      const a = p.phase + s * 2.1;
+      ctx.beginPath();
+      ctx.arc(sp.x + Math.cos(a) * 16, sp.y + Math.sin(a) * 16, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 }
 
@@ -173,10 +254,11 @@ function kartAIUseItem(k) {
   if (!k.item || !k.ai) return;
   kartRank();
   const rank = k.rank || 2;
-  if (k.item === 'lightning' || k.item === 'shell') {
-    if (rank >= 2) { k.input.useItem = true; return; }
+  if (k.item === 'lightning' || k.item === 'shell' || k.item === 'blueshell') {
+    if (rank >= 3) { k.input.useItem = true; return; }
   }
   if (k.item === 'boost' && k.speed < KART_MAX_SPEED * 0.7) k.input.useItem = true;
+  if (k.item === 'mushroom' || k.item === 'star') k.input.useItem = true;
   if (k.item === 'banana' && rank === 1 && Math.random() < 0.02) k.input.useItem = true;
   if (k.item === 'shield' && rank === 1 && Math.random() < 0.015) k.input.useItem = true;
 }

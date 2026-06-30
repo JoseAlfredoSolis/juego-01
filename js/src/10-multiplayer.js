@@ -222,7 +222,7 @@ function mpGuestJoin(code){
 function mpHostBroadcast(){
   if(!mp.active||mp.role!=='host'||!mp.connected) return;
   const syncScenes=['worldmap','gameplay','pause','levelcomplete','gameover','victory','charselect',
-    'kartlobby','kart','kartresults'];
+    'kartlobby','kart','kartresults','kartcupresults'];
   if(!syncScenes.includes(gs.scene)) return;
   const payload={t:'scene', scene:gs.scene, world:gs.world, level:gs.level,
     lives:gs.lives, score:gs.score, coins:gs.coins, wmSel, wmLvl, char:gs.character,
@@ -239,10 +239,6 @@ function mpEnsureKartRace(msg){
   if(typeof msg.kartTrack==='number') kartTrackSel=msg.kartTrack;
   if(typeof msg.kartTr==='number') kartTrackSel=msg.kartTr;
   if(!race) startKartRace(false);
-  else if(race.karts.length<2 && mp.connected){
-    const tr=KART_TRACKS[kartTrackSel];
-    race.karts.push(mkKart(1, tr, false));
-  }
   if(race){
     if(typeof msg.kartCd==='number') race.countdown=msg.kartCd;
     if(msg.kartPhase) race.phase=msg.kartPhase;

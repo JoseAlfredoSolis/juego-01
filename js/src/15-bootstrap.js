@@ -188,11 +188,14 @@ function loop(ts) {
       case 'mpcreate':   updateMpCreate(dt); break;
       case 'mpjoin':     updateMpJoin(dt); break;
       case 'kartmenu':   updateKartMenu(dt); break;
+      case 'kartselect': updateKartSelect(dt); break;
+      case 'kartcup':    updateKartCup(dt); break;
       case 'kartcreate': updateKartCreate(dt); break;
       case 'kartjoin':   updateKartJoin(dt); break;
       case 'kartlobby':  updateKartLobby(dt); break;
       case 'kart':       updateKart(dt); break;
       case 'kartresults': updateKartResults(dt); break;
+      case 'kartcupresults': updateKartCupResults(dt); break;
     }
     if (mp.active && mp.connected) mpTick(dt);
   }
@@ -215,11 +218,14 @@ function loop(ts) {
     case 'mpcreate':      drawMpCreate(t); break;
     case 'mpjoin':        drawMpJoin(t); break;
     case 'kartmenu':      drawKartMenu(t); break;
+    case 'kartselect':    drawKartSelect(t); break;
+    case 'kartcup':       drawKartCup(t); break;
     case 'kartcreate':    drawKartCreate(t); break;
     case 'kartjoin':      drawKartJoin(t); break;
     case 'kartlobby':     drawKartLobby(t); break;
     case 'kart':          drawKart(t); break;
     case 'kartresults':   drawKartResults(); break;
+    case 'kartcupresults': drawKartCupResults(); break;
   }
 
   drawSceneTrans();
