@@ -11,6 +11,11 @@ const KART_TRACKS = [
   {
     name: 'BOSQUE OVAL',
     bg: ['#143818', '#2d6e1a'],
+    grass: ['#1e4a1e', '#2f7a28'],
+    asphalt: ['#3d4248', '#565c64'],
+    kerb: ['#e03030', '#f0f0f0'],
+    accent: '#7cff7c',
+    decor: 'tree',
     cx: 640, cy: 360, rxOut: 300, ryOut: 220, rxIn: 165, ryIn: 115,
     items: [{x:640,y:140},{x:940,y:360},{x:640,y:580},{x:340,y:360}],
     starts: [{x:580,y:300,a:-0.4},{x:620,y:300,a:-0.4}],
@@ -18,6 +23,11 @@ const KART_TRACKS = [
   {
     name: 'CIRCUITO CIELO',
     bg: ['#1a3060', '#4a80c0'],
+    grass: ['#1a4878', '#3a90c8'],
+    asphalt: ['#505868', '#6a7488'],
+    kerb: ['#3080ff', '#ffffff'],
+    accent: '#9ed4ff',
+    decor: 'cloud',
     cx: 640, cy: 360, rxOut: 280, ryOut: 200, rxIn: 150, ryIn: 100,
     items: [{x:640,y:160},{x:880,y:280},{x:760,y:520},{x:400,y:440},{x:520,y:200}],
     starts: [{x:600,y:280,a:-0.5},{x:640,y:280,a:-0.5}],
@@ -25,6 +35,11 @@ const KART_TRACKS = [
   {
     name: 'VOLCANO',
     bg: ['#2a0808', '#6a1a0a'],
+    grass: ['#3a1810', '#6a2818'],
+    asphalt: ['#4a3830', '#625048'],
+    kerb: ['#ff6020', '#ffcc40'],
+    accent: '#ff9040',
+    decor: 'lava',
     cx: 640, cy: 370, rxOut: 310, ryOut: 210, rxIn: 155, ryIn: 105,
     items: [{x:640,y:150},{x:920,y:370},{x:640,y:590},{x:360,y:370},{x:780,y:250}],
     starts: [{x:570,y:310,a:-0.35},{x:610,y:310,a:-0.35}],
@@ -39,6 +54,142 @@ let kartResultsT = 0;
 
 function kartCpAngles(tr) {
   return [ -Math.PI/2, 0, Math.PI/2, Math.PI ];
+}
+function kartEllPt(cx, cy, rx, ry, ang) {
+  return { x: cx + Math.cos(ang) * rx, y: cy + Math.sin(ang) * ry };
+}
+function kartToScreen(x, y) {
+  return { x: x - race.camX + W / 2, y: y - race.camY + H / 2 };
+}
+function kartGrip(tr, x, y) {
+  const ang = Math.atan2(y - tr.cy, x - tr.cx);
+  const rx = (tr.rxOut + tr.rxIn) * 0.5, ry = (tr.ryOut + tr.ryIn) * 0.5;
+  const mx = tr.cx + Math.cos(ang) * rx, my = tr.cy + Math.sin(ang) * ry;
+  const lane = Math.hypot(x - mx, y - my);
+  const half = ((tr.rxOut - tr.rxIn) + (tr.ryOut - tr.ryIn)) * 0.22;
+  if (lane < half * 0.45) return 1;
+  if (lane < half * 0.85) return 0.88;
+  return 0.68;
+}
+function kartDrawKerbs(scx, scy, tr, rx, ry, segs) {
+  const w = Math.max(6, (tr.rxOut - tr.rxIn) * 0.07);
+  for (let i = 0; i < segs; i++) {
+    const a0 = (i / segs) * Math.PI * 2, a1 = ((i + 1) / segs) * Math.PI * 2;
+    const p0 = kartEllPt(scx, scy, rx, ry, a0);
+    const p1 = kartEllPt(scx, scy, rx, ry, a1);
+    ctx.strokeStyle = (i % 2) ? tr.kerb[1] : tr.kerb[0];
+    ctx.lineWidth = w;
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.stroke();
+  }
+}
+function kartDrawTrackDecor(tr, scx, scy, t, scale) {
+  scale = scale || 1;
+  const n = tr.decor === 'cloud' ? 10 : tr.decor === 'lava' ? 14 : 18;
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * Math.PI * 2 + t * 0.08;
+    const p = kartEllPt(scx, scy, (tr.rxOut + 58) * scale, (tr.ryOut + 42) * scale, ang);
+    if (tr.decor === 'tree') {
+      ctx.fillStyle = '#1a3a12';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2d6a1a';
+      ctx.beginPath(); ctx.arc(p.x, p.y - 8, 14, 0, Math.PI * 2); ctx.fill();
+    } else if (tr.decor === 'cloud') {
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+      ctx.arc(p.x + 12, p.y + 2, 10, 0, Math.PI * 2);
+      ctx.arc(p.x - 10, p.y + 3, 9, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const pulse = 0.45 + Math.sin(t * 3 + i) * 0.25;
+      ctx.fillStyle = `rgba(255,${80 + (i % 3) * 40},20,${pulse})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 7 + (i % 3) * 2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+function kartDrawTrackSurface(tr, scx, scy, t, mini) {
+  const scale = mini ? 0.38 : 1;
+  const rxO = tr.rxOut * scale, ryO = tr.ryOut * scale;
+  const rxI = tr.rxIn * scale, ryI = tr.ryIn * scale;
+  const g = ctx.createRadialGradient(scx, scy, 20, scx, scy, Math.max(rxO, ryO) + 80);
+  g.addColorStop(0, tr.grass[1]); g.addColorStop(1, tr.grass[0]);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(scx, scy, rxO + 46 * scale, ryO + 34 * scale, 0, 0, Math.PI * 2); ctx.fill();
+
+  const ag = ctx.createLinearGradient(scx - rxO, scy - ryO, scx + rxO, scy + ryO);
+  ag.addColorStop(0, tr.asphalt[0]); ag.addColorStop(0.5, tr.asphalt[1]); ag.addColorStop(1, tr.asphalt[0]);
+  ctx.fillStyle = ag;
+  ctx.beginPath(); ctx.ellipse(scx, scy, rxO, ryO, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = tr.bg[0];
+  ctx.beginPath(); ctx.ellipse(scx, scy, rxI, ryI, 0, 0, Math.PI * 2); ctx.fill();
+
+  kartDrawKerbs(scx, scy, tr, rxO, ryO, mini ? 28 : 56);
+  kartDrawKerbs(scx, scy, tr, rxI, ryI, mini ? 24 : 48);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = mini ? 1.5 : 2.5; ctx.setLineDash([mini ? 8 : 18, mini ? 10 : 16]);
+  ctx.beginPath();
+  ctx.ellipse(scx, scy, (rxO + rxI) * 0.5, (ryO + ryI) * 0.5, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (!mini) {
+    const chevs = 16;
+    for (let i = 0; i < chevs; i++) {
+      const a = (i / chevs) * Math.PI * 2 + t * 1.6;
+      const p = kartEllPt(scx, scy, (rxO + rxI) * 0.5, (ryO + ryI) * 0.5, a);
+      const p2 = kartEllPt(scx, scy, (rxO + rxI) * 0.5, (ryO + ryI) * 0.5, a + 0.08);
+      const dx = p2.x - p.x, dy = p2.y - p.y;
+      const len = Math.hypot(dx, dy) || 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.beginPath();
+      ctx.moveTo(p.x + dx / len * 10, p.y + dy / len * 10);
+      ctx.lineTo(p.x - dy / len * 5, p.y + dx / len * 5);
+      ctx.lineTo(p.x + dy / len * 5, p.y - dx / len * 5);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+}
+function kartDrawStartLine(tr, t) {
+  const st = tr.starts[0];
+  const s = kartToScreen(st.x, st.y);
+  const bob = Math.sin(t * 8) * 2;
+  for (let i = 0; i < 10; i++) {
+    ctx.fillStyle = (Math.floor(i / 2) % 2) ? '#111' : '#fff';
+    ctx.fillRect(s.x - 48 + i * 10, s.y - 24 + bob, 10, 48);
+  }
+  ctx.fillStyle = tr.accent; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('META', s.x, s.y - 32 + bob);
+}
+function kartDrawCheckpoints(tr) {
+  for (let i = 0; i < 4; i++) {
+    const cp = kartCpPos(tr, i);
+    const p = kartToScreen(cp.x, cp.y);
+    const isFinish = i === 0;
+    ctx.fillStyle = isFinish ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.12)';
+    fillRR(p.x - 22, p.y - 14, 44, 28, 6, ctx.fillStyle);
+    strokeRR(p.x - 22, p.y - 14, 44, 28, 6, isFinish ? UI.gold : 'rgba(255,255,255,0.35)', isFinish ? 2 : 1);
+    ctx.fillStyle = isFinish ? UI.gold : UI.bright;
+    ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(isFinish ? 'META' : 'CP' + i, p.x, p.y + 5);
+  }
+}
+function kartDrawItemBoxes(tr, t) {
+  for (const box of tr.items) {
+    if (box.taken) continue;
+    const p = kartToScreen(box.x, box.y);
+    const bob = Math.sin(t * 4 + box.x * 0.01) * 5;
+    const hue = (t * 120 + box.x) % 360;
+    ctx.fillStyle = `hsl(${hue}, 85%, 58%)`;
+    fillRR(p.x - 16, p.y - 16 + bob, 32, 32, 7, ctx.fillStyle);
+    strokeRR(p.x - 16, p.y - 16 + bob, 32, 32, 7, '#fff', 2);
+    ctx.fillStyle = '#111'; ctx.font = 'bold 20px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('?', p.x, p.y + 7 + bob);
+  }
 }
 function kartCpPos(tr, i) {
   const a = kartCpAngles(tr)[i];
@@ -117,18 +268,21 @@ function kartAIInput(k, tr) {
 function kartSimKart(k, dt, tr) {
   if (k.finished) return;
   const inp = k.input;
-  const turn = KART_TURN * (0.35 + 0.65 * Math.min(1, Math.abs(k.speed) / 280));
+  const grip = kartGrip(tr, k.x, k.y);
+  const turn = KART_TURN * grip * (0.35 + 0.65 * Math.min(1, Math.abs(k.speed) / 280));
   if (inp.steer) k.angle += inp.steer * turn * dt;
   let target = 0;
-  if (inp.accel) target = KART_MAX_SPEED + k.boost;
+  const maxSpd = KART_MAX_SPEED * (0.72 + grip * 0.28);
+  if (inp.accel) target = maxSpd + k.boost;
   if (inp.brake) target = -120;
   if (k.boost > 0) { k.boost -= dt * 120; if (k.boost < 0) k.boost = 0; }
-  if (k.speed < target) k.speed = Math.min(target, k.speed + KART_ACCEL * dt);
-  else k.speed = Math.max(target, k.speed - (inp.brake ? KART_BRAKE : KART_FRICTION) * dt);
+  const accel = KART_ACCEL * (0.65 + grip * 0.35);
+  if (k.speed < target) k.speed = Math.min(target, k.speed + accel * dt);
+  else k.speed = Math.max(target, k.speed - (inp.brake ? KART_BRAKE : KART_FRICTION * (1.1 - grip * 0.2)) * dt);
   if (inp.drift && inp.steer && Math.abs(k.speed) > 150) {
     k.driftCharge = Math.min(1, k.driftCharge + dt * 0.9);
     k.speed *= 0.985;
-    if (Math.random() < 0.3) spawnParticles(k.x, k.y, '#ff0', 1, 80);
+    if (Math.random() < 0.45) spawnParticles(k.x, k.y, tr.accent || '#ff0', 2, 90);
   } else if (k.driftCharge > 0.5) {
     k.boost = KART_DRIFT_BOOST * k.driftCharge;
     spawnRing(k.x, k.y, '#ff0', 50, 0.3);
@@ -139,6 +293,7 @@ function kartSimKart(k, dt, tr) {
   k.x += Math.cos(k.angle) * k.speed * dt;
   k.y += Math.sin(k.angle) * k.speed * dt;
   if (!kartInTrack(tr, k.x, k.y)) kartPushToTrack(tr, k);
+  else if (grip < 0.75 && Math.random() < 0.15) spawnParticles(k.x, k.y, tr.grass[0], 1, 60);
   for (let i = 0; i < 4; i++) {
     const cp = kartCpPos(tr, i);
     if (Math.hypot(k.x - cp.x, k.y - cp.y) < 55) {
@@ -302,50 +457,50 @@ function updateKart(dt) {
     if (race.solo) { race = null; changeScene('kartmenu'); }
   }
 }
-function drawKartTrack(tr) {
-  const cx = tr.cx - race.camX + W / 2, cy = tr.cy - race.camY + H / 2;
+function drawKartTrack(tr, t) {
+  const sc = kartToScreen(tr.cx, tr.cy);
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, tr.bg[1]); grad.addColorStop(1, tr.bg[0]);
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#2a5a2a';
-  ctx.beginPath(); ctx.ellipse(cx, cy, tr.rxOut + 40, tr.ryOut + 40, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#3a7a3a';
-  ctx.beginPath(); ctx.ellipse(cx, cy, tr.rxOut, tr.ryOut, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = tr.bg[0];
-  ctx.beginPath(); ctx.ellipse(cx, cy, tr.rxIn, tr.ryIn, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 3; ctx.setLineDash([16, 14]);
-  ctx.beginPath(); ctx.ellipse(cx, cy, (tr.rxOut + tr.rxIn) / 2, (tr.ryOut + tr.ryIn) / 2, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.setLineDash([]);
-  for (let i = 0; i < 4; i++) {
-    const cp = kartCpPos(tr, i);
-    const px = cp.x - race.camX + W / 2, py = cp.y - race.camY + H / 2;
-    ctx.fillStyle = 'rgba(255,215,0,0.35)';
-    ctx.beginPath(); ctx.arc(px, py, 20, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('' + (i + 1), px, py + 5);
-  }
-  for (const box of tr.items) {
-    const px = box.x - race.camX + W / 2, py = box.y - race.camY + H / 2;
-    if (box.taken) continue;
-    const bob = Math.sin(performance.now() / 200 + box.x) * 4;
-    fillRR(px - 14, py - 14 + bob, 28, 28, 6, '#f0f');
-    ctx.fillStyle = '?'; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('?', px, py + 6 + bob);
-  }
-  const sx = tr.starts[0].x - race.camX + W / 2, sy = tr.starts[0].y - race.camY + H / 2;
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillRect(sx - 50, sy - 30, 100, 4); ctx.fillRect(sx - 50, sy + 26, 100, 4);
+  kartDrawTrackDecor(tr, sc.x, sc.y, t || 0, 1);
+  kartDrawTrackSurface(tr, sc.x, sc.y, t || 0, false);
+  kartDrawStartLine(tr, t || 0);
+  kartDrawCheckpoints(tr);
+  kartDrawItemBoxes(tr, t || 0);
 }
-function drawKartEntity(k) {
+function drawKartEntity(k, tr) {
   const px = k.x - race.camX + W / 2, py = k.y - race.camY + H / 2;
+  const col = ['#e33', '#33e', '#3e3', '#ee3'][k.idx % 4];
+  if (k.driftCharge > 0.2 && Math.abs(k.speed) > 120) {
+    ctx.fillStyle = tr.accent || '#ff0';
+    for (let i = 0; i < 3; i++) {
+      const bx = px - Math.cos(k.angle) * (14 + i * 8) + Math.sin(k.angle) * (i - 1) * 6;
+      const by = py - Math.sin(k.angle) * (14 + i * 8) - Math.cos(k.angle) * (i - 1) * 6;
+      ctx.globalAlpha = 0.35 - i * 0.08;
+      ctx.beginPath(); ctx.arc(bx, by, 5 - i, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(k.angle);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(-18, -10, 36, 22);
-  ctx.fillStyle = ['#e33', '#33e', '#3e3', '#ee3'][k.idx % 4];
-  ctx.fillRect(-20, -12, 40, 24);
-  ctx.fillStyle = '#222'; ctx.fillRect(-8, -16, 16, 8); ctx.fillRect(-8, 8, 16, 8);
-  ctx.fillStyle = '#888'; ctx.fillRect(14, -6, 6, 12);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(2, 4, 22, 12, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = col;
+  fillRR(-20, -12, 40, 24, 6, col);
+  strokeRR(-20, -12, 40, 24, 6, 'rgba(0,0,0,0.35)', 1);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(-10, -15, 20, 8); ctx.fillRect(-10, 7, 20, 8);
+  ctx.fillStyle = '#555';
+  ctx.beginPath(); ctx.arc(-12, -11, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(12, -11, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-12, 11, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(12, 11, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#888'; fillRR(12, -6, 8, 12, 2, '#999');
+  if (k.boost > 40) {
+    ctx.fillStyle = '#ff8800';
+    ctx.beginPath(); ctx.moveTo(-24, 0); ctx.lineTo(-34, -5); ctx.lineTo(-34, 5); ctx.closePath(); ctx.fill();
+  }
   ctx.restore();
   ctx.save();
   ctx.translate(px, py - 22);
@@ -361,9 +516,9 @@ function drawKartEntity(k) {
 }
 function drawKart(t) {
   if (!race) return;
-  drawKartTrack(race.track);
+  drawKartTrack(race.track, t);
   const sorted = [...race.karts].sort((a, b) => a.rank - b.rank || 0);
-  for (const k of sorted) drawKartEntity(k);
+  for (const k of sorted) drawKartEntity(k, race.track);
   fillRR(8, 8, W - 16, 56, 14, 'rgba(8,12,20,0.85)');
   const me = race.karts[kartLocalIdx()];
   if (me) {
@@ -531,11 +686,11 @@ function drawKartLobby(t) {
   uiPanel(W / 2 - 320, 110, 640, 420, 20);
   hud('PISTA', W / 2, 150, UI.dim, 16, 'center');
   uiTitle(tr.name, 200, 48, UI.gold);
-  const cx = W / 2, cy = 340;
-  ctx.fillStyle = '#3a7a3a';
-  ctx.beginPath(); ctx.ellipse(cx, cy, 120, 88, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = tr.bg[0];
-  ctx.beginPath(); ctx.ellipse(cx, cy, 65, 45, 0, 0, Math.PI * 2); ctx.fill();
+  const cx = W / 2, cy = 330;
+  kartDrawTrackSurface(tr, cx, cy, t, true);
+  kartDrawTrackDecor(tr, cx, cy, t * 0.6, 0.38);
+  const decor = tr.decor === 'tree' ? 'Bosque · Grip alto' : tr.decor === 'cloud' ? 'Cielo · Curvas rapidas' : 'Volcan · Riesgo y boost';
+  hud(decor, W / 2, 430, tr.accent, 15, 'center');
   ctx.fillStyle = UI.dim; ctx.font = '16px monospace'; ctx.textAlign = 'center';
   ctx.fillText('< Izq/Der cambiar pista >', W / 2, 460);
   if (mp.role === 'guest') {
