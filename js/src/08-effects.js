@@ -102,3 +102,10 @@ function drawBanner(){ // screen-space announcement (e.g. boss defeated)
   ctx.save();
   ctx.globalAlpha=Math.min(1,a*2.2);
   ctx.translate(W/2,180); ctx.scale(scale,scale);
+  ctx.font='bold 52px monospace'; ctx.textAlign='center';
+  const tw=ctx.measureText(banner.text).width+48;
+  fillRR(-tw/2,-38,tw,56,14,'rgba(10,16,26,0.88)'); strokeRR(-tw/2,-38,tw,56,14,banner.color,2);
+  ctx.lineWidth=5; ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.strokeText(banner.text,0,0);
+  ctx.fillStyle=banner.color; ctx.fillText(banner.text,0,0);
+  ctx.restore(); ctx.globalAlpha=1;
+}

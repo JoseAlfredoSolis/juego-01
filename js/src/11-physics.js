@@ -1,9 +1,4 @@
-// === 11-physics.js (from index.html lines 981-1005) ===
-  if(mp.remote){
-    mp.remote.x=lerp(mp.remote.x, mp.remote.tx, 0.38);
-    mp.remote.y=lerp(mp.remote.y, mp.remote.ty, 0.38);
-  }
-}
+// === 11-physics.js — remote player draw, join UI, scene transition draw ─────
 function drawRemotePlayer(){
   if(!mp.remote||!mp.connected||gs.scene!=='gameplay') return;
   const rp=mp.remote;
@@ -45,3 +40,12 @@ function mpCodeInputSync(){
   }
 }
 function drawSceneTrans(){
+  if(!sceneTrans.active) return;
+  const a=sceneTrans.mode==='out' ? sceneTrans.t/sceneTrans.dur : 1-sceneTrans.t/sceneTrans.dur;
+  const fade=clamp(a,0,1);
+  ctx.fillStyle=`rgba(6,10,18,${fade*0.9})`; ctx.fillRect(0,0,W,H);
+  if(fade>0.45 && fade<0.55){
+    ctx.strokeStyle=`rgba(255,215,0,${0.25*(1-Math.abs(fade-0.5)*20)})`;
+    ctx.lineWidth=2; ctx.strokeRect(W/2-120,H/2-2,240,4);
+  }
+}

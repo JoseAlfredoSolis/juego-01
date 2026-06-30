@@ -348,4 +348,8 @@ function mpTick(dt){
       facing:player.facing, char:gs.character,
       inv:player.invTimer>0?1:0, sh:player.shieldTimer>0?1:0});
   }
+  if(mp.remote){
+    mp.remote.x=lerp(mp.remote.x, mp.remote.tx, 0.38);
+    mp.remote.y=lerp(mp.remote.y, mp.remote.ty, 0.38);
+  }
 }

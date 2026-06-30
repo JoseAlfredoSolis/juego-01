@@ -442,7 +442,7 @@ function drawKartCup(t) {
     const cup = KART_CUPS[i];
     const y = startY + i * rowH;
     const sel = i === kartCupSel;
-    uiPanel(W / 2 - (port ? 250 : 280), y - (port ? 24 : 30), port ? 500 : 560, port ? 54 : 72, 14, sel);
+    uiPanel(W / 2 - (port ? 250 : 280), y - (port ? 24 : 30), port ? 500 : 560, port ? 54 : 72, 14);
     ctx.font = 'bold ' + (port ? 20 : 26) + 'px monospace';
     ctx.textAlign = 'left';
     ctx.fillStyle = sel ? UI.gold : UI.bright;

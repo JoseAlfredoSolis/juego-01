@@ -1,13 +1,4 @@
-// === 09-render.js (from index.html lines 730-818) ===
-  ctx.font='bold 52px monospace'; ctx.textAlign='center';
-  const tw=ctx.measureText(banner.text).width+48;
-  fillRR(-tw/2,-38,tw,56,14,'rgba(10,16,26,0.88)'); strokeRR(-tw/2,-38,tw,56,14,banner.color,2);
-  ctx.lineWidth=5; ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.strokeText(banner.text,0,0);
-  ctx.fillStyle=banner.color; ctx.fillText(banner.text,0,0);
-  ctx.restore(); ctx.globalAlpha=1;
-}
-
-// ── Camera ─────────────────────────────────────────────────────────────────
+// === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
 function camUpdate(px, py, levelW, snap=false) {
   const tx = clamp(px + PLAYER_W/2 - W/2, 0, levelW - W);
@@ -61,7 +52,7 @@ function uiPanel(x,y,w,h,r=18,bg=UI.panel,border=UI.panelBorder){
   fillRR(x,y,w,h,r,bg); ctx.shadowBlur=0; ctx.shadowOffsetY=0; strokeRR(x,y,w,h,r,border,2);
 }
 function uiMenuRow(label,y,sel,w=340,h=48,rowIdx){
-  const port = mobTouchPortrait();
+  const port = document.body.classList.contains('touch') && window.innerHeight > window.innerWidth;
   if (port) { h = Math.min(h, 30); w = Math.min(w, 480); }
   const x=W/2-w/2, ty=y-h+16;
   if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font= port?'bold 20px monospace':'bold 26px monospace'; }
@@ -97,3 +88,9 @@ function uiPill(x,y,text,color){
 }
 function drawHeartIcon(x,y,s,on=true){
   ctx.fillStyle=on?'#ff4d6d':'#3a3040'; ctx.beginPath();
+  ctx.moveTo(x,y+s*0.3); ctx.bezierCurveTo(x,y,x-s*0.45,y-s*0.15,x-s*0.45,y+s*0.12);
+  ctx.bezierCurveTo(x-s*0.45,y+s*0.5,x,y+s*0.82,x,y+s);
+  ctx.bezierCurveTo(x,y+s*0.82,x+s*0.45,y+s*0.5,x+s*0.45,y+s*0.12);
+  ctx.bezierCurveTo(x+s*0.45,y-s*0.15,x,y,x,y+s*0.3); ctx.fill();
+  if(on){ ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(x-s*0.12,y+s*0.15,s*0.12,0,Math.PI*2); ctx.fill(); }
+}

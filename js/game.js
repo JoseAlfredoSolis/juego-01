@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v35';
+const GAME_VERSION = 'v36';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -1065,9 +1065,6 @@ function drawBanner(){ // screen-space announcement (e.g. boss defeated)
   ctx.save();
   ctx.globalAlpha=Math.min(1,a*2.2);
   ctx.translate(W/2,180); ctx.scale(scale,scale);
-
-
-// === 09-render.js (from index.html lines 730-818) ===
   ctx.font='bold 52px monospace'; ctx.textAlign='center';
   const tw=ctx.measureText(banner.text).width+48;
   fillRR(-tw/2,-38,tw,56,14,'rgba(10,16,26,0.88)'); strokeRR(-tw/2,-38,tw,56,14,banner.color,2);
@@ -1076,7 +1073,8 @@ function drawBanner(){ // screen-space announcement (e.g. boss defeated)
   ctx.restore(); ctx.globalAlpha=1;
 }
 
-// ── Camera ─────────────────────────────────────────────────────────────────
+
+// === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
 function camUpdate(px, py, levelW, snap=false) {
   const tx = clamp(px + PLAYER_W/2 - W/2, 0, levelW - W);
@@ -1130,7 +1128,7 @@ function uiPanel(x,y,w,h,r=18,bg=UI.panel,border=UI.panelBorder){
   fillRR(x,y,w,h,r,bg); ctx.shadowBlur=0; ctx.shadowOffsetY=0; strokeRR(x,y,w,h,r,border,2);
 }
 function uiMenuRow(label,y,sel,w=340,h=48,rowIdx){
-  const port = mobTouchPortrait();
+  const port = document.body.classList.contains('touch') && window.innerHeight > window.innerWidth;
   if (port) { h = Math.min(h, 30); w = Math.min(w, 480); }
   const x=W/2-w/2, ty=y-h+16;
   if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font= port?'bold 20px monospace':'bold 26px monospace'; }
@@ -1166,6 +1164,12 @@ function uiPill(x,y,text,color){
 }
 function drawHeartIcon(x,y,s,on=true){
   ctx.fillStyle=on?'#ff4d6d':'#3a3040'; ctx.beginPath();
+  ctx.moveTo(x,y+s*0.3); ctx.bezierCurveTo(x,y,x-s*0.45,y-s*0.15,x-s*0.45,y+s*0.12);
+  ctx.bezierCurveTo(x-s*0.45,y+s*0.5,x,y+s*0.82,x,y+s);
+  ctx.bezierCurveTo(x,y+s*0.82,x+s*0.45,y+s*0.5,x+s*0.45,y+s*0.12);
+  ctx.bezierCurveTo(x+s*0.45,y-s*0.15,x,y,x,y+s*0.3); ctx.fill();
+  if(on){ ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(x-s*0.12,y+s*0.15,s*0.12,0,Math.PI*2); ctx.fill(); }
+}
 
 
 // === 10-multiplayer.js — PeerJS P2P online multiplayer ===
@@ -1518,15 +1522,14 @@ function mpTick(dt){
       facing:player.facing, char:gs.character,
       inv:player.invTimer>0?1:0, sh:player.shieldTimer>0?1:0});
   }
-}
-
-
-// === 11-physics.js (from index.html lines 981-1005) ===
   if(mp.remote){
     mp.remote.x=lerp(mp.remote.x, mp.remote.tx, 0.38);
     mp.remote.y=lerp(mp.remote.y, mp.remote.ty, 0.38);
   }
 }
+
+
+// === 11-physics.js — remote player draw, join UI, scene transition draw ─────
 function drawRemotePlayer(){
   if(!mp.remote||!mp.connected||gs.scene!=='gameplay') return;
   const rp=mp.remote;
@@ -1568,9 +1571,6 @@ function mpCodeInputSync(){
   }
 }
 function drawSceneTrans(){
-
-
-// === 12-entities.js (from index.html lines 1006-1693) ===
   if(!sceneTrans.active) return;
   const a=sceneTrans.mode==='out' ? sceneTrans.t/sceneTrans.dur : 1-sceneTrans.t/sceneTrans.dur;
   const fade=clamp(a,0,1);
@@ -1580,6 +1580,9 @@ function drawSceneTrans(){
     ctx.lineWidth=2; ctx.strokeRect(W/2-120,H/2-2,240,4);
   }
 }
+
+
+// === 12-entities.js — player, enemies, characters ─────────────────────────
 function renderScene(){ return (sceneTrans.active && sceneTrans.mode==='out') ? sceneTrans.from : gs.scene; }
 function sceneUpdating(){ return !sceneTrans.active || sceneTrans.mode==='in'; }
 
@@ -5859,23 +5862,28 @@ function updateKartCup(dt) {
 function drawKartCup(t) {
   uiBgGrad('#180828', '#301848');
   uiSparkles(t * 0.5, 20);
-  uiTitle('MODO COPA', 80, 44);
-  hud('3 carreras · Puntos estilo Mario Kart (15-12-10-8-6-4-2-1)', W / 2, 130, UI.cyan, 16, 'center');
+  const port = mobTouchPortrait();
+  uiTitle('MODO COPA', port ? 48 : 80, port ? 30 : 44);
+  if (!port) hud('3 carreras · Puntos estilo Mario Kart (15-12-10-8-6-4-2-1)', W / 2, 130, UI.cyan, 16, 'center');
+  const rowH = port ? 62 : 90;
+  const startY = port ? 100 : 200;
   for (let i = 0; i < KART_CUPS.length; i++) {
     const cup = KART_CUPS[i];
-    const y = 200 + i * 90;
+    const y = startY + i * rowH;
     const sel = i === kartCupSel;
-    uiPanel(W / 2 - 280, y - 30, 560, 72, 14, sel);
-    ctx.font = 'bold 26px monospace';
+    uiPanel(W / 2 - (port ? 250 : 280), y - (port ? 24 : 30), port ? 500 : 560, port ? 54 : 72, 14);
+    ctx.font = 'bold ' + (port ? 20 : 26) + 'px monospace';
     ctx.textAlign = 'left';
     ctx.fillStyle = sel ? UI.gold : UI.bright;
-    ctx.fillText(cup.icon + '  ' + cup.name, W / 2 - 250, y + 10);
-    const names = cup.tracks.map(ti => KART_TRACKS[ti].name).join(' · ');
-    ctx.font = '13px monospace';
-    ctx.fillStyle = UI.dim;
-    ctx.fillText(names, W / 2 - 250, y + 32);
+    ctx.fillText(cup.icon + '  ' + cup.name, W / 2 - (port ? 220 : 250), y + (port ? 6 : 10));
+    if (!port) {
+      const names = cup.tracks.map(ti => KART_TRACKS[ti].name).join(' · ');
+      ctx.font = '13px monospace';
+      ctx.fillStyle = UI.dim;
+      ctx.fillText(names, W / 2 - 250, y + 32);
+    }
   }
-  uiFooter('Enter elegir copa · Esc volver');
+  uiFooter(port ? '▲▼ elegir · OK confirmar' : 'Enter elegir copa · Esc volver');
 }
 
 function updateKartCupResults(dt) {
