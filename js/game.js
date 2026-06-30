@@ -3342,9 +3342,7 @@ const KART_TRACKS = [
     kerb: ['#e03030', '#f0f0f0'],
     accent: '#7cff7c',
     decor: 'tree',
-    cx: 640, cy: 360, rxOut: 300, ryOut: 220, rxIn: 165, ryIn: 115,
-    items: [{x:640,y:140},{x:940,y:360},{x:640,y:580},{x:340,y:360}],
-    starts: [{x:580,y:300,a:-0.4},{x:620,y:300,a:-0.4}],
+    cx: 640, cy: 360, rxOut: 420, ryOut: 308, rxIn: 232, ryIn: 160,
   },
   {
     name: 'CIRCUITO CIELO',
@@ -3354,9 +3352,7 @@ const KART_TRACKS = [
     kerb: ['#3080ff', '#ffffff'],
     accent: '#9ed4ff',
     decor: 'cloud',
-    cx: 640, cy: 360, rxOut: 280, ryOut: 200, rxIn: 150, ryIn: 100,
-    items: [{x:640,y:160},{x:880,y:280},{x:760,y:520},{x:400,y:440},{x:520,y:200}],
-    starts: [{x:600,y:280,a:-0.5},{x:640,y:280,a:-0.5}],
+    cx: 640, cy: 360, rxOut: 395, ryOut: 278, rxIn: 210, ryIn: 138,
   },
   {
     name: 'VOLCANO',
@@ -3366,11 +3362,32 @@ const KART_TRACKS = [
     kerb: ['#ff6020', '#ffcc40'],
     accent: '#ff9040',
     decor: 'lava',
-    cx: 640, cy: 370, rxOut: 310, ryOut: 210, rxIn: 155, ryIn: 105,
-    items: [{x:640,y:150},{x:920,y:370},{x:640,y:590},{x:360,y:370},{x:780,y:250}],
-    starts: [{x:570,y:310,a:-0.35},{x:610,y:310,a:-0.35}],
+    cx: 640, cy: 370, rxOut: 435, ryOut: 292, rxIn: 218, ryIn: 145,
   },
-];
+].map(kartLayoutTrack);
+
+function kartMidRadii(tr) {
+  return { rx: (tr.rxOut + tr.rxIn) * 0.5, ry: (tr.ryOut + tr.ryIn) * 0.5 };
+}
+function kartCpRadius(tr) {
+  return Math.max(62, (tr.rxOut + tr.ryOut) * 0.12);
+}
+function kartLayoutTrack(tr) {
+  const { rx, ry } = kartMidRadii(tr);
+  const cpAngles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+  tr.items = cpAngles.map((a, i) => {
+    const ang = a + (i % 2 ? 0.42 : -0.42);
+    return { x: tr.cx + Math.cos(ang) * rx * 0.96, y: tr.cy + Math.sin(ang) * ry * 0.96 };
+  });
+  const sa = -Math.PI / 2 - 0.32;
+  const sx = tr.cx + Math.cos(sa) * rx * 0.9;
+  const sy = tr.cy + Math.sin(sa) * ry * 0.9;
+  tr.starts = [
+    { x: sx - 20, y: sy, a: -0.4 },
+    { x: sx + 20, y: sy, a: -0.4 },
+  ];
+  return tr;
+}
 
 let race = null;
 let kartTrackSel = 0;
@@ -3519,9 +3536,8 @@ function kartDrawItemBoxes(tr, t) {
 }
 function kartCpPos(tr, i) {
   const a = kartCpAngles(tr)[i];
-  const r = (tr.rxOut + tr.rxIn) / 2;
-  const ry = (tr.ryOut + tr.ryIn) / 2;
-  return { x: tr.cx + Math.cos(a) * r, y: tr.cy + Math.sin(a) * ry };
+  const { rx, ry } = kartMidRadii(tr);
+  return { x: tr.cx + Math.cos(a) * rx, y: tr.cy + Math.sin(a) * ry };
 }
 function kartInTrack(tr, x, y) {
   const dx = (x - tr.cx) / tr.rxOut, dy = (y - tr.cy) / tr.ryOut;
@@ -3622,7 +3638,7 @@ function kartSimKart(k, dt, tr) {
   else if (grip < 0.75 && Math.random() < 0.15) spawnParticles(k.x, k.y, tr.grass[0], 1, 60);
   for (let i = 0; i < 4; i++) {
     const cp = kartCpPos(tr, i);
-    if (Math.hypot(k.x - cp.x, k.y - cp.y) < 55) {
+    if (Math.hypot(k.x - cp.x, k.y - cp.y) < kartCpRadius(tr)) {
       if (i === (k.cp + 1) % 4) {
         k.cp = i;
         if (i === 0 && k.lap < KART_LAPS) {
@@ -3788,7 +3804,7 @@ function drawKartTrack(tr, t) {
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, tr.bg[1]); grad.addColorStop(1, tr.bg[0]);
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-  kartDrawTrackDecor(tr, sc.x, sc.y, t || 0);
+  kartDrawTrackDecor(tr, sc.x, sc.y, t || 0, 1);
   kartDrawTrackSurface(tr, sc.x, sc.y, t || 0, false);
   kartDrawStartLine(tr, t || 0);
   kartDrawCheckpoints(tr);
@@ -4014,7 +4030,7 @@ function drawKartLobby(t) {
   uiTitle(tr.name, 200, 48, UI.gold);
   const cx = W / 2, cy = 330;
   kartDrawTrackSurface(tr, cx, cy, t, true);
-  kartDrawTrackDecor(tr, cx, cy, t * 0.6);
+  kartDrawTrackDecor(tr, cx, cy, t * 0.6, 0.38);
   const decor = tr.decor === 'tree' ? 'Bosque · Grip alto' : tr.decor === 'cloud' ? 'Cielo · Curvas rapidas' : 'Volcan · Riesgo y boost';
   hud(decor, W / 2, 430, tr.accent, 15, 'center');
   ctx.fillStyle = UI.dim; ctx.font = '16px monospace'; ctx.textAlign = 'center';
