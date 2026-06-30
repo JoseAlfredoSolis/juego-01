@@ -128,6 +128,7 @@ function loop(ts) {
   const t = ts/1000;
 
   updateSceneTrans(dt);
+  mobProcessNav();
   mobUiPreUpdate();
   mpCodeInputSync();
   mobUiSync();

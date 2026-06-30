@@ -87,6 +87,41 @@ function mobTapKey(code) {
   tryImmersive();
 }
 
+const MOB_BTN_ACTIONS = {
+  mobBack: 'back',
+  mobLeft: 'left',
+  mobUp: 'up',
+  mobDown: 'down',
+  mobRight: 'right',
+  mobOk: 'ok',
+};
+const MOB_ACTION_KEYS = {
+  ok: ['Enter', 'Space'],
+  back: ['Escape'],
+  up: ['ArrowUp', 'KeyW'],
+  down: ['ArrowDown', 'KeyS'],
+  left: ['ArrowLeft', 'KeyA'],
+  right: ['ArrowRight', 'KeyD'],
+};
+let mobMenuAction = null;
+
+function mobQueueAction(action) {
+  mobMenuAction = action;
+  audioInit();
+  tryImmersive();
+}
+
+// Apply queued nav tap at frame start so pressed() sees it before clearFrame().
+function mobProcessNav() {
+  if (!mobMenuAction) return;
+  const codes = MOB_ACTION_KEYS[mobMenuAction] || [];
+  mobMenuAction = null;
+  for (const c of codes) {
+    keyDown[c] = true;
+    keys[c] = true;
+  }
+}
+
 function mobUiSync() {
   if (!document.body.classList.contains('touch')) return;
   const s = gs.scene;
@@ -145,23 +180,21 @@ function setupMobileUi() {
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   if (!isTouch) return;
 
-  const map = {
-    mobBack: 'Escape',
-    mobLeft: 'ArrowLeft',
-    mobUp: 'ArrowUp',
-    mobDown: 'ArrowDown',
-    mobRight: 'ArrowRight',
-    mobOk: 'Enter',
-  };
-  for (const [id, code] of Object.entries(map)) {
+  for (const [id, action] of Object.entries(MOB_BTN_ACTIONS)) {
     const btn = document.getElementById(id);
     if (!btn) continue;
-    const down = e => { e.preventDefault(); btn.classList.add('active'); mobTapKey(code); };
-    const up = e => { e.preventDefault(); btn.classList.remove('active'); };
+    const down = e => { e.preventDefault(); e.stopPropagation(); btn.classList.add('active'); };
+    const up = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      btn.classList.remove('active');
+      mobQueueAction(action);
+    };
     btn.addEventListener('pointerdown', down);
     btn.addEventListener('pointerup', up);
     btn.addEventListener('pointercancel', up);
     btn.addEventListener('pointerleave', up);
+    btn.addEventListener('click', e => e.preventDefault());
   }
 
   canvas.addEventListener('pointerdown', e => {
