@@ -55,7 +55,7 @@ namespace SuperBearAdventure.Scenes
             float pulse = 1.6f + MathF.Sin(_timer * 3f) * 0.1f;
             SceneHelpers.CenterText(sb, font, "YOU WIN!", _screenW / 2 + 4, 134, Color.Black, pulse);
             SceneHelpers.CenterText(sb, font, "YOU WIN!", _screenW / 2,     130, Color.Gold,  pulse);
-            SceneHelpers.CenterText(sb, font, "You cleared all 3 worlds!", _screenW / 2, 250, Color.White, 1f);
+            SceneHelpers.CenterText(sb, font, "You cleared all 6 worlds!", _screenW / 2, 250, Color.White, 1f);
 
             int sy = 330;
             SceneHelpers.CenterText(sb, font, $"Final Score: {gm.Score}",    _screenW / 2, sy,      Color.Gold,   1.1f);

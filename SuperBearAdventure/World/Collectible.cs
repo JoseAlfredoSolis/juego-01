@@ -6,7 +6,7 @@ namespace SuperBearAdventure.World
     /// <summary>A coin or star the player can collect for points.</summary>
     public sealed class Collectible
     {
-        public Vector2 Position { get; }
+        public Vector2 Position { get; private set; }
         public CollectibleType Type { get; }
         public bool IsCollected { get; private set; }
 
@@ -21,6 +21,8 @@ namespace SuperBearAdventure.World
         }
 
         public void Collect() => IsCollected = true;
+
+        public void Nudge(Vector2 delta) => Position += delta;
 
         public void Draw(SpriteBatch sb)
         {

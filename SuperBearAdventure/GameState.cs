@@ -1,8 +1,5 @@
 namespace SuperBearAdventure
 {
-    // -----------------------------------------------------------------------
-    // Game state (which screen is active)
-    // -----------------------------------------------------------------------
     public enum GameState
     {
         MainMenu,
@@ -10,12 +7,12 @@ namespace SuperBearAdventure
         Playing,
         Paused,
         GameOver,
-        Victory
+        Victory,
+        Settings,
+        Shop,
+        Achievements
     }
 
-    // -----------------------------------------------------------------------
-    // Power-up kinds available in the game
-    // -----------------------------------------------------------------------
     public enum PowerUpType
     {
         None,
@@ -24,32 +21,41 @@ namespace SuperBearAdventure
         Invincibility
     }
 
-    // -----------------------------------------------------------------------
-    // Enemy behaviour patterns
-    // -----------------------------------------------------------------------
     public enum EnemyType
     {
-        Patrol,   // walks back-and-forth on a fixed range
-        Chaser,   // rushes the player when nearby
-        Boss      // large, multi-phase
+        Patrol,
+        Chaser,
+        Flyer,
+        Jumper,
+        Boss
     }
 
-    // -----------------------------------------------------------------------
-    // Collectible kinds
-    // -----------------------------------------------------------------------
     public enum CollectibleType
     {
         Coin,
         Star
     }
 
-    // -----------------------------------------------------------------------
-    // Visual/physics theme for each world
-    // -----------------------------------------------------------------------
     public enum WorldTheme
     {
         Forest,
         Cave,
-        Snow
+        Snow,
+        Lava,
+        Sky,
+        Valle
+    }
+
+    public enum DifficultyLevel
+    {
+        Easy   = 0,
+        Normal = 1,
+        Hard   = 2
+    }
+
+    public enum HazardType
+    {
+        Spikes,
+        Saw
     }
 }

@@ -16,7 +16,6 @@ namespace SuperBearAdventure.Entities
 
         private BossPhase _phase       = BossPhase.Patrol;
         private float     _phaseTimer  = 3.0f;
-        private Vector2   _playerTarget;
         private int       _maxHealth;
         private float     _flashTimer  = 0f;
         private float     _speedMult   = 1f; // grows as the boss takes damage
@@ -33,8 +32,6 @@ namespace SuperBearAdventure.Entities
             Size        = new Vector2(58, 66);
             _chaseRange = 800f; // always "see" the player
         }
-
-        public void SetTarget(Vector2 playerPos) => _playerTarget = playerPos;
 
         public override void Update(GameTime gameTime, List<Platform> platforms)
         {

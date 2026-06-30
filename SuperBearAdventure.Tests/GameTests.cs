@@ -11,21 +11,37 @@ public class GameManagerTests
     {
         var gm = GameManager.Instance;
         gm.NewGame();
-
+        gm.MarkLevelCompleted(0, 0);
+        gm.MarkLevelCompleted(0, 1);
         gm.MarkLevelCompleted(0, 2);
-
         Assert.True(gm.IsWorldUnlocked(1));
-        Assert.True(gm.IsLevelCompleted(0, 2));
+    }
+
+    [Fact]
+    public void StartingLives_RespectsDifficultyAndBonus()
+    {
+        var gm = GameManager.Instance;
+        gm.Difficulty = DifficultyLevel.Easy;
+        gm.BonusLives = 1;
+        Assert.Equal(6, gm.StartingLives());
     }
 }
 
 public class LevelDataTests
 {
     [Fact]
-    public void Get_ValidLevel_ReturnsData()
+    public void Get_LavaWorld_ReturnsData()
     {
-        var data = LevelData.Get(1, 1);
-        Assert.Equal(WorldTheme.Cave, data.Theme);
+        var data = LevelData.Get(3, 0);
+        Assert.Equal(WorldTheme.Lava, data.Theme);
+        Assert.True(data.Hazards.Count > 0);
+    }
+
+    [Fact]
+    public void Get_ValleWorld_IsLarge()
+    {
+        var data = LevelData.Get(5, 0);
+        Assert.True(data.LevelWidth >= 6800);
     }
 
     [Fact]
