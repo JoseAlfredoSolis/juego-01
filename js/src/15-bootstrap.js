@@ -112,11 +112,6 @@ function tryImmersive() {
   (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el).catch?.(() => {});
   screen.orientation?.lock?.('landscape').catch?.(() => {});
 }
-setupTouch();
-setupMobileUi();
-if (typeof mobUiSync === 'function') mobUiSync();
-resize();
-
 (function(){
   const inp=document.getElementById('mpCodeInput');
   const btn=document.getElementById('mpJoinBtn');
@@ -232,16 +227,3 @@ function loop(ts) {
   clearFrame();
   requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);
-(function(){
-  const params=new URLSearchParams(location.search);
-  const code=params.get('sala');
-  if(code){
-    mp.joinBuf=code.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
-    if(mp.joinBuf.length===6){
-      mp.autoJoin=true;
-      if(params.get('mode')==='kart'){ mp.gameMode='kart'; gs.scene='kartjoin'; }
-      else gs.scene='mpjoin';
-    }
-  }
-})();

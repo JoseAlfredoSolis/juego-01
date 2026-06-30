@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v36';
+const GAME_VERSION = 'v37';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -3419,11 +3419,6 @@ function tryImmersive() {
   (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el).catch?.(() => {});
   screen.orientation?.lock?.('landscape').catch?.(() => {});
 }
-setupTouch();
-setupMobileUi();
-if (typeof mobUiSync === 'function') mobUiSync();
-resize();
-
 (function(){
   const inp=document.getElementById('mpCodeInput');
   const btn=document.getElementById('mpJoinBtn');
@@ -3539,19 +3534,6 @@ function loop(ts) {
   clearFrame();
   requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);
-(function(){
-  const params=new URLSearchParams(location.search);
-  const code=params.get('sala');
-  if(code){
-    mp.joinBuf=code.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
-    if(mp.joinBuf.length===6){
-      mp.autoJoin=true;
-      if(params.get('mode')==='kart'){ mp.gameMode='kart'; gs.scene='kartjoin'; }
-      else gs.scene='mpjoin';
-    }
-  }
-})();
 
 
 // ── Kart Racing (Need for Speed / Gran Turismo road circuits) ────────────────
@@ -6091,3 +6073,27 @@ function kartDrawJumpShadow(k, px, py) {
   ctx.ellipse(px, py + 8, 22 * shrink, 10 * shrink, 0, 0, Math.PI * 2);
   ctx.fill();
 }
+
+
+// ── Boot: touch UI + game loop (must run after all modules load) ─────────────
+setupTouch();
+setupMobileUi();
+mobUiSync();
+resize();
+
+(function () {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('sala');
+  if (code) {
+    mp.joinBuf = code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    if (mp.joinBuf.length === 6) {
+      mp.autoJoin = true;
+      if (params.get('mode') === 'kart') {
+        mp.gameMode = 'kart';
+        gs.scene = 'kartjoin';
+      } else gs.scene = 'mpjoin';
+    }
+  }
+})();
+
+requestAnimationFrame(loop);
