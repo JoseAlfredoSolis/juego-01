@@ -271,7 +271,6 @@ function updateGameplay(dt) {
 
   camUpdate(player.x, player.y, ld.levelW);
   if (gs.score > gs.highScore) gs.highScore = gs.score;
-  mpTick(dt);
 
   // Pause
   if (pressed('Escape')||pressed('KeyP')) { gs.scene='pause'; pauseSel=0; }

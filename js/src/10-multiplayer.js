@@ -41,7 +41,8 @@ const mp = {
   active:false, role:null, peer:null, conn:null,
   roomCode:'', connected:false, status:'', errMsg:'',
   remote:null, remoteChar:1, remoteName:'Amigo',
-  syncAcc:0, joinBuf:'', autoJoin:false, menuSel:0, createT:0
+  syncAcc:0, joinBuf:'', autoJoin:false, menuSel:0, createT:0,
+  gameMode:'platformer'  // 'platformer' | 'kart'
 };
 function mpGenCode(){
   const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -50,6 +51,7 @@ function mpGenCode(){
 }
 function mpDisconnect(){
   mp.active=false; mp.connected=false; mp.remote=null; mp.role=null; mp.roomCode=''; mp.status=''; mp.errMsg='';
+  mp.gameMode='platformer';
   if(mp.conn){ try{mp.conn.close();}catch(e){} mp.conn=null; }
   if(mp.peer){ try{mp.peer.destroy();}catch(e){} mp.peer=null; }
 }
@@ -107,19 +109,42 @@ function mpGuestJoin(code){
 }
 function mpHostBroadcast(){
   if(!mp.active||mp.role!=='host'||!mp.connected) return;
-  const syncScenes=['worldmap','gameplay','pause','levelcomplete','gameover','victory','charselect'];
+  const syncScenes=['worldmap','gameplay','pause','levelcomplete','gameover','victory','charselect',
+    'kartlobby','kart','kartresults'];
   if(!syncScenes.includes(gs.scene)) return;
-  mpSend({t:'scene', scene:gs.scene, world:gs.world, level:gs.level,
-    lives:gs.lives, score:gs.score, coins:gs.coins, wmSel, wmLvl, char:gs.character});
+  const payload={t:'scene', scene:gs.scene, world:gs.world, level:gs.level,
+    lives:gs.lives, score:gs.score, coins:gs.coins, wmSel, wmLvl, char:gs.character,
+    kartTrack:kartTrackSel};
+  if(gs.scene==='kart' && race){
+    payload.kartPhase=race.phase; payload.kartCd=race.countdown;
+  }
+  mpSend(payload);
 }
 function mpApplyScene(msg){
   if(mp.role!=='guest') return;
-  if(['mpcreate','mpjoin','multimenu','menu'].includes(msg.scene)) return;
+  if(['mpcreate','mpjoin','multimenu','menu','kartmenu','kartcreate','kartjoin'].includes(msg.scene)) return;
   if(typeof msg.lives==='number') gs.lives=msg.lives;
   if(typeof msg.score==='number') gs.score=msg.score;
   if(typeof msg.coins==='number') gs.coins=msg.coins;
   if(typeof msg.wmSel==='number') wmSel=msg.wmSel;
   if(typeof msg.wmLvl==='number') wmLvl=msg.wmLvl;
+  if(typeof msg.kartTrack==='number') kartTrackSel=msg.kartTrack;
+  if(msg.scene==='kart' || msg.scene==='kartlobby'){
+    if(typeof msg.kartTrack==='number') kartTrackSel=msg.kartTrack;
+    if(msg.scene==='kart' && gs.scene!=='kart'){
+      startKartRace(false);
+      if(race && typeof msg.kartCd==='number') race.countdown=msg.kartCd;
+      if(race && msg.kartPhase) race.phase=msg.kartPhase;
+      changeScene('kart', true);
+    } else if(msg.scene==='kartlobby' && gs.scene!=='kartlobby'){
+      changeScene('kartlobby', true);
+    }
+    return;
+  }
+  if(msg.scene==='kartresults' && gs.scene!=='kartresults'){
+    changeScene('kartresults', true);
+    return;
+  }
   if(msg.scene==='gameplay'){
     const need=gs.world!==msg.world||gs.level!==msg.level||gs.scene!=='gameplay';
     gs.world=msg.world; gs.level=msg.level;
@@ -147,6 +172,12 @@ function mpHandle(msg){
       mp.remote.inv=msg.inv||0; mp.remote.shield=msg.sh||0;
       mp.remoteChar=msg.char??mp.remoteChar;
       break;
+    case 'ks':
+      if(mp.role==='guest') kartGuestApplyState(msg);
+      break;
+    case 'ki':
+      if(mp.role==='host') kartApplyGuestInput(msg);
+      break;
   }
 }
 function mkRemotePlayer(){
@@ -154,6 +185,7 @@ function mkRemotePlayer(){
 }
 function mpTick(dt){
   if(!mp.active||!mp.connected) return;
+  if(gs.scene==='kart') return;
   mp.syncAcc+=dt;
   if(mp.syncAcc>=0.05 && player && gs.scene==='gameplay'){
     mp.syncAcc=0;

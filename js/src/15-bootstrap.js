@@ -130,7 +130,14 @@ function loop(ts) {
       case 'multimenu':  updateMultiMenu(dt); break;
       case 'mpcreate':   updateMpCreate(dt); break;
       case 'mpjoin':     updateMpJoin(dt); break;
+      case 'kartmenu':   updateKartMenu(dt); break;
+      case 'kartcreate': updateKartCreate(dt); break;
+      case 'kartjoin':   updateKartJoin(dt); break;
+      case 'kartlobby':  updateKartLobby(dt); break;
+      case 'kart':       updateKart(dt); break;
+      case 'kartresults': updateKartResults(dt); break;
     }
+    if (mp.active && mp.connected) mpTick(dt);
   }
 
   switch(scene) {
@@ -150,6 +157,12 @@ function loop(ts) {
     case 'multimenu':     drawMultiMenu(t); break;
     case 'mpcreate':      drawMpCreate(t); break;
     case 'mpjoin':        drawMpJoin(t); break;
+    case 'kartmenu':      drawKartMenu(t); break;
+    case 'kartcreate':    drawKartCreate(t); break;
+    case 'kartjoin':      drawKartJoin(t); break;
+    case 'kartlobby':     drawKartLobby(t); break;
+    case 'kart':          drawKart(t); break;
+    case 'kartresults':   drawKartResults(); break;
   }
 
   drawSceneTrans();
@@ -158,9 +171,14 @@ function loop(ts) {
 }
 requestAnimationFrame(loop);
 (function(){
-  const code=new URLSearchParams(location.search).get('sala');
+  const params=new URLSearchParams(location.search);
+  const code=params.get('sala');
   if(code){
     mp.joinBuf=code.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
-    if(mp.joinBuf.length===6){ mp.autoJoin=true; gs.scene='mpjoin'; }
+    if(mp.joinBuf.length===6){
+      mp.autoJoin=true;
+      if(params.get('mode')==='kart'){ mp.gameMode='kart'; gs.scene='kartjoin'; }
+      else gs.scene='mpjoin';
+    }
   }
 })();

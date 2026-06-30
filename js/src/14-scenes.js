@@ -128,7 +128,7 @@ function drawMpJoin(t) {
 
 // ── Menu Scene ─────────────────────────────────────────────────────────────
 let menuSel=0, menuT=0;
-const menuItems=['PLAY','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
+const menuItems=['PLAY','KART RACE','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 
 function updateMenu(dt) {
   menuT+=dt;
@@ -139,7 +139,8 @@ function updateMenu(dt) {
     sfx.select();
     const it=menuItems[menuSel];
     if (it==='PLAY')             { gs.lives=startLives(); gs.score=0; gs.coins=0; changeScene('worldmap'); wmSel=gs.world; wmLvl=0; }
-    else if (it==='MULTIJUGADOR'){ mp.menuSel=0; mp.joinBuf=''; mp.errMsg=''; changeScene('multimenu'); }
+    else if (it==='KART RACE')   { kartMenuSel=0; mp.gameMode='kart'; changeScene('kartmenu'); }
+    else if (it==='MULTIJUGADOR'){ mp.menuSel=0; mp.gameMode='platformer'; mp.joinBuf=''; mp.errMsg=''; changeScene('multimenu'); }
     else if (it==='CHARACTER')   { changeScene('charselect'); charSel=gs.character; charT=0; }
     else if (it==='TIENDA')      { changeScene('shop'); shopSel=0; }
     else if (it==='LOGROS')      { changeScene('achievements'); }
