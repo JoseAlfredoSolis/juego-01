@@ -1,0 +1,20 @@
+{
+  "name": "Super Bear Adventure",
+  "short_name": "Super Bear",
+  "description": "Un juego de plataformas 2D estilo retro.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#000000",
+  "theme_color": "#1a5c1a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
