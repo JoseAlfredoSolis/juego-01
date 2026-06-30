@@ -15,7 +15,8 @@ namespace SuperBearAdventure.Entities
         private enum BossPhase { Patrol, ChargeWindup, Charge, Rest }
 
         private BossPhase _phase       = BossPhase.Patrol;
-        private float     _phaseTimer  = 0f;
+        private float     _phaseTimer  = 3.0f;
+        private Vector2   _playerTarget;
         private int       _maxHealth;
         private float     _flashTimer  = 0f;
         private float     _speedMult   = 1f; // grows as the boss takes damage
@@ -32,6 +33,8 @@ namespace SuperBearAdventure.Entities
             Size        = new Vector2(58, 66);
             _chaseRange = 800f; // always "see" the player
         }
+
+        public void SetTarget(Vector2 playerPos) => _playerTarget = playerPos;
 
         public override void Update(GameTime gameTime, List<Platform> platforms)
         {
@@ -56,8 +59,9 @@ namespace SuperBearAdventure.Entities
                     break;
 
                 case BossPhase.ChargeWindup:
-                    // Stand still briefly before charging
+                    // Stand still briefly, then charge toward the player
                     Velocity = new Vector2(0, Velocity.Y);
+                    _movingRight = _playerTarget.X > Position.X;
                     if (_phaseTimer <= 0f)
                     {
                         _phase      = BossPhase.Charge;

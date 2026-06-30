@@ -63,6 +63,11 @@ namespace SuperBearAdventure
         {
             GraphicsDevice.Clear(Color.Black);
             _sb!.Begin(samplerState: SamplerState.PointClamp);
+
+            // Draw frozen gameplay underneath the pause overlay
+            if (_pausedGameplay != null && _activeScene is PauseScene)
+                _pausedGameplay.Draw(_sb, _font!);
+
             _activeScene?.Draw(_sb, _font!);
             _sb.End();
             base.Draw(gameTime);
@@ -112,7 +117,6 @@ namespace SuperBearAdventure
             pause.OnResume   += ResumeGame;
             pause.OnRestart  += () =>
             {
-                GameManager.Instance.NewGame();
                 StartGameplay(GameManager.Instance.CurrentWorld,
                               GameManager.Instance.CurrentLevel);
             };
@@ -164,8 +168,9 @@ namespace SuperBearAdventure
             var scene = new GameOverScene(ScreenW, ScreenH);
             scene.OnRetry    += () =>
             {
-                GameManager.Instance.NewGame();
-                StartGameplay(0, 0);
+                var gm = GameManager.Instance;
+                gm.Lives = 3;
+                StartGameplay(gm.CurrentWorld, gm.CurrentLevel);
             };
             scene.OnMainMenu += GoToMainMenu;
             _activeScene = scene;
