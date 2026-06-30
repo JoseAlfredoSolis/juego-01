@@ -1,9 +1,10 @@
-# Publica solo los archivos del juego PWA en la rama gh-pages.
-# Luego en GitHub: Settings → Pages → Deploy from branch → gh-pages → / (root)
-name: Deploy GitHub Pages
+# Publica el juego PWA en GitHub Pages y compila la versión C#.
+name: CI and Deploy GitHub Pages
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -11,14 +12,30 @@ permissions:
   contents: write
 
 jobs:
+  build-csharp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore, build and test
+        run: |
+          dotnet tool restore
+          dotnet test SuperBearAdventure.Tests/SuperBearAdventure.Tests.csproj -c Release
+
   deploy:
+    needs: build-csharp
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Preparar sitio web
         run: |
+          python3 scripts/build-web-game.py
           mkdir site
           cp index.html manifest.webmanifest sw.js icon.svg .nojekyll site/
+          cp -r js vendor icons site/
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

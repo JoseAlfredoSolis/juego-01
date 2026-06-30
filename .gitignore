@@ -1,8 +1,12 @@
 # Build output
 bin/
 obj/
+**/bin/
+**/obj/
 SuperBearAdventure/bin/
 SuperBearAdventure/obj/
+SuperBearAdventure.Tests/bin/
+SuperBearAdventure.Tests/obj/
 
 # MonoGame content pipeline output
 SuperBearAdventure/Content/bin/

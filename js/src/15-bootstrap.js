@@ -1,0 +1,166 @@
+// === 15-bootstrap.js (from index.html lines 2541-2705) ===
+    });
+  }
+  uiFooter('Enter=Comprar  Esc=Volver');
+  drawBanner();
+}
+
+// ── Achievements Scene ───────────────────────────────────────────────────────
+function updateAchievements(dt){
+  if(pressed('Enter')||pressed('Escape')||pressed('Space')) changeScene('menu');
+}
+function drawAchievements(){
+  uiBgGrad('#0a1018','#101820', false);
+  const got=ACHIEVEMENTS.filter(a=>gs.ach[a.id]).length;
+  uiTitle('LOGROS', 66, 40);
+  hud(got+' / '+ACHIEVEMENTS.length+' desbloqueados', W/2, 102, UI.green, 20, 'center');
+  uiPanel(W/2-380,118,760,520,18);
+  ACHIEVEMENTS.forEach((a,i)=>{
+    const y=158+i*58, on=!!gs.ach[a.id];
+    fillRR(W/2-350,y-28,700,48,10, on?'rgba(60,200,90,0.12)':'rgba(255,255,255,0.04)');
+    if(on) strokeRR(W/2-350,y-28,700,48,10,'rgba(60,200,90,0.35)',1);
+    ctx.textAlign='left'; ctx.font='bold 22px monospace';
+    ctx.fillStyle=on?UI.green:'#555'; ctx.fillText('*', W/2-338, y);
+    ctx.fillStyle=on?UI.bright:'#777'; ctx.fillText(a.name, W/2-310, y-2);
+    ctx.font='14px monospace'; ctx.fillStyle=on?UI.dim:'#555'; ctx.fillText(a.desc, W/2-310, y+16);
+  });
+  uiFooter('Enter / Esc para volver');
+}
+
+// ── Main Loop ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+canvas.width = W; canvas.height = H;
+ctx = canvas.getContext('2d');
+
+// Scale canvas to window
+function resize() {
+  const scale = Math.min(window.innerWidth/W, window.innerHeight/H);
+  canvas.style.width  = (W*scale)+'px';
+  canvas.style.height = (H*scale)+'px';
+}
+window.addEventListener('resize', resize); resize();
+
+// ── Touch controls ──────────────────────────────────────────────────────────
+// Reuse the same key maps the keyboard handlers feed, so the game logic
+// (pressed/held) works identically whether input comes from keys or touch.
+function touchPress(code)   { if (!keys[code]) keyDown[code] = true; keys[code] = true; }
+function touchRelease(code) { keys[code] = false; keyUp[code] = true; }
+
+function setupTouch() {
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isTouch) document.body.classList.add('touch');
+
+  document.querySelectorAll('#touch .tbtn').forEach(btn => {
+    const code = btn.dataset.code;
+    const down = e => {
+      e.preventDefault();
+      btn.classList.add('active');
+      audioInit();
+      touchPress(code);
+      tryImmersive();
+    };
+    const up = e => {
+      e.preventDefault();
+      btn.classList.remove('active');
+      touchRelease(code);
+    };
+    btn.addEventListener('pointerdown', down);
+    btn.addEventListener('pointerup', up);
+    btn.addEventListener('pointercancel', up);
+    btn.addEventListener('pointerleave', up);
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+  });
+}
+
+// Go fullscreen + try to lock landscape on the first interaction (best effort).
+let immersiveDone = false;
+function tryImmersive() {
+  if (immersiveDone) return;
+  immersiveDone = true;
+  const el = document.documentElement;
+  (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el).catch?.(() => {});
+  screen.orientation?.lock?.('landscape').catch?.(() => {});
+}
+setupTouch();
+
+// ── Service worker (offline / installable PWA) ──────────────────────────────
+if ('serviceWorker' in navigator) {
+  // Reload once the new service worker takes control so the phone always runs
+  // the freshly cached build instead of a stale one.
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.update();
+      // Periodically check for a newer build while the game is open.
+      setInterval(() => reg.update(), 60 * 1000);
+    }).catch(() => {}));
+}
+
+let lastTime = 0;
+function loop(ts) {
+  const dt = Math.min((ts - lastTime)/1000, 0.05);
+  lastTime = ts;
+  const t = ts/1000;
+
+  updateSceneTrans(dt);
+  ctx.clearRect(0,0,W,H);
+
+  const scene = renderScene();
+  const updating = sceneUpdating();
+
+  if (updating) {
+    switch(gs.scene) {
+      case 'menu':       updateMenu(dt); break;
+      case 'worldmap':   updateWorldMap(dt); break;
+      case 'gameplay':   updateGameplay(dt); break;
+      case 'pause':      updatePause(dt); break;
+      case 'gameover':   updateGameOver(dt); break;
+      case 'levelcomplete': updateLevelComplete(dt); break;
+      case 'victory':    updateVictory(dt); break;
+      case 'settings':   updateSettings(dt); break;
+      case 'credits':    updateCredits(dt); break;
+      case 'charselect': updateCharSelect(dt); break;
+      case 'shop':       updateShop(dt); break;
+      case 'achievements': updateAchievements(dt); break;
+      case 'multimenu':  updateMultiMenu(dt); break;
+      case 'mpcreate':   updateMpCreate(dt); break;
+      case 'mpjoin':     updateMpJoin(dt); break;
+    }
+  }
+
+  switch(scene) {
+    case 'menu':          drawMenu(t); break;
+    case 'instructions':  drawInstructions(); break;
+    case 'worldmap':      drawWorldMap(t); break;
+    case 'gameplay':      drawGameplay(t); break;
+    case 'pause':         drawPause(); break;
+    case 'gameover':      drawGameOver(); break;
+    case 'levelcomplete': drawLevelComplete(); break;
+    case 'victory':       drawVictory(); break;
+    case 'settings':      drawSettings(); break;
+    case 'credits':       drawCredits(); break;
+    case 'charselect':    drawCharSelect(); break;
+    case 'shop':          drawShop(); break;
+    case 'achievements':  drawAchievements(); break;
+    case 'multimenu':     drawMultiMenu(t); break;
+    case 'mpcreate':      drawMpCreate(t); break;
+    case 'mpjoin':        drawMpJoin(t); break;
+  }
+
+  drawSceneTrans();
+  clearFrame();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+(function(){
+  const code=new URLSearchParams(location.search).get('sala');
+  if(code){
+    mp.joinBuf=code.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    if(mp.joinBuf.length===6){ mp.autoJoin=true; gs.scene='mpjoin'; }
+  }
+})();

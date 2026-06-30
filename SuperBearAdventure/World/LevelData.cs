@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 
@@ -42,7 +43,8 @@ namespace SuperBearAdventure.World
                 (2, 0) => Snow1(),
                 (2, 1) => Snow2(),
                 (2, 2) => Snow3(),
-                _      => Forest1()
+                _      => throw new ArgumentOutOfRangeException(
+                    nameof(world), world, $"Invalid world/level: {world},{level}")
             };
         }
 

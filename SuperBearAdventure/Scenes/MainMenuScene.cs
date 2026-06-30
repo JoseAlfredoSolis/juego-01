@@ -12,6 +12,7 @@ namespace SuperBearAdventure.Scenes
         public event Action? OnQuit;
 
         private int           _selected   = 0;
+        private bool          _showInstructions;
         private KeyboardState _prevKeys;
         private float         _titleBob   = 0f;   // oscillation for title text
         private float         _timer      = 0f;
@@ -34,6 +35,16 @@ namespace SuperBearAdventure.Scenes
 
             var kb = Keyboard.GetState();
 
+            if (_showInstructions)
+            {
+                if (IsPressed(kb, _prevKeys, Keys.Escape) ||
+                    IsPressed(kb, _prevKeys, Keys.Enter) ||
+                    IsPressed(kb, _prevKeys, Keys.Space))
+                    _showInstructions = false;
+                _prevKeys = kb;
+                return;
+            }
+
             if (IsPressed(kb, _prevKeys, Keys.Down) || IsPressed(kb, _prevKeys, Keys.S))
                 _selected = (_selected + 1) % _options.Length;
 
@@ -45,7 +56,7 @@ namespace SuperBearAdventure.Scenes
                 switch (_selected)
                 {
                     case 0: OnPlay?.Invoke();  break;
-                    case 1: /* show instructions inline */ break;
+                    case 1: _showInstructions = true; break;
                     case 2: OnQuit?.Invoke();  break;
                 }
             }
@@ -55,6 +66,36 @@ namespace SuperBearAdventure.Scenes
 
         public void Draw(SpriteBatch sb, SpriteFont font)
         {
+            if (_showInstructions)
+            {
+                DrawHelper.DrawRect(sb, 0, 0, _screenW, _screenH, new Color(10, 30, 60));
+                int px = (_screenW - 700) / 2, py = 80;
+                DrawHelper.DrawRect(sb, px, py, 700, 520, new Color(20, 20, 60, 230));
+                DrawHelper.DrawOutline(sb, new Rectangle(px, py, 700, 520), Color.Gold, 3);
+                SceneHelpers.CenterText(sb, font, "INSTRUCTIONS", _screenW / 2, py + 36, Color.Gold, 1.2f);
+                string[] lines =
+                {
+                    "Move:  Arrow keys / WASD",
+                    "Jump:  Space / W / Up",
+                    "Pause: Esc",
+                    "",
+                    "Stomp enemies from above to defeat them.",
+                    "Side contact costs a life.",
+                    "Collect coins and stars for points.",
+                    "Reach the green flag to complete the level.",
+                    "Defeat the boss before grabbing the flag.",
+                    "",
+                    "Press Enter or Esc to return"
+                };
+                int ly = py + 90;
+                foreach (var line in lines)
+                {
+                    SceneHelpers.CenterText(sb, font, line, _screenW / 2, ly, Color.White, 0.85f);
+                    ly += 38;
+                }
+                return;
+            }
+
             // Background gradient (approximated with layers)
             DrawHelper.DrawRect(sb, 0, 0, _screenW, _screenH / 2, new Color(10, 40, 80));
             DrawHelper.DrawRect(sb, 0, _screenH / 2, _screenW, _screenH / 2, new Color(30, 100, 50));
@@ -127,6 +168,6 @@ namespace SuperBearAdventure.Scenes
         }
 
         private static bool IsPressed(KeyboardState curr, KeyboardState prev, Keys key)
-            => curr.IsKeyDown(key) && !prev.IsKeyDown(key);
+            => SceneHelpers.IsPressed(curr, prev, key);
     }
 }
