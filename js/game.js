@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v27';
+const GAME_VERSION = 'v28';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -1151,7 +1151,12 @@ function uiBar(x,y,w,h,frac,color,bg='#182030'){
   fillRR(x,y,w,h,h/2,bg); if(frac>0) fillRR(x,y,w*clamp(frac,0,1),h,h/2,color);
   strokeRR(x,y,w,h,h/2,'rgba(255,255,255,0.22)',1);
 }
-function uiFooter(str){ hud(uiFooterTouch(str),W/2,H-28,UI.dim,document.body.classList.contains('touch')?14:16,'center'); }
+function uiFooterY() {
+  if (!document.body.classList.contains('touch')) return H - 28;
+  if (document.body.classList.contains('mob-menu')) return H - 56;
+  return H - 34;
+}
+function uiFooter(str){ hud(uiFooterTouch(str), W/2, uiFooterY(), UI.dim, document.body.classList.contains('touch')?14:16,'center'); }
 function uiPill(x,y,text,color){
   ctx.font='bold 15px monospace'; ctx.textAlign='left';
   const tw=ctx.measureText(text).width+22; fillRR(x,y-17,tw,30,15,'rgba(0,0,0,0.5)'); strokeRR(x,y-17,tw,30,15,'rgba(255,255,255,0.12)',1);
@@ -3148,13 +3153,42 @@ const canvas = document.getElementById('c');
 canvas.width = W; canvas.height = H;
 ctx = canvas.getContext('2d');
 
-// Scale canvas to window
+// Scale canvas to window (accounts for mobile chrome: nav bar, safe areas)
 function resize() {
-  const scale = Math.min(window.innerWidth/W, window.innerHeight/H);
-  canvas.style.width  = (W*scale)+'px';
-  canvas.style.height = (H*scale)+'px';
+  const vv = window.visualViewport;
+  let availW = vv ? vv.width : window.innerWidth;
+  let availH = vv ? vv.height : window.innerHeight;
+
+  if (document.body.classList.contains('touch')) {
+    const bs = getComputedStyle(document.body);
+    availW -= (parseFloat(bs.paddingLeft) || 0) + (parseFloat(bs.paddingRight) || 0);
+    availH -= (parseFloat(bs.paddingTop) || 0) + (parseFloat(bs.paddingBottom) || 0);
+
+    if (document.body.classList.contains('mob-menu')) {
+      const nav = document.getElementById('mobNav');
+      const navH = nav && nav.offsetHeight > 0 ? nav.offsetHeight + 8 : 78;
+      availH -= navH;
+    }
+    if (document.body.classList.contains('mob-join')) {
+      availH -= 140;
+    }
+  }
+
+  availW = Math.max(200, availW);
+  availH = Math.max(160, availH);
+
+  const scale = Math.min(availW / W, availH / H);
+  const dw = Math.floor(W * scale);
+  const dh = Math.floor(H * scale);
+  canvas.style.width = dw + 'px';
+  canvas.style.height = dh + 'px';
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize);
+  window.visualViewport.addEventListener('scroll', resize);
+}
+resize();
 
 // ── Touch controls ──────────────────────────────────────────────────────────
 // Reuse the same key maps the keyboard handlers feed, so the game logic
@@ -4180,9 +4214,11 @@ function mobUiSync() {
   document.body.classList.toggle('mob-join', join);
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
+  document.body.classList.toggle('portrait', window.innerHeight > window.innerWidth);
   const nav = document.getElementById('mobNav');
   if (nav) nav.classList.toggle('visible', menu);
   if (!menu) { mobSelGet = null; mobSelSet = null; }
+  if (typeof resize === 'function') resize();
 }
 
 function mobUiPreUpdate() {

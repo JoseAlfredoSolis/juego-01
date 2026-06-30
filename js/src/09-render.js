@@ -82,7 +82,12 @@ function uiBar(x,y,w,h,frac,color,bg='#182030'){
   fillRR(x,y,w,h,h/2,bg); if(frac>0) fillRR(x,y,w*clamp(frac,0,1),h,h/2,color);
   strokeRR(x,y,w,h,h/2,'rgba(255,255,255,0.22)',1);
 }
-function uiFooter(str){ hud(uiFooterTouch(str),W/2,H-28,UI.dim,document.body.classList.contains('touch')?14:16,'center'); }
+function uiFooterY() {
+  if (!document.body.classList.contains('touch')) return H - 28;
+  if (document.body.classList.contains('mob-menu')) return H - 56;
+  return H - 34;
+}
+function uiFooter(str){ hud(uiFooterTouch(str), W/2, uiFooterY(), UI.dim, document.body.classList.contains('touch')?14:16,'center'); }
 function uiPill(x,y,text,color){
   ctx.font='bold 15px monospace'; ctx.textAlign='left';
   const tw=ctx.measureText(text).width+22; fillRR(x,y-17,tw,30,15,'rgba(0,0,0,0.5)'); strokeRR(x,y-17,tw,30,15,'rgba(255,255,255,0.12)',1);
