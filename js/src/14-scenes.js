@@ -52,6 +52,11 @@ const mpMenuItems=['CREAR SALA','UNIRSE A SALA','VOLVER'];
 
 function updateMultiMenu(dt) {
   mobBindMenu(() => mp.menuSel, v => { mp.menuSel = v; });
+  mobBindSwipe(dir => {
+    const n = mpMenuItems.length;
+    if (dir === 'up') mp.menuSel = (mp.menuSel - 1 + n) % n;
+    if (dir === 'down') mp.menuSel = (mp.menuSel + 1) % n;
+  });
   const n=mpMenuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { mp.menuSel=(mp.menuSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { mp.menuSel=(mp.menuSel+1)%n; sfx.select(); }
@@ -133,6 +138,11 @@ const menuItems=['PLAY','KART RACE','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS'
 
 function updateMenu(dt) {
   mobBindMenu(() => menuSel, v => { menuSel = v; });
+  mobBindSwipe(dir => {
+    const n = menuItems.length;
+    if (dir === 'up') menuSel = (menuSel - 1 + n) % n;
+    if (dir === 'down') menuSel = (menuSel + 1) % n;
+  });
   menuT+=dt;
   const n=menuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { menuSel=(menuSel-1+n)%n; sfx.select(); }
@@ -220,9 +230,18 @@ const worldHints=['','','','','','Valle: exploracion tranquila','Ocean: corales 
 
 function updateWorldMap(dt) {
   if (mp.active && mp.role==='guest') {
+    mobBindSwipe(null);
     if (pressed('Escape')) { changeScene('menu'); return; }
     return;
   }
+  mobBindSwipe(dir => {
+    const prevSel = wmSel, prevLvl = wmLvl;
+    if (dir === 'left') wmSel = Math.max(0, wmSel - 1);
+    if (dir === 'right') wmSel = Math.min(LAST_WORLD, wmSel + 1);
+    if (dir === 'up') wmLvl = Math.max(0, wmLvl - 1);
+    if (dir === 'down') wmLvl = Math.min(2, wmLvl + 1);
+    if (wmSel !== prevSel || wmLvl !== prevLvl) mpHostBroadcast();
+  });
   const prevSel=wmSel, prevLvl=wmLvl;
   if (pressed('ArrowLeft'))  wmSel=Math.max(0,wmSel-1);
   if (pressed('ArrowRight')) wmSel=Math.min(LAST_WORLD,wmSel+1);
@@ -262,6 +281,7 @@ function drawWorldMap(t) {
       fillRR(bx,by,cardW,cardH,16,cg); }
     ctx.shadowBlur=0;
     strokeRR(bx,by,cardW,cardH,16, sel?UI.gold:'rgba(255,255,255,0.15)', sel?3:1);
+    if (!locked) mobRegisterWorldCard(wi, bx, by, cardW, cardH);
 
     ctx.fillStyle=locked?'#666':UI.bright;
     ctx.font='bold 17px monospace'; ctx.textAlign='center';
@@ -302,6 +322,10 @@ const pauseItems=['RESUME','RESTART LEVEL','MAIN MENU'];
 
 function updatePause(dt) {
   mobBindMenu(() => pauseSel, v => { pauseSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'up') pauseSel = (pauseSel - 1 + 3) % 3;
+    if (dir === 'down') pauseSel = (pauseSel + 1) % 3;
+  });
   if (pressed('ArrowUp'))   pauseSel=(pauseSel-1+3)%3;
   if (pressed('ArrowDown')) pauseSel=(pauseSel+1)%3;
   if (pressed('Escape')||pressed('KeyP')) { gs.scene='gameplay'; }
@@ -409,6 +433,11 @@ function drawVictory() {
 let setSel=0;
 function updateSettings(dt) {
   mobBindMenu(() => setSel, v => { setSel = v; });
+  mobBindSwipe(dir => {
+    const n = 8;
+    if (dir === 'up') setSel = (setSel - 1 + n) % n;
+    if (dir === 'down') setSel = (setSel + 1) % n;
+  });
   const n=8;
   if (pressed('ArrowUp')||pressed('KeyW'))   { setSel=(setSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { setSel=(setSel+1)%n; sfx.select(); }
@@ -470,6 +499,11 @@ function drawCredits() {
 // ── Character Select Scene ──────────────────────────────────────────────────
 let charSel=0, charT=0;
 function updateCharSelect(dt) {
+  mobBindSwipe(dir => {
+    const n = CHARACTERS.length;
+    if (dir === 'left') charSel = (charSel - 1 + n) % n;
+    if (dir === 'right') charSel = (charSel + 1) % n;
+  });
   charT+=dt;
   const n=CHARACTERS.length;
   if (pressed('ArrowLeft')||pressed('KeyA'))  { charSel=(charSel-1+n)%n; sfx.select(); }
@@ -561,6 +595,11 @@ function buyShop(item){
 function updateShop(dt){
   const list=buildShop(), n=Math.max(1,list.length);
   mobBindMenu(() => shopSel, v => { shopSel = v; });
+  mobBindSwipe(dir => {
+    if (!list.length) return;
+    if (dir === 'up') shopSel = (shopSel - 1 + n) % n;
+    if (dir === 'down') shopSel = (shopSel + 1) % n;
+  });
   if(shopSel>=n) shopSel=n-1; if(shopSel<0) shopSel=0;
   if(pressed('ArrowUp')||pressed('KeyW')){ shopSel=(shopSel-1+n)%n; sfx.select(); }
   if(pressed('ArrowDown')||pressed('KeyS')){ shopSel=(shopSel+1)%n; sfx.select(); }

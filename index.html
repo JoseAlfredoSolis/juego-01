@@ -180,6 +180,12 @@ body.touch.mob-menu #mobNav.visible { display: flex; }
 body.touch.mob-nav-wide #mobLeft,
 body.touch.mob-nav-wide #mobRight { display: flex; }
 
+@media (max-width: 480px) {
+  .mnav { min-width: 36px; height: 36px; font-size: 14px; padding: 0 8px; }
+  #mobOk { min-width: 44px; font-size: 13px; }
+  #mobNav { gap: 4px; padding: 5px 8px; }
+}
+
 /* Aviso rotar pantalla al jugar en vertical */
 #rotateHint {
   display: none;

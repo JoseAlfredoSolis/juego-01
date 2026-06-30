@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v26';
+const GAME_VERSION = 'v27';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -2544,6 +2544,11 @@ const mpMenuItems=['CREAR SALA','UNIRSE A SALA','VOLVER'];
 
 function updateMultiMenu(dt) {
   mobBindMenu(() => mp.menuSel, v => { mp.menuSel = v; });
+  mobBindSwipe(dir => {
+    const n = mpMenuItems.length;
+    if (dir === 'up') mp.menuSel = (mp.menuSel - 1 + n) % n;
+    if (dir === 'down') mp.menuSel = (mp.menuSel + 1) % n;
+  });
   const n=mpMenuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { mp.menuSel=(mp.menuSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { mp.menuSel=(mp.menuSel+1)%n; sfx.select(); }
@@ -2625,6 +2630,11 @@ const menuItems=['PLAY','KART RACE','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS'
 
 function updateMenu(dt) {
   mobBindMenu(() => menuSel, v => { menuSel = v; });
+  mobBindSwipe(dir => {
+    const n = menuItems.length;
+    if (dir === 'up') menuSel = (menuSel - 1 + n) % n;
+    if (dir === 'down') menuSel = (menuSel + 1) % n;
+  });
   menuT+=dt;
   const n=menuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { menuSel=(menuSel-1+n)%n; sfx.select(); }
@@ -2712,9 +2722,18 @@ const worldHints=['','','','','','Valle: exploracion tranquila','Ocean: corales 
 
 function updateWorldMap(dt) {
   if (mp.active && mp.role==='guest') {
+    mobBindSwipe(null);
     if (pressed('Escape')) { changeScene('menu'); return; }
     return;
   }
+  mobBindSwipe(dir => {
+    const prevSel = wmSel, prevLvl = wmLvl;
+    if (dir === 'left') wmSel = Math.max(0, wmSel - 1);
+    if (dir === 'right') wmSel = Math.min(LAST_WORLD, wmSel + 1);
+    if (dir === 'up') wmLvl = Math.max(0, wmLvl - 1);
+    if (dir === 'down') wmLvl = Math.min(2, wmLvl + 1);
+    if (wmSel !== prevSel || wmLvl !== prevLvl) mpHostBroadcast();
+  });
   const prevSel=wmSel, prevLvl=wmLvl;
   if (pressed('ArrowLeft'))  wmSel=Math.max(0,wmSel-1);
   if (pressed('ArrowRight')) wmSel=Math.min(LAST_WORLD,wmSel+1);
@@ -2754,6 +2773,7 @@ function drawWorldMap(t) {
       fillRR(bx,by,cardW,cardH,16,cg); }
     ctx.shadowBlur=0;
     strokeRR(bx,by,cardW,cardH,16, sel?UI.gold:'rgba(255,255,255,0.15)', sel?3:1);
+    if (!locked) mobRegisterWorldCard(wi, bx, by, cardW, cardH);
 
     ctx.fillStyle=locked?'#666':UI.bright;
     ctx.font='bold 17px monospace'; ctx.textAlign='center';
@@ -2794,6 +2814,10 @@ const pauseItems=['RESUME','RESTART LEVEL','MAIN MENU'];
 
 function updatePause(dt) {
   mobBindMenu(() => pauseSel, v => { pauseSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'up') pauseSel = (pauseSel - 1 + 3) % 3;
+    if (dir === 'down') pauseSel = (pauseSel + 1) % 3;
+  });
   if (pressed('ArrowUp'))   pauseSel=(pauseSel-1+3)%3;
   if (pressed('ArrowDown')) pauseSel=(pauseSel+1)%3;
   if (pressed('Escape')||pressed('KeyP')) { gs.scene='gameplay'; }
@@ -2901,6 +2925,11 @@ function drawVictory() {
 let setSel=0;
 function updateSettings(dt) {
   mobBindMenu(() => setSel, v => { setSel = v; });
+  mobBindSwipe(dir => {
+    const n = 8;
+    if (dir === 'up') setSel = (setSel - 1 + n) % n;
+    if (dir === 'down') setSel = (setSel + 1) % n;
+  });
   const n=8;
   if (pressed('ArrowUp')||pressed('KeyW'))   { setSel=(setSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { setSel=(setSel+1)%n; sfx.select(); }
@@ -2962,6 +2991,11 @@ function drawCredits() {
 // ── Character Select Scene ──────────────────────────────────────────────────
 let charSel=0, charT=0;
 function updateCharSelect(dt) {
+  mobBindSwipe(dir => {
+    const n = CHARACTERS.length;
+    if (dir === 'left') charSel = (charSel - 1 + n) % n;
+    if (dir === 'right') charSel = (charSel + 1) % n;
+  });
   charT+=dt;
   const n=CHARACTERS.length;
   if (pressed('ArrowLeft')||pressed('KeyA'))  { charSel=(charSel-1+n)%n; sfx.select(); }
@@ -3053,6 +3087,11 @@ function buyShop(item){
 function updateShop(dt){
   const list=buildShop(), n=Math.max(1,list.length);
   mobBindMenu(() => shopSel, v => { shopSel = v; });
+  mobBindSwipe(dir => {
+    if (!list.length) return;
+    if (dir === 'up') shopSel = (shopSel - 1 + n) % n;
+    if (dir === 'down') shopSel = (shopSel + 1) % n;
+  });
   if(shopSel>=n) shopSel=n-1; if(shopSel<0) shopSel=0;
   if(pressed('ArrowUp')||pressed('KeyW')){ shopSel=(shopSel-1+n)%n; sfx.select(); }
   if(pressed('ArrowDown')||pressed('KeyS')){ shopSel=(shopSel+1)%n; sfx.select(); }
@@ -3705,6 +3744,11 @@ const kartMenuItems = ['CREAR CARRERA', 'UNIRSE A CARRERA', 'CARRERA SOLO', 'VOL
 
 function updateKartMenu(dt) {
   mobBindMenu(() => kartMenuSel, v => { kartMenuSel = v; });
+  mobBindSwipe(dir => {
+    const n = kartMenuItems.length;
+    if (dir === 'up') kartMenuSel = (kartMenuSel - 1 + n) % n;
+    if (dir === 'down') kartMenuSel = (kartMenuSel + 1) % n;
+  });
   const n = kartMenuItems.length;
   if (pressed('ArrowUp') || pressed('KeyW')) { kartMenuSel = (kartMenuSel - 1 + n) % n; sfx.select(); }
   if (pressed('ArrowDown') || pressed('KeyS')) { kartMenuSel = (kartMenuSel + 1) % n; sfx.select(); }
@@ -3774,9 +3818,16 @@ function drawKartJoin(t) {
 }
 function updateKartLobby(dt) {
   if (mp.role === 'guest') {
+    mobBindSwipe(null);
     if (pressed('Escape')) { mpDisconnect(); changeScene('kartmenu'); }
     return;
   }
+  mobBindSwipe(dir => {
+    const prev = kartTrackSel;
+    if (dir === 'left') kartTrackSel = (kartTrackSel - 1 + KART_TRACKS.length) % KART_TRACKS.length;
+    if (dir === 'right') kartTrackSel = (kartTrackSel + 1 + KART_TRACKS.length) % KART_TRACKS.length;
+    if (kartTrackSel !== prev) mpHostBroadcast();
+  });
   if (pressed('ArrowLeft') || pressed('KeyA')) {
     const prev = kartTrackSel;
     kartTrackSel = (kartTrackSel - 1 + KART_TRACKS.length) % KART_TRACKS.length;
@@ -3833,16 +3884,31 @@ const MOB_JOIN_SCENES = ['mpjoin', 'kartjoin'];
 const MOB_NAV_WIDE_SCENES = ['worldmap', 'kartlobby', 'charselect', 'shop'];
 
 let mobRows = [];
+let mobWorldCards = [];
 let mobSelGet = null;
 let mobSelSet = null;
+let mobSwipeHandler = null;
+let mobPtr = null;
+
+const MOB_TAP_MAX = 22;
+const MOB_SWIPE_MIN = 36;
 
 function mobRegisterRow(x, y, w, h, idx) {
   if (!document.body.classList.contains('touch')) return;
   mobRows.push({ x, y, w, h, idx });
 }
 
+function mobRegisterWorldCard(wi, x, y, w, h) {
+  if (!document.body.classList.contains('touch')) return;
+  mobWorldCards.push({ wi, x, y, w, h });
+}
+
 function mobClearRows() {
   mobRows.length = 0;
+}
+
+function mobClearWorldCards() {
+  mobWorldCards.length = 0;
 }
 
 function canvasPoint(clientX, clientY) {
@@ -3857,6 +3923,24 @@ function canvasPoint(clientX, clientY) {
 function mobBindMenu(selGet, selSet) {
   mobSelGet = selGet;
   mobSelSet = selSet;
+}
+
+function mobBindSwipe(handler) {
+  mobSwipeHandler = handler;
+}
+
+function mobWorldHitTest(gx, gy) {
+  for (const c of mobWorldCards) {
+    if (gx >= c.x && gx <= c.x + c.w && gy >= c.y && gy <= c.y + c.h) {
+      if (c.wi !== wmSel) {
+        wmSel = c.wi;
+        sfx.select();
+        mpHostBroadcast();
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 function mobHitTest(gx, gy) {
@@ -3896,6 +3980,40 @@ function mobUiSync() {
 
 function mobUiPreUpdate() {
   mobClearRows();
+  mobClearWorldCards();
+  mobSwipeHandler = null;
+}
+
+function mobHandlePointerUp(clientX, clientY) {
+  if (!mobPtr) return;
+  const dx = clientX - mobPtr.x;
+  const dy = clientY - mobPtr.y;
+  const dist = Math.hypot(dx, dy);
+  mobPtr = null;
+
+  if (!document.body.classList.contains('touch')) return;
+  if (MOB_PLAY_SCENES.includes(gs.scene) || MOB_JOIN_SCENES.includes(gs.scene)) return;
+
+  if (dist < MOB_TAP_MAX) {
+    const p = canvasPoint(clientX, clientY);
+    if (gs.scene === 'worldmap') {
+      if (!mobWorldHitTest(p.x, p.y) && MOB_MENU_SCENES.includes(gs.scene)) mobHitTest(p.x, p.y);
+    } else if (MOB_MENU_SCENES.includes(gs.scene)) {
+      mobHitTest(p.x, p.y);
+    }
+    return;
+  }
+
+  if (dist < MOB_SWIPE_MIN || !mobSwipeHandler) return;
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  if (ax > ay * 1.15) {
+    mobSwipeHandler(dx > 0 ? 'right' : 'left');
+    sfx.select();
+  } else if (ay > ax * 1.15) {
+    mobSwipeHandler(dy > 0 ? 'down' : 'up');
+    sfx.select();
+  }
 }
 
 function setupMobileUi() {
@@ -3921,13 +4039,18 @@ function setupMobileUi() {
     btn.addEventListener('pointerleave', up);
   }
 
-  canvas.addEventListener('pointerup', e => {
+  canvas.addEventListener('pointerdown', e => {
     if (!document.body.classList.contains('touch')) return;
-    if (MOB_PLAY_SCENES.includes(gs.scene) || MOB_JOIN_SCENES.includes(gs.scene)) return;
-    if (!MOB_MENU_SCENES.includes(gs.scene)) return;
-    const p = canvasPoint(e.clientX, e.clientY);
-    mobHitTest(p.x, p.y);
+    if (MOB_PLAY_SCENES.includes(gs.scene)) return;
+    mobPtr = { x: e.clientX, y: e.clientY, id: e.pointerId };
   });
+
+  canvas.addEventListener('pointerup', e => {
+    if (!mobPtr || mobPtr.id !== e.pointerId) return;
+    mobHandlePointerUp(e.clientX, e.clientY);
+  });
+
+  canvas.addEventListener('pointercancel', () => { mobPtr = null; });
 }
 
 function uiFooterTouch(str) {
@@ -3936,8 +4059,10 @@ function uiFooterTouch(str) {
     .replace(/Enter/g, 'OK')
     .replace(/Esc/g, '←')
     .replace(/WASD\/Flechas/g, '▲▼')
-    .replace(/Flechas/g, '▲▼')
+    .replace(/Flechas=Navegar/g, 'Desliza o ◀▶')
+    .replace(/Flechas/g, 'Desliza')
     .replace(/Espacio/g, 'OK')
     .replace(/Izq\/Der/g, '◀▶')
-    .replace(/Arriba\/Abajo/g, '▲▼');
+    .replace(/Arriba\/Abajo/g, '▲▼')
+    .replace(/< Izq\/Der cambiar pista >/g, 'Desliza ◀▶ para cambiar pista');
 }

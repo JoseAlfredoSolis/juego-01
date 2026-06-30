@@ -419,6 +419,11 @@ const kartMenuItems = ['CREAR CARRERA', 'UNIRSE A CARRERA', 'CARRERA SOLO', 'VOL
 
 function updateKartMenu(dt) {
   mobBindMenu(() => kartMenuSel, v => { kartMenuSel = v; });
+  mobBindSwipe(dir => {
+    const n = kartMenuItems.length;
+    if (dir === 'up') kartMenuSel = (kartMenuSel - 1 + n) % n;
+    if (dir === 'down') kartMenuSel = (kartMenuSel + 1) % n;
+  });
   const n = kartMenuItems.length;
   if (pressed('ArrowUp') || pressed('KeyW')) { kartMenuSel = (kartMenuSel - 1 + n) % n; sfx.select(); }
   if (pressed('ArrowDown') || pressed('KeyS')) { kartMenuSel = (kartMenuSel + 1) % n; sfx.select(); }
@@ -488,9 +493,16 @@ function drawKartJoin(t) {
 }
 function updateKartLobby(dt) {
   if (mp.role === 'guest') {
+    mobBindSwipe(null);
     if (pressed('Escape')) { mpDisconnect(); changeScene('kartmenu'); }
     return;
   }
+  mobBindSwipe(dir => {
+    const prev = kartTrackSel;
+    if (dir === 'left') kartTrackSel = (kartTrackSel - 1 + KART_TRACKS.length) % KART_TRACKS.length;
+    if (dir === 'right') kartTrackSel = (kartTrackSel + 1 + KART_TRACKS.length) % KART_TRACKS.length;
+    if (kartTrackSel !== prev) mpHostBroadcast();
+  });
   if (pressed('ArrowLeft') || pressed('KeyA')) {
     const prev = kartTrackSel;
     kartTrackSel = (kartTrackSel - 1 + KART_TRACKS.length) % KART_TRACKS.length;
