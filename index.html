@@ -83,8 +83,47 @@ body.touch #touch { display: block; pointer-events: auto; }
   background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
 }
 
+/* Celular: controles mas compactos para no tapar el juego */
+body.touch #touch .pad,
+body.touch #touch .btns { bottom: 14px; }
+body.touch #touch .pad { left: 10px; }
+body.touch #touch .btns { right: 10px; gap: 8px; }
+body.touch .pad {
+  grid-template-columns: repeat(3, 50px);
+  grid-template-rows: repeat(3, 50px);
+  gap: 3px;
+}
+body.touch .tbtn {
+  font-size: 18px;
+  border-radius: 12px;
+  border-width: 1.5px;
+}
+body.touch #bJump {
+  width: 68px; height: 68px;
+  font-size: 11px;
+}
+body.touch #bSp {
+  width: 54px; height: 54px;
+  font-size: 11px;
+}
+body.touch #bPause {
+  top: 10px; right: 10px;
+  width: 40px; height: 40px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+body.touch.kart-race #bJump,
+body.touch.kart-race #bSp { font-size: 9px; }
+
 @media (orientation: portrait) {
-  #touch .pad, #touch .btns { bottom: 64px; }
+  body.touch #touch .pad,
+  body.touch #touch .btns { bottom: 22px; }
+  body.touch .pad {
+    grid-template-columns: repeat(3, 46px);
+    grid-template-rows: repeat(3, 46px);
+  }
+  body.touch #bJump { width: 62px; height: 62px; }
+  body.touch #bSp { width: 50px; height: 50px; }
 }
 
 /* Campo de codigo multijugador (movil) */
@@ -102,8 +141,6 @@ body.touch #touch { display: block; pointer-events: auto; }
 }
 body.touch.mp-join #mpJoinUi { display: flex; }
 body.touch.mp-join #touch { display: none !important; }
-body.touch.kart-race #bJump { font-size: 12px; }
-body.touch.kart-race #bSp { font-size: 12px; }
 #mpCodeInput {
   width: 100%;
   padding: 16px 20px;
