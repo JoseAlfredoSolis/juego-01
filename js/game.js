@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v37';
+const GAME_VERSION = 'v38';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -3439,7 +3439,7 @@ function tryImmersive() {
 })();
 
 // ── Service worker (offline / installable PWA) ──────────────────────────────
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   // Reload once the new service worker takes control so the phone always runs
   // the freshly cached build instead of a stale one.
   let reloaded = false;
@@ -4980,10 +4980,15 @@ function mobHandlePointerUp(clientX, clientY) {
 }
 
 function setupMobileUi() {
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0
+    || window.matchMedia('(pointer: coarse)').matches;
   if (!isTouch) return;
 
-  for (const [id, action] of Object.entries(MOB_BTN_ACTIONS)) {
+  let actions;
+  try { actions = MOB_BTN_ACTIONS; } catch (_) { return; }
+  if (!actions) return;
+
+  for (const [id, action] of Object.entries(actions)) {
     const btn = document.getElementById(id);
     if (!btn) continue;
     const down = e => { e.preventDefault(); e.stopPropagation(); btn.classList.add('active'); };

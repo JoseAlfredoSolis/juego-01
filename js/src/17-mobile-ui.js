@@ -203,10 +203,15 @@ function mobHandlePointerUp(clientX, clientY) {
 }
 
 function setupMobileUi() {
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0
+    || window.matchMedia('(pointer: coarse)').matches;
   if (!isTouch) return;
 
-  for (const [id, action] of Object.entries(MOB_BTN_ACTIONS)) {
+  let actions;
+  try { actions = MOB_BTN_ACTIONS; } catch (_) { return; }
+  if (!actions) return;
+
+  for (const [id, action] of Object.entries(actions)) {
     const btn = document.getElementById(id);
     if (!btn) continue;
     const down = e => { e.preventDefault(); e.stopPropagation(); btn.classList.add('active'); };

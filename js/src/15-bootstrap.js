@@ -132,7 +132,7 @@ function tryImmersive() {
 })();
 
 // ── Service worker (offline / installable PWA) ──────────────────────────────
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   // Reload once the new service worker takes control so the phone always runs
   // the freshly cached build instead of a stale one.
   let reloaded = false;
