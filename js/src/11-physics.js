@@ -30,8 +30,6 @@ function mpCodeInputSet(val){
 let mpCodeInputFocused=false;
 function mpCodeInputSync(){
   const show=gs.scene==='mpjoin'||gs.scene==='kartjoin';
-  document.body.classList.toggle('mp-join', show);
-  document.body.classList.toggle('kart-race', gs.scene==='kart');
   const jump=document.getElementById('bJump');
   const sp=document.getElementById('bSp');
   if(jump) jump.textContent=gs.scene==='kart'?'DRIFT':'JUMP';

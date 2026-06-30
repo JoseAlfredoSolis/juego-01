@@ -82,6 +82,7 @@ function tryImmersive() {
   screen.orientation?.lock?.('landscape').catch?.(() => {});
 }
 setupTouch();
+setupMobileUi();
 
 (function(){
   const inp=document.getElementById('mpCodeInput');
@@ -127,7 +128,9 @@ function loop(ts) {
   const t = ts/1000;
 
   updateSceneTrans(dt);
+  mobUiPreUpdate();
   mpCodeInputSync();
+  mobUiSync();
   ctx.clearRect(0,0,W,H);
 
   const scene = renderScene();

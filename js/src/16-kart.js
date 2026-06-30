@@ -418,6 +418,7 @@ function drawKartResults() {
 const kartMenuItems = ['CREAR CARRERA', 'UNIRSE A CARRERA', 'CARRERA SOLO', 'VOLVER'];
 
 function updateKartMenu(dt) {
+  mobBindMenu(() => kartMenuSel, v => { kartMenuSel = v; });
   const n = kartMenuItems.length;
   if (pressed('ArrowUp') || pressed('KeyW')) { kartMenuSel = (kartMenuSel - 1 + n) % n; sfx.select(); }
   if (pressed('ArrowDown') || pressed('KeyS')) { kartMenuSel = (kartMenuSel + 1) % n; sfx.select(); }
@@ -436,7 +437,7 @@ function drawKartMenu(t) {
   uiTitle('KART RACE', 80, 52);
   hud('Carreras estilo Mario Kart · Multijugador online', W / 2, 135, UI.cyan, 18, 'center');
   uiPanel(W / 2 - 240, 165, 480, 300, 18);
-  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 220 + i * 58, i === kartMenuSel, 420, 46);
+  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 220 + i * 58, i === kartMenuSel, 420, 46, i);
   hud('Invita a un amigo o practica contra la CPU', W / 2, 500, UI.dim, 16, 'center');
   uiFooter('Enter · Esc volver');
 }

@@ -60,13 +60,14 @@ function uiPanel(x,y,w,h,r=18,bg=UI.panel,border=UI.panelBorder){
   ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowBlur=22; ctx.shadowOffsetY=8;
   fillRR(x,y,w,h,r,bg); ctx.shadowBlur=0; ctx.shadowOffsetY=0; strokeRR(x,y,w,h,r,border,2);
 }
-function uiMenuRow(label,y,sel,w=340,h=48){
+function uiMenuRow(label,y,sel,w=340,h=48,rowIdx){
   const x=W/2-w/2, ty=y-h+16;
   if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font='bold 26px monospace'; }
   else { fillRR(x,ty,w,h,'rgba(255,255,255,0.05)',12); ctx.fillStyle='#b8c8d8'; ctx.font='24px monospace'; }
   ctx.textAlign='center'; ctx.fillText(label,W/2,y);
+  if(rowIdx!==undefined) mobRegisterRow(x,ty,w,h,rowIdx);
 }
-function uiListRow(y,label,value,sel,vc){
+function uiListRow(y,label,value,sel,vc,rowIdx){
   const pw=700, ph=52, px=W/2-pw/2;
   fillRR(px,y-36,pw,ph, sel?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.04)',12);
   if(sel) strokeRR(px,y-36,pw,ph,'rgba(255,215,0,0.4)',12,2);
@@ -75,12 +76,13 @@ function uiListRow(y,label,value,sel,vc){
   if(value!==undefined && value!==''){
     ctx.textAlign='right'; ctx.font='bold 22px monospace'; ctx.fillStyle=vc||UI.bright; ctx.fillText(value, px+pw-22, y);
   }
+  if(rowIdx!==undefined) mobRegisterRow(px,y-36,pw,ph,rowIdx);
 }
 function uiBar(x,y,w,h,frac,color,bg='#182030'){
   fillRR(x,y,w,h,h/2,bg); if(frac>0) fillRR(x,y,w*clamp(frac,0,1),h,h/2,color);
   strokeRR(x,y,w,h,h/2,'rgba(255,255,255,0.22)',1);
 }
-function uiFooter(str){ hud(str,W/2,H-28,UI.dim,16,'center'); }
+function uiFooter(str){ hud(uiFooterTouch(str),W/2,H-28,UI.dim,document.body.classList.contains('touch')?14:16,'center'); }
 function uiPill(x,y,text,color){
   ctx.font='bold 15px monospace'; ctx.textAlign='left';
   const tw=ctx.measureText(text).width+22; fillRR(x,y-17,tw,30,15,'rgba(0,0,0,0.5)'); strokeRR(x,y-17,tw,30,15,'rgba(255,255,255,0.12)',1);

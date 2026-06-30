@@ -51,6 +51,7 @@ function drawHUD(t) {
 const mpMenuItems=['CREAR SALA','UNIRSE A SALA','VOLVER'];
 
 function updateMultiMenu(dt) {
+  mobBindMenu(() => mp.menuSel, v => { mp.menuSel = v; });
   const n=mpMenuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { mp.menuSel=(mp.menuSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { mp.menuSel=(mp.menuSel+1)%n; sfx.select(); }
@@ -69,7 +70,7 @@ function drawMultiMenu(t) {
   uiTitle('JUGAR EN LINEA', 90, 44);
   hud('Invita amigos y explorad juntos el mismo nivel', W/2, 138, UI.dim, 17, 'center');
   uiPanel(W/2-220, 170, 440, 280, 18);
-  for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48);
+  for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48, i);
   hud('El anfitrion elige el mundo · ambos ven al otro en pantalla', W/2, 490, UI.cyan, 15, 'center');
   uiFooter('Enter · Esc volver');
 }
@@ -131,6 +132,7 @@ let menuSel=0, menuT=0;
 const menuItems=['PLAY','KART RACE','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 
 function updateMenu(dt) {
+  mobBindMenu(() => menuSel, v => { menuSel = v; });
   menuT+=dt;
   const n=menuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { menuSel=(menuSel-1+n)%n; sfx.select(); }
@@ -158,7 +160,7 @@ function drawMenu(t) {
   uiTitle('ADVENTURE', 200+bob, 52, '#fff');
   hud('Plataformas 2D · PWA movil', W/2, 238+bob, UI.dim, 18, 'center');
   uiPanel(W/2-200, 262, 400, 480, 20);
-  for (let i=0;i<menuItems.length;i++) uiMenuRow(menuItems[i], 318+i*54, i===menuSel, 360, 44);
+  for (let i=0;i<menuItems.length;i++) uiMenuRow(menuItems[i], 318+i*54, i===menuSel, 360, 44, i);
   // Info pills top
   uiPill(16, 36, 'Best: '+gs.highScore, UI.cyan);
   drawCoinIcon(16, 58, 9); hud(' '+gs.wallet, 32, 64, UI.gold, 17);
@@ -299,6 +301,7 @@ let pauseSel=0;
 const pauseItems=['RESUME','RESTART LEVEL','MAIN MENU'];
 
 function updatePause(dt) {
+  mobBindMenu(() => pauseSel, v => { pauseSel = v; });
   if (pressed('ArrowUp'))   pauseSel=(pauseSel-1+3)%3;
   if (pressed('ArrowDown')) pauseSel=(pauseSel+1)%3;
   if (pressed('Escape')||pressed('KeyP')) { gs.scene='gameplay'; }
@@ -320,7 +323,7 @@ function drawPause() {
   fillRR(0,0,W,H,0,'rgba(0,0,0,0.6)');
   uiPanel(W/2-230,H/2-175,460,350,22);
   uiTitle('PAUSA', H/2-125, 36);
-  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-55+i*68, i===pauseSel, 380, 46);
+  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-55+i*68, i===pauseSel, 380, 46, i);
 }
 
 // ── Game Over ──────────────────────────────────────────────────────────────
@@ -405,6 +408,7 @@ function drawVictory() {
 // ── Settings Scene ───────────────────────────────────────────────────────────
 let setSel=0;
 function updateSettings(dt) {
+  mobBindMenu(() => setSel, v => { setSel = v; });
   const n=8;
   if (pressed('ArrowUp')||pressed('KeyW'))   { setSel=(setSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { setSel=(setSel+1)%n; sfx.select(); }
@@ -439,7 +443,7 @@ function drawSettings() {
   opts.forEach((o,i)=>{
     let vc=o[1]; if(o[1]==='ON') vc=UI.green; else if(o[1]==='OFF') vc=UI.red;
     if(i===2) vc=diff().color;
-    uiListRow(155+i*52, o[0], o[1], i===setSel, vc);
+    uiListRow(155+i*52, o[0], o[1], i===setSel, vc, i);
   });
   const d=diff();
   hud('Vidas: '+d.lives+'  Enemigos: x'+d.enemy.toFixed(2)+'  Puntos: x'+d.score.toFixed(1), W/2, 560, UI.cyan, 17, 'center');
@@ -556,6 +560,7 @@ function buyShop(item){
 }
 function updateShop(dt){
   const list=buildShop(), n=Math.max(1,list.length);
+  mobBindMenu(() => shopSel, v => { shopSel = v; });
   if(shopSel>=n) shopSel=n-1; if(shopSel<0) shopSel=0;
   if(pressed('ArrowUp')||pressed('KeyW')){ shopSel=(shopSel-1+n)%n; sfx.select(); }
   if(pressed('ArrowDown')||pressed('KeyS')){ shopSel=(shopSel+1)%n; sfx.select(); }
@@ -574,5 +579,5 @@ function drawShop(){
   } else {
     list.forEach((o,i)=>{
       const y=175+i*58, afford=gs.wallet>=o.cost;
-      uiListRow(y, o.label, o.cost+' mon.', i===shopSel, afford?UI.gold:UI.red);
+      uiListRow(y, o.label, o.cost+' mon.', i===shopSel, afford?UI.gold:UI.red, i);
       hud(o.desc, W/2-330, y+18, UI.dim, 14);

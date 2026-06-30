@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v23';
+const GAME_VERSION = 'v26';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -1129,13 +1129,14 @@ function uiPanel(x,y,w,h,r=18,bg=UI.panel,border=UI.panelBorder){
   ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowBlur=22; ctx.shadowOffsetY=8;
   fillRR(x,y,w,h,r,bg); ctx.shadowBlur=0; ctx.shadowOffsetY=0; strokeRR(x,y,w,h,r,border,2);
 }
-function uiMenuRow(label,y,sel,w=340,h=48){
+function uiMenuRow(label,y,sel,w=340,h=48,rowIdx){
   const x=W/2-w/2, ty=y-h+16;
   if(sel){ fillRR(x,ty,w,h,'rgba(255,215,0,0.16)',14); strokeRR(x,ty,w,h,UI.gold,14,2); ctx.fillStyle=UI.gold; ctx.font='bold 26px monospace'; }
   else { fillRR(x,ty,w,h,'rgba(255,255,255,0.05)',12); ctx.fillStyle='#b8c8d8'; ctx.font='24px monospace'; }
   ctx.textAlign='center'; ctx.fillText(label,W/2,y);
+  if(rowIdx!==undefined) mobRegisterRow(x,ty,w,h,rowIdx);
 }
-function uiListRow(y,label,value,sel,vc){
+function uiListRow(y,label,value,sel,vc,rowIdx){
   const pw=700, ph=52, px=W/2-pw/2;
   fillRR(px,y-36,pw,ph, sel?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.04)',12);
   if(sel) strokeRR(px,y-36,pw,ph,'rgba(255,215,0,0.4)',12,2);
@@ -1144,12 +1145,13 @@ function uiListRow(y,label,value,sel,vc){
   if(value!==undefined && value!==''){
     ctx.textAlign='right'; ctx.font='bold 22px monospace'; ctx.fillStyle=vc||UI.bright; ctx.fillText(value, px+pw-22, y);
   }
+  if(rowIdx!==undefined) mobRegisterRow(px,y-36,pw,ph,rowIdx);
 }
 function uiBar(x,y,w,h,frac,color,bg='#182030'){
   fillRR(x,y,w,h,h/2,bg); if(frac>0) fillRR(x,y,w*clamp(frac,0,1),h,h/2,color);
   strokeRR(x,y,w,h,h/2,'rgba(255,255,255,0.22)',1);
 }
-function uiFooter(str){ hud(str,W/2,H-28,UI.dim,16,'center'); }
+function uiFooter(str){ hud(uiFooterTouch(str),W/2,H-28,UI.dim,document.body.classList.contains('touch')?14:16,'center'); }
 function uiPill(x,y,text,color){
   ctx.font='bold 15px monospace'; ctx.textAlign='left';
   const tw=ctx.measureText(text).width+22; fillRR(x,y-17,tw,30,15,'rgba(0,0,0,0.5)'); strokeRR(x,y-17,tw,30,15,'rgba(255,255,255,0.12)',1);
@@ -1390,8 +1392,6 @@ function mpCodeInputSet(val){
 let mpCodeInputFocused=false;
 function mpCodeInputSync(){
   const show=gs.scene==='mpjoin'||gs.scene==='kartjoin';
-  document.body.classList.toggle('mp-join', show);
-  document.body.classList.toggle('kart-race', gs.scene==='kart');
   const jump=document.getElementById('bJump');
   const sp=document.getElementById('bSp');
   if(jump) jump.textContent=gs.scene==='kart'?'DRIFT':'JUMP';
@@ -2543,6 +2543,7 @@ function drawHUD(t) {
 const mpMenuItems=['CREAR SALA','UNIRSE A SALA','VOLVER'];
 
 function updateMultiMenu(dt) {
+  mobBindMenu(() => mp.menuSel, v => { mp.menuSel = v; });
   const n=mpMenuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { mp.menuSel=(mp.menuSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { mp.menuSel=(mp.menuSel+1)%n; sfx.select(); }
@@ -2561,7 +2562,7 @@ function drawMultiMenu(t) {
   uiTitle('JUGAR EN LINEA', 90, 44);
   hud('Invita amigos y explorad juntos el mismo nivel', W/2, 138, UI.dim, 17, 'center');
   uiPanel(W/2-220, 170, 440, 280, 18);
-  for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48);
+  for (let i=0;i<mpMenuItems.length;i++) uiMenuRow(mpMenuItems[i], 230+i*62, i===mp.menuSel, 400, 48, i);
   hud('El anfitrion elige el mundo · ambos ven al otro en pantalla', W/2, 490, UI.cyan, 15, 'center');
   uiFooter('Enter · Esc volver');
 }
@@ -2623,6 +2624,7 @@ let menuSel=0, menuT=0;
 const menuItems=['PLAY','KART RACE','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 
 function updateMenu(dt) {
+  mobBindMenu(() => menuSel, v => { menuSel = v; });
   menuT+=dt;
   const n=menuItems.length;
   if (pressed('ArrowUp')||pressed('KeyW'))   { menuSel=(menuSel-1+n)%n; sfx.select(); }
@@ -2650,7 +2652,7 @@ function drawMenu(t) {
   uiTitle('ADVENTURE', 200+bob, 52, '#fff');
   hud('Plataformas 2D · PWA movil', W/2, 238+bob, UI.dim, 18, 'center');
   uiPanel(W/2-200, 262, 400, 480, 20);
-  for (let i=0;i<menuItems.length;i++) uiMenuRow(menuItems[i], 318+i*54, i===menuSel, 360, 44);
+  for (let i=0;i<menuItems.length;i++) uiMenuRow(menuItems[i], 318+i*54, i===menuSel, 360, 44, i);
   // Info pills top
   uiPill(16, 36, 'Best: '+gs.highScore, UI.cyan);
   drawCoinIcon(16, 58, 9); hud(' '+gs.wallet, 32, 64, UI.gold, 17);
@@ -2791,6 +2793,7 @@ let pauseSel=0;
 const pauseItems=['RESUME','RESTART LEVEL','MAIN MENU'];
 
 function updatePause(dt) {
+  mobBindMenu(() => pauseSel, v => { pauseSel = v; });
   if (pressed('ArrowUp'))   pauseSel=(pauseSel-1+3)%3;
   if (pressed('ArrowDown')) pauseSel=(pauseSel+1)%3;
   if (pressed('Escape')||pressed('KeyP')) { gs.scene='gameplay'; }
@@ -2812,7 +2815,7 @@ function drawPause() {
   fillRR(0,0,W,H,0,'rgba(0,0,0,0.6)');
   uiPanel(W/2-230,H/2-175,460,350,22);
   uiTitle('PAUSA', H/2-125, 36);
-  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-55+i*68, i===pauseSel, 380, 46);
+  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-55+i*68, i===pauseSel, 380, 46, i);
 }
 
 // ── Game Over ──────────────────────────────────────────────────────────────
@@ -2897,6 +2900,7 @@ function drawVictory() {
 // ── Settings Scene ───────────────────────────────────────────────────────────
 let setSel=0;
 function updateSettings(dt) {
+  mobBindMenu(() => setSel, v => { setSel = v; });
   const n=8;
   if (pressed('ArrowUp')||pressed('KeyW'))   { setSel=(setSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { setSel=(setSel+1)%n; sfx.select(); }
@@ -2931,7 +2935,7 @@ function drawSettings() {
   opts.forEach((o,i)=>{
     let vc=o[1]; if(o[1]==='ON') vc=UI.green; else if(o[1]==='OFF') vc=UI.red;
     if(i===2) vc=diff().color;
-    uiListRow(155+i*52, o[0], o[1], i===setSel, vc);
+    uiListRow(155+i*52, o[0], o[1], i===setSel, vc, i);
   });
   const d=diff();
   hud('Vidas: '+d.lives+'  Enemigos: x'+d.enemy.toFixed(2)+'  Puntos: x'+d.score.toFixed(1), W/2, 560, UI.cyan, 17, 'center');
@@ -3048,6 +3052,7 @@ function buyShop(item){
 }
 function updateShop(dt){
   const list=buildShop(), n=Math.max(1,list.length);
+  mobBindMenu(() => shopSel, v => { shopSel = v; });
   if(shopSel>=n) shopSel=n-1; if(shopSel<0) shopSel=0;
   if(pressed('ArrowUp')||pressed('KeyW')){ shopSel=(shopSel-1+n)%n; sfx.select(); }
   if(pressed('ArrowDown')||pressed('KeyS')){ shopSel=(shopSel+1)%n; sfx.select(); }
@@ -3066,7 +3071,7 @@ function drawShop(){
   } else {
     list.forEach((o,i)=>{
       const y=175+i*58, afford=gs.wallet>=o.cost;
-      uiListRow(y, o.label, o.cost+' mon.', i===shopSel, afford?UI.gold:UI.red);
+      uiListRow(y, o.label, o.cost+' mon.', i===shopSel, afford?UI.gold:UI.red, i);
       hud(o.desc, W/2-330, y+18, UI.dim, 14);
 
 
@@ -3154,6 +3159,7 @@ function tryImmersive() {
   screen.orientation?.lock?.('landscape').catch?.(() => {});
 }
 setupTouch();
+setupMobileUi();
 
 (function(){
   const inp=document.getElementById('mpCodeInput');
@@ -3199,7 +3205,9 @@ function loop(ts) {
   const t = ts/1000;
 
   updateSceneTrans(dt);
+  mobUiPreUpdate();
   mpCodeInputSync();
+  mobUiSync();
   ctx.clearRect(0,0,W,H);
 
   const scene = renderScene();
@@ -3696,6 +3704,7 @@ function drawKartResults() {
 const kartMenuItems = ['CREAR CARRERA', 'UNIRSE A CARRERA', 'CARRERA SOLO', 'VOLVER'];
 
 function updateKartMenu(dt) {
+  mobBindMenu(() => kartMenuSel, v => { kartMenuSel = v; });
   const n = kartMenuItems.length;
   if (pressed('ArrowUp') || pressed('KeyW')) { kartMenuSel = (kartMenuSel - 1 + n) % n; sfx.select(); }
   if (pressed('ArrowDown') || pressed('KeyS')) { kartMenuSel = (kartMenuSel + 1) % n; sfx.select(); }
@@ -3714,7 +3723,7 @@ function drawKartMenu(t) {
   uiTitle('KART RACE', 80, 52);
   hud('Carreras estilo Mario Kart · Multijugador online', W / 2, 135, UI.cyan, 18, 'center');
   uiPanel(W / 2 - 240, 165, 480, 300, 18);
-  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 220 + i * 58, i === kartMenuSel, 420, 46);
+  for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 220 + i * 58, i === kartMenuSel, 420, 46, i);
   hud('Invita a un amigo o practica contra la CPU', W / 2, 500, UI.dim, 16, 'center');
   uiFooter('Enter · Esc volver');
 }
@@ -3810,4 +3819,125 @@ function drawKartLobby(t) {
     hud(mp.connected ? 'Rival listo — Enter para INICIAR' : 'Sin rival — Enter para jugar vs CPU', W / 2, 500, mp.connected ? UI.green : UI.dim, 18, 'center');
   }
   uiFooter('Enter=Iniciar carrera · Esc=Salir');
+}
+
+
+// ── Mobile UI (touch menus, tap targets, scene chrome) ───────────────────────
+const MOB_PLAY_SCENES = ['gameplay', 'kart'];
+const MOB_MENU_SCENES = [
+  'menu', 'multimenu', 'kartmenu', 'settings', 'shop', 'pause', 'worldmap',
+  'charselect', 'achievements', 'kartlobby', 'kartresults', 'gameover',
+  'levelcomplete', 'instructions', 'credits', 'mpcreate', 'kartcreate', 'victory',
+];
+const MOB_JOIN_SCENES = ['mpjoin', 'kartjoin'];
+const MOB_NAV_WIDE_SCENES = ['worldmap', 'kartlobby', 'charselect', 'shop'];
+
+let mobRows = [];
+let mobSelGet = null;
+let mobSelSet = null;
+
+function mobRegisterRow(x, y, w, h, idx) {
+  if (!document.body.classList.contains('touch')) return;
+  mobRows.push({ x, y, w, h, idx });
+}
+
+function mobClearRows() {
+  mobRows.length = 0;
+}
+
+function canvasPoint(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return { x: 0, y: 0 };
+  return {
+    x: (clientX - rect.left) * (W / rect.width),
+    y: (clientY - rect.top) * (H / rect.height),
+  };
+}
+
+function mobBindMenu(selGet, selSet) {
+  mobSelGet = selGet;
+  mobSelSet = selSet;
+}
+
+function mobHitTest(gx, gy) {
+  if (!mobSelSet) return false;
+  for (const r of mobRows) {
+    if (gx >= r.x && gx <= r.x + r.w && gy >= r.y && gy <= r.y + r.h) {
+      mobSelSet(r.idx);
+      sfx.select();
+      return true;
+    }
+  }
+  return false;
+}
+
+function mobTapKey(code) {
+  audioInit();
+  if (!keys[code]) keyDown[code] = true;
+  keys[code] = true;
+  tryImmersive();
+}
+
+function mobUiSync() {
+  if (!document.body.classList.contains('touch')) return;
+  const s = gs.scene;
+  const playing = MOB_PLAY_SCENES.includes(s);
+  const menu = MOB_MENU_SCENES.includes(s);
+  const join = MOB_JOIN_SCENES.includes(s);
+  document.body.classList.toggle('playing', playing);
+  document.body.classList.toggle('mob-menu', menu);
+  document.body.classList.toggle('mob-join', join);
+  document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
+  document.body.classList.toggle('kart-race', s === 'kart');
+  const nav = document.getElementById('mobNav');
+  if (nav) nav.classList.toggle('visible', menu);
+  if (!menu) { mobSelGet = null; mobSelSet = null; }
+}
+
+function mobUiPreUpdate() {
+  mobClearRows();
+}
+
+function setupMobileUi() {
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (!isTouch) return;
+
+  const map = {
+    mobBack: 'Escape',
+    mobLeft: 'ArrowLeft',
+    mobUp: 'ArrowUp',
+    mobDown: 'ArrowDown',
+    mobRight: 'ArrowRight',
+    mobOk: 'Enter',
+  };
+  for (const [id, code] of Object.entries(map)) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    const down = e => { e.preventDefault(); btn.classList.add('active'); mobTapKey(code); };
+    const up = e => { e.preventDefault(); btn.classList.remove('active'); };
+    btn.addEventListener('pointerdown', down);
+    btn.addEventListener('pointerup', up);
+    btn.addEventListener('pointercancel', up);
+    btn.addEventListener('pointerleave', up);
+  }
+
+  canvas.addEventListener('pointerup', e => {
+    if (!document.body.classList.contains('touch')) return;
+    if (MOB_PLAY_SCENES.includes(gs.scene) || MOB_JOIN_SCENES.includes(gs.scene)) return;
+    if (!MOB_MENU_SCENES.includes(gs.scene)) return;
+    const p = canvasPoint(e.clientX, e.clientY);
+    mobHitTest(p.x, p.y);
+  });
+}
+
+function uiFooterTouch(str) {
+  if (!document.body.classList.contains('touch')) return str;
+  return str
+    .replace(/Enter/g, 'OK')
+    .replace(/Esc/g, '←')
+    .replace(/WASD\/Flechas/g, '▲▼')
+    .replace(/Flechas/g, '▲▼')
+    .replace(/Espacio/g, 'OK')
+    .replace(/Izq\/Der/g, '◀▶')
+    .replace(/Arriba\/Abajo/g, '▲▼');
 }
