@@ -39,6 +39,13 @@ body.touch canvas {
   box-shadow: none;
   max-width: 100%;
   max-height: 100%;
+  flex-shrink: 0;
+}
+body.touch.mob-menu,
+body.touch.mob-join {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: max(4px, env(safe-area-inset-top));
 }
 
 /* ── On-screen touch controls (solo al jugar) ── */
@@ -140,75 +147,95 @@ body.touch.kart-race #bSp { font-size: 9px; }
   body.touch #bSp { width: 50px; height: 50px; }
 }
 
-/* Barra de navegacion tactil en menus */
+/* Barra de navegacion tactil en menus — ancho completo, siempre visible */
 #mobNav {
   display: none;
   position: fixed;
-  left: 50%;
-  bottom: max(10px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  z-index: 25;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: rgba(8, 12, 20, 0.92);
-  border: 1px solid rgba(255, 215, 0, 0.35);
-  border-radius: 22px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(0deg, rgba(0,0,0,0.97) 0%, rgba(16,20,32,0.92) 100%);
+  border-top: 3px solid rgba(255, 215, 0, 0.35);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   touch-action: manipulation;
 }
-body.touch.mob-menu #mobNav.visible { display: flex; }
+body.touch.mob-menu #mobNav { display: flex; }
+body.touch.mob-menu { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
 .mnav {
+  flex: 1;
   display: flex; align-items: center; justify-content: center;
-  min-width: 42px; height: 42px;
-  padding: 0 10px;
-  font: bold 16px monospace;
-  color: #eef4ff;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  min-width: 0;
+  max-width: 84px;
+  min-height: 56px;
+  padding: 0 8px;
+  font: bold 22px monospace;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
   touch-action: manipulation;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.35);
 }
-.mnav.active { background: rgba(255, 215, 0, 0.35); border-color: #ffd700; color: #fff; }
+.mnav:active, .mnav.active {
+  background: rgba(255, 215, 0, 0.35);
+  border-color: #ffd700;
+  color: #fff;
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+}
 #mobOk {
-  min-width: 52px;
-  background: linear-gradient(180deg, #ffd700, #c9a000);
-  color: #111;
-  border-color: rgba(255, 215, 0, 0.8);
-  font-size: 15px;
+  flex: 1.4;
+  max-width: 110px;
+  background: linear-gradient(180deg, #4ade80, #16a34a);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+  font-size: 17px;
+  font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 #mobLeft, #mobRight { display: none; }
 body.touch.mob-nav-wide #mobLeft,
 body.touch.mob-nav-wide #mobRight { display: flex; }
 
 @media (max-width: 480px) {
-  .mnav { min-width: 36px; height: 36px; font-size: 14px; padding: 0 8px; }
-  #mobOk { min-width: 44px; font-size: 13px; }
-  #mobNav { gap: 4px; padding: 5px 8px; }
+  .mnav { min-height: 52px; font-size: 20px; }
+  #mobOk { font-size: 16px; }
+  body.touch.mob-menu { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #mobNav { padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  .mnav { min-height: 46px; font-size: 18px; }
+  body.touch.mob-menu { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
 }
 
-/* Aviso rotar pantalla al jugar en vertical */
+/* Aviso rotar pantalla en vertical (menus y juego) */
 #rotateHint {
   display: none;
   position: fixed;
-  top: max(6px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 12;
-  padding: 7px 14px;
-  background: rgba(8, 12, 20, 0.88);
-  border: 1px solid rgba(255, 215, 0, 0.4);
-  border-radius: 12px;
+  inset: 0;
+  z-index: 300;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(4, 8, 16, 0.94);
   color: #ffd700;
-  font: bold 12px system-ui, sans-serif;
+  font: bold 18px system-ui, sans-serif;
   text-align: center;
   pointer-events: none;
-  white-space: nowrap;
 }
-body.touch.playing #rotateHint { display: block; }
+body.touch.portrait #rotateHint { display: flex; }
+#rotateHint .rh-icon { font-size: 56px; line-height: 1; }
+#rotateHint .rh-sub { font-size: 14px; color: rgba(255,255,255,0.75); font-weight: 600; max-width: 280px; }
 @media (orientation: landscape) {
-  body.touch.playing #rotateHint { display: none !important; }
+  body.touch #rotateHint { display: none !important; }
 }
 
 /* Campo de codigo multijugador (movil) */
@@ -281,7 +308,11 @@ body.touch.mob-join #mobNav { display: none !important; }
   <button type="button" id="mobOk" class="mnav">OK</button>
 </div>
 
-<div id="rotateHint">Gira el celular ↔ para jugar mejor</div>
+<div id="rotateHint">
+  <div class="rh-icon">📱↔</div>
+  <div>Gira el celular en horizontal</div>
+  <div class="rh-sub">El juego se ve mejor en modo paisaje. Los botones de navegación están abajo.</div>
+</div>
 
 <div id="mpJoinUi">
   <input id="mpCodeInput" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" inputmode="text" placeholder="CODIGO">

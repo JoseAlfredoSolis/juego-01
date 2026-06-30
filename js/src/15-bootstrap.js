@@ -32,13 +32,42 @@ const canvas = document.getElementById('c');
 canvas.width = W; canvas.height = H;
 ctx = canvas.getContext('2d');
 
-// Scale canvas to window
+// Scale canvas to window (accounts for mobile chrome: nav bar, safe areas)
 function resize() {
-  const scale = Math.min(window.innerWidth/W, window.innerHeight/H);
-  canvas.style.width  = (W*scale)+'px';
-  canvas.style.height = (H*scale)+'px';
+  const vv = window.visualViewport;
+  let availW = vv ? vv.width : window.innerWidth;
+  let availH = vv ? vv.height : window.innerHeight;
+
+  if (document.body.classList.contains('touch')) {
+    const bs = getComputedStyle(document.body);
+    availW -= (parseFloat(bs.paddingLeft) || 0) + (parseFloat(bs.paddingRight) || 0);
+    availH -= (parseFloat(bs.paddingTop) || 0) + (parseFloat(bs.paddingBottom) || 0);
+
+    if (document.body.classList.contains('mob-menu')) {
+      const nav = document.getElementById('mobNav');
+      const navH = nav && nav.offsetHeight > 0 ? nav.offsetHeight + 8 : 78;
+      availH -= navH;
+    }
+    if (document.body.classList.contains('mob-join')) {
+      availH -= 140;
+    }
+  }
+
+  availW = Math.max(200, availW);
+  availH = Math.max(160, availH);
+
+  const scale = Math.min(availW / W, availH / H);
+  const dw = Math.floor(W * scale);
+  const dh = Math.floor(H * scale);
+  canvas.style.width = dw + 'px';
+  canvas.style.height = dh + 'px';
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize);
+  window.visualViewport.addEventListener('scroll', resize);
+}
+resize();
 
 // ── Touch controls ──────────────────────────────────────────────────────────
 // Reuse the same key maps the keyboard handlers feed, so the game logic
