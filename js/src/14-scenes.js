@@ -164,20 +164,35 @@ function updateMenu(dt) {
 
 function drawMenu(t) {
   uiBgGrad('#0a2010','#1a5c1a'); uiSparkles(t);
-  drawBearSil(80,H-160,60); drawBearSil(W-140,H-160,60);
-  const bob=Math.sin(t*2)*8;
-  uiTitle('SUPER BEAR', 130+bob, 68);
-  uiTitle('ADVENTURE', 200+bob, 52, '#fff');
-  hud('Plataformas 2D · PWA movil', W/2, 238+bob, UI.dim, 18, 'center');
-  uiPanel(W/2-200, 262, 400, 480, 20);
-  for (let i=0;i<menuItems.length;i++) uiMenuRow(menuItems[i], 318+i*54, i===menuSel, 360, 44, i);
-  // Info pills top
-  uiPill(16, 36, 'Best: '+gs.highScore, UI.cyan);
-  drawCoinIcon(16, 58, 9); hud(' '+gs.wallet, 32, 64, UI.gold, 17);
-  uiPill(16, 88, CHARACTERS[gs.character].name, UI.gold);
-  uiPill(16, 118, 'Dif: '+diff().name, diff().color);
-  uiFooter('WASD/Flechas · Espacio · Esc');
-  hud(GAME_VERSION, W-12, H-12, 'rgba(255,255,255,0.4)', 13, 'right');
+  const bob = Math.sin(t * 2) * (mobTouchLand() ? 4 : 8);
+
+  if (mobTouchLand()) {
+    uiTitle('SUPER BEAR', 68 + bob, 40);
+    uiTitle('ADVENTURE', 112 + bob, 30, '#fff');
+    hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
+    uiPanel(W / 2 - 300, 158, 600, 400, 16);
+    const rowH = 38, startY = 192;
+    for (let i = 0; i < menuItems.length; i++) {
+      uiMenuRow(menuItems[i], startY + i * rowH, i === menuSel, 520, 34, i);
+    }
+    uiPill(12, 26, 'Best: ' + gs.highScore, UI.cyan);
+    drawCoinIcon(12, 46, 8); hud(' ' + gs.wallet, 26, 52, UI.gold, 15);
+    uiPill(12, 72, CHARACTERS[gs.character].name, UI.gold);
+    uiFooter('▲▼ navegar · OK confirmar');
+  } else {
+    drawBearSil(80, H - 160, 60); drawBearSil(W - 140, H - 160, 60);
+    uiTitle('SUPER BEAR', 130 + bob, 68);
+    uiTitle('ADVENTURE', 200 + bob, 52, '#fff');
+    hud('Plataformas 2D · PWA movil', W / 2, 238 + bob, UI.dim, 18, 'center');
+    uiPanel(W / 2 - 200, 262, 400, 480, 20);
+    for (let i = 0; i < menuItems.length; i++) uiMenuRow(menuItems[i], 318 + i * 54, i === menuSel, 360, 44, i);
+    uiPill(16, 36, 'Best: ' + gs.highScore, UI.cyan);
+    drawCoinIcon(16, 58, 9); hud(' ' + gs.wallet, 32, 64, UI.gold, 17);
+    uiPill(16, 88, CHARACTERS[gs.character].name, UI.gold);
+    uiPill(16, 118, 'Dif: ' + diff().name, diff().color);
+    uiFooter('WASD/Flechas · Espacio · Esc');
+  }
+  hud(GAME_VERSION, W - 12, H - 12, 'rgba(255,255,255,0.4)', 13, 'right');
 }
 
 function drawBearSil(x,y,s) {

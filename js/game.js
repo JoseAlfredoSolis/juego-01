@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v29';
+const GAME_VERSION = 'v30';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -1151,7 +1151,12 @@ function uiBar(x,y,w,h,frac,color,bg='#182030'){
   fillRR(x,y,w,h,h/2,bg); if(frac>0) fillRR(x,y,w*clamp(frac,0,1),h,h/2,color);
   strokeRR(x,y,w,h,h/2,'rgba(255,255,255,0.22)',1);
 }
-function uiFooter(str){ hud(uiFooterTouch(str),W/2,H-28,UI.dim,document.body.classList.contains('touch')?14:16,'center'); }
+function uiFooterY() {
+  if (!document.body.classList.contains('touch')) return H - 28;
+  if (document.body.classList.contains('mob-menu')) return H - 56;
+  return H - 34;
+}
+function uiFooter(str){ hud(uiFooterTouch(str), W/2, uiFooterY(), UI.dim, document.body.classList.contains('touch')?14:16,'center'); }
 function uiPill(x,y,text,color){
   ctx.font='bold 15px monospace'; ctx.textAlign='left';
   const tw=ctx.measureText(text).width+22; fillRR(x,y-17,tw,30,15,'rgba(0,0,0,0.5)'); strokeRR(x,y-17,tw,30,15,'rgba(255,255,255,0.12)',1);
@@ -2656,20 +2661,35 @@ function updateMenu(dt) {
 
 function drawMenu(t) {
   uiBgGrad('#0a2010','#1a5c1a'); uiSparkles(t);
-  drawBearSil(80,H-160,60); drawBearSil(W-140,H-160,60);
-  const bob=Math.sin(t*2)*8;
-  uiTitle('SUPER BEAR', 130+bob, 68);
-  uiTitle('ADVENTURE', 200+bob, 52, '#fff');
-  hud('Plataformas 2D · PWA movil', W/2, 238+bob, UI.dim, 18, 'center');
-  uiPanel(W/2-200, 262, 400, 480, 20);
-  for (let i=0;i<menuItems.length;i++) uiMenuRow(menuItems[i], 318+i*54, i===menuSel, 360, 44, i);
-  // Info pills top
-  uiPill(16, 36, 'Best: '+gs.highScore, UI.cyan);
-  drawCoinIcon(16, 58, 9); hud(' '+gs.wallet, 32, 64, UI.gold, 17);
-  uiPill(16, 88, CHARACTERS[gs.character].name, UI.gold);
-  uiPill(16, 118, 'Dif: '+diff().name, diff().color);
-  uiFooter('WASD/Flechas · Espacio · Esc');
-  hud(GAME_VERSION, W-12, H-12, 'rgba(255,255,255,0.4)', 13, 'right');
+  const bob = Math.sin(t * 2) * (mobTouchLand() ? 4 : 8);
+
+  if (mobTouchLand()) {
+    uiTitle('SUPER BEAR', 68 + bob, 40);
+    uiTitle('ADVENTURE', 112 + bob, 30, '#fff');
+    hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
+    uiPanel(W / 2 - 300, 158, 600, 400, 16);
+    const rowH = 38, startY = 192;
+    for (let i = 0; i < menuItems.length; i++) {
+      uiMenuRow(menuItems[i], startY + i * rowH, i === menuSel, 520, 34, i);
+    }
+    uiPill(12, 26, 'Best: ' + gs.highScore, UI.cyan);
+    drawCoinIcon(12, 46, 8); hud(' ' + gs.wallet, 26, 52, UI.gold, 15);
+    uiPill(12, 72, CHARACTERS[gs.character].name, UI.gold);
+    uiFooter('▲▼ navegar · OK confirmar');
+  } else {
+    drawBearSil(80, H - 160, 60); drawBearSil(W - 140, H - 160, 60);
+    uiTitle('SUPER BEAR', 130 + bob, 68);
+    uiTitle('ADVENTURE', 200 + bob, 52, '#fff');
+    hud('Plataformas 2D · PWA movil', W / 2, 238 + bob, UI.dim, 18, 'center');
+    uiPanel(W / 2 - 200, 262, 400, 480, 20);
+    for (let i = 0; i < menuItems.length; i++) uiMenuRow(menuItems[i], 318 + i * 54, i === menuSel, 360, 44, i);
+    uiPill(16, 36, 'Best: ' + gs.highScore, UI.cyan);
+    drawCoinIcon(16, 58, 9); hud(' ' + gs.wallet, 32, 64, UI.gold, 17);
+    uiPill(16, 88, CHARACTERS[gs.character].name, UI.gold);
+    uiPill(16, 118, 'Dif: ' + diff().name, diff().color);
+    uiFooter('WASD/Flechas · Espacio · Esc');
+  }
+  hud(GAME_VERSION, W - 12, H - 12, 'rgba(255,255,255,0.4)', 13, 'right');
 }
 
 function drawBearSil(x,y,s) {
@@ -3148,13 +3168,43 @@ const canvas = document.getElementById('c');
 canvas.width = W; canvas.height = H;
 ctx = canvas.getContext('2d');
 
-// Scale canvas to window
+// Scale canvas to window (accounts for mobile chrome: nav bar, safe areas)
 function resize() {
-  const scale = Math.min(window.innerWidth/W, window.innerHeight/H);
-  canvas.style.width  = (W*scale)+'px';
-  canvas.style.height = (H*scale)+'px';
+  const vv = window.visualViewport;
+  let availW = vv ? vv.width : window.innerWidth;
+  let availH = vv ? vv.height : window.innerHeight;
+
+  if (document.body.classList.contains('touch')) {
+    const bs = getComputedStyle(document.body);
+    availW -= (parseFloat(bs.paddingLeft) || 0) + (parseFloat(bs.paddingRight) || 0);
+    availH -= (parseFloat(bs.paddingTop) || 0) + (parseFloat(bs.paddingBottom) || 0);
+
+    if (document.body.classList.contains('mob-menu')) {
+      const nav = document.getElementById('mobNav');
+      const navH = nav && nav.offsetHeight > 0 ? nav.offsetHeight + 8 : 78;
+      availH -= navH;
+    }
+    if (document.body.classList.contains('mob-join')) {
+      availH -= 140;
+    }
+  }
+
+  availW = Math.max(200, availW);
+  availH = Math.max(160, availH);
+
+  const scale = Math.min(availW / W, availH / H);
+  const dw = Math.floor(W * scale);
+  const dh = Math.floor(H * scale);
+  canvas.style.width = dw + 'px';
+  canvas.style.height = dh + 'px';
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize);
+  window.visualViewport.addEventListener('scroll', resize);
+}
+resize();
 
 // ── Touch controls ──────────────────────────────────────────────────────────
 // Reuse the same key maps the keyboard handlers feed, so the game logic
@@ -3163,7 +3213,8 @@ function touchPress(code)   { if (!keys[code]) keyDown[code] = true; keys[code] 
 function touchRelease(code) { keys[code] = false; keyUp[code] = true; }
 
 function setupTouch() {
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0
+    || window.matchMedia('(pointer: coarse)').matches;
   if (isTouch) document.body.classList.add('touch');
 
   document.querySelectorAll('#touch .tbtn').forEach(btn => {
@@ -3199,6 +3250,8 @@ function tryImmersive() {
 }
 setupTouch();
 setupMobileUi();
+if (typeof mobUiSync === 'function') mobUiSync();
+resize();
 
 (function(){
   const inp=document.getElementById('mpCodeInput');
@@ -4436,9 +4489,16 @@ function mobUiSync() {
   document.body.classList.toggle('mob-join', join);
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
+  document.body.classList.toggle('portrait', window.innerHeight > window.innerWidth);
   const nav = document.getElementById('mobNav');
   if (nav) nav.classList.toggle('visible', menu);
   if (!menu) { mobSelGet = null; mobSelSet = null; }
+  if (typeof resize === 'function') resize();
+}
+
+function mobTouchLand() {
+  return document.body.classList.contains('touch')
+    && window.innerWidth >= window.innerHeight;
 }
 
 function mobUiPreUpdate() {

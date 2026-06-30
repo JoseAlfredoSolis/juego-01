@@ -133,9 +133,16 @@ function mobUiSync() {
   document.body.classList.toggle('mob-join', join);
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
+  document.body.classList.toggle('portrait', window.innerHeight > window.innerWidth);
   const nav = document.getElementById('mobNav');
   if (nav) nav.classList.toggle('visible', menu);
   if (!menu) { mobSelGet = null; mobSelSet = null; }
+  if (typeof resize === 'function') resize();
+}
+
+function mobTouchLand() {
+  return document.body.classList.contains('touch')
+    && window.innerWidth >= window.innerHeight;
 }
 
 function mobUiPreUpdate() {
