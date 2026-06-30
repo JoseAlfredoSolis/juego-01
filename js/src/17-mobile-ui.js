@@ -124,20 +124,27 @@ function mobProcessNav() {
 }
 
 function mobUiSync() {
-  if (!document.body.classList.contains('touch')) return;
+  if (!document.body.classList.contains('touch')) {
+    document.body.classList.remove('playing', 'mob-menu', 'mob-join', 'mob-nav-wide', 'kart-race', 'portrait', 'mob-menu-html');
+    return;
+  }
   const s = gs.scene;
   const playing = MOB_PLAY_SCENES.includes(s);
   const menu = MOB_MENU_SCENES.includes(s);
   const join = MOB_JOIN_SCENES.includes(s);
+  const portrait = window.innerHeight > window.innerWidth;
+  const htmlMenu = menu && portrait && s === 'menu' && typeof menuItems !== 'undefined';
   document.body.classList.toggle('playing', playing);
   document.body.classList.toggle('mob-menu', menu);
   document.body.classList.toggle('mob-join', join);
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
-  document.body.classList.toggle('portrait', window.innerHeight > window.innerWidth);
+  document.body.classList.toggle('portrait', portrait);
+  document.body.classList.toggle('mob-menu-html', htmlMenu);
   const nav = document.getElementById('mobNav');
   if (nav) nav.classList.toggle('visible', menu);
   if (!menu) { mobSelGet = null; mobSelSet = null; }
+  mobMenuHtmlSync(htmlMenu);
   if (typeof resize === 'function') resize();
 }
 
@@ -152,8 +159,13 @@ function mobTouchPortrait() {
 }
 
 /** Layout compacto para menus en movil (vertical u horizontal). */
+function mobUseDesktopMenu() {
+  if (!document.body.classList.contains('touch')) return true;
+  return Math.max(window.innerWidth, window.innerHeight) >= 900;
+}
+
 function mobMenuLayout(itemCount) {
-  if (!document.body.classList.contains('touch')) {
+  if (mobUseDesktopMenu()) {
     return { mode: 'desktop', startY: 318, rowH: 54, pw: 400, ph: 480, py: 262, rw: 360, rh: 44 };
   }
   if (mobTouchLand()) {
@@ -203,9 +215,7 @@ function mobHandlePointerUp(clientX, clientY) {
 }
 
 function setupMobileUi() {
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0
-    || window.matchMedia('(pointer: coarse)').matches;
-  if (!isTouch) return;
+  if (!isTouchDevice()) return;
 
   let actions;
   try { actions = MOB_BTN_ACTIONS; } catch (_) { return; }
@@ -240,6 +250,48 @@ function setupMobileUi() {
   });
 
   canvas.addEventListener('pointercancel', () => { mobPtr = null; });
+}
+
+let mobMenuHtmlBuilt = false;
+
+function mobMenuHtmlSync(show) {
+  const root = document.getElementById('mobMenuHtml');
+  const list = document.getElementById('mobMenuHtmlList');
+  if (!root || !list) return;
+  if (!show) {
+    mobMenuHtmlBuilt = false;
+    return;
+  }
+  if (!mobMenuHtmlBuilt && typeof menuItems !== 'undefined') {
+    mobMenuHtmlBuilt = true;
+    list.innerHTML = '';
+    menuItems.forEach((label, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mmh-item';
+      btn.dataset.idx = String(idx);
+      btn.textContent = label;
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        menuSel = idx;
+        sfx.select();
+        mobQueueAction('ok');
+      });
+      list.appendChild(btn);
+    });
+  }
+  if (typeof menuSel === 'number') {
+    list.querySelectorAll('.mmh-item').forEach((btn, i) => {
+      btn.classList.toggle('sel', i === menuSel);
+    });
+  }
+  const meta = document.getElementById('mmhMeta');
+  if (meta && typeof gs !== 'undefined' && typeof CHARACTERS !== 'undefined') {
+    const ch = CHARACTERS[gs.character] || CHARACTERS[0];
+    meta.innerHTML = '<span>Best: ' + gs.highScore + '</span><span>🪙 ' + gs.wallet + '</span><span>' + ch.name + '</span>';
+  }
+  const ver = document.getElementById('mmhVer');
+  if (ver && typeof GAME_VERSION !== 'undefined') ver.textContent = GAME_VERSION;
 }
 
 function uiFooterTouch(str) {

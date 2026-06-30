@@ -219,6 +219,85 @@ body.touch.mob-nav-wide #mobRight { display: flex; }
   body.touch.mob-menu { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
 }
 
+/* Menu HTML nativo en celular vertical (legible, tactil) */
+#mobMenuHtml {
+  display: none;
+  position: fixed;
+  inset: 0 0 calc(78px + env(safe-area-inset-bottom, 0px)) 0;
+  z-index: 150;
+  flex-direction: column;
+  align-items: stretch;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    12px
+    max(12px, env(safe-area-inset-left));
+  background: linear-gradient(180deg, #0a2010 0%, #1a5c1a 55%, #0d3010 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+body.touch.mob-menu-html #mobMenuHtml { display: flex; }
+body.touch.mob-menu-html canvas { visibility: hidden; pointer-events: none; }
+.mmh-title {
+  font: 900 28px system-ui, sans-serif;
+  color: #ffd700;
+  text-align: center;
+  letter-spacing: 2px;
+  margin-bottom: 2px;
+}
+.mmh-sub {
+  font: 700 18px system-ui, sans-serif;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 14px;
+}
+#mmhMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 14px;
+  font: 600 13px monospace;
+  color: #8cf;
+}
+#mmhMeta span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+#mobMenuHtmlList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.mmh-item {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 16px;
+  font: bold 18px system-ui, sans-serif;
+  color: #dce8f0;
+  text-align: center;
+  border: 2px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.07);
+  touch-action: manipulation;
+}
+.mmh-item.sel {
+  color: #ffd700;
+  border-color: #ffd700;
+  background: rgba(255,215,0,0.18);
+  box-shadow: 0 0 20px rgba(255,215,0,0.15);
+}
+.mmh-item:active { transform: scale(0.98); }
+#mmhVer {
+  margin-top: 10px;
+  text-align: center;
+  font: 12px monospace;
+  color: rgba(255,255,255,0.35);
+}
+
 /* Aviso rotar pantalla en vertical (menus y juego) */
 #rotateHint {
   display: none;
@@ -302,6 +381,14 @@ body.touch.mob-join #mobNav { display: none !important; }
     <div class="tbtn" id="bJump" data-code="Space">JUMP</div>
   </div>
   <div class="tbtn" id="bPause" data-code="Escape">II</div>
+</div>
+
+<div id="mobMenuHtml">
+  <div class="mmh-title">SUPER BEAR</div>
+  <div class="mmh-sub">ADVENTURE</div>
+  <div id="mmhMeta"></div>
+  <div id="mobMenuHtmlList"></div>
+  <div id="mmhVer"></div>
 </div>
 
 <div id="mobNav">

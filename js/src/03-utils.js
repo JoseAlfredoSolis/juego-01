@@ -6,3 +6,12 @@ function rectOverlap(ax,ay,aw,ah, bx,by,bw,bh) {
   return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
 }
 
+/** Pantalla tactil real (no el stub ontouchstart de Chrome en PC). */
+function isTouchDevice() {
+  if (navigator.maxTouchPoints > 0) return true;
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const fine = window.matchMedia('(pointer: fine)').matches;
+  const noHover = window.matchMedia('(hover: none)').matches;
+  return coarse && (noHover || !fine);
+}
+
