@@ -1,5 +1,5 @@
-# Publica el juego en GitHub Pages al hacer push a main.
-# En el repo: Settings → Pages → Source = "GitHub Actions"
+# Publica solo los archivos del juego PWA en la rama gh-pages.
+# Luego en GitHub: Settings → Pages → Deploy from branch → gh-pages → / (root)
 name: Deploy GitHub Pages
 
 on:
@@ -8,24 +8,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
+  contents: write
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/upload-pages-artifact@v3
+      - name: Preparar sitio web
+        run: |
+          mkdir site
+          cp index.html manifest.webmanifest sw.js icon.svg .nojekyll site/
+      - uses: peaceiris/actions-gh-pages@v4
         with:
-          path: .
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          force_orphan: true
