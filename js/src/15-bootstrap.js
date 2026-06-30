@@ -83,6 +83,25 @@ function tryImmersive() {
 }
 setupTouch();
 
+(function(){
+  const inp=document.getElementById('mpCodeInput');
+  const btn=document.getElementById('mpJoinBtn');
+  if(!inp) return;
+  inp.addEventListener('input', ()=>{
+    mp.joinBuf=inp.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    if(inp.value!==mp.joinBuf) inp.value=mp.joinBuf;
+    mp.errMsg='';
+  });
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter' && mp.joinBuf.length===6){ e.stopPropagation(); mpGuestJoin(mp.joinBuf); }
+  });
+  btn?.addEventListener('click', ()=>{
+    audioInit();
+    if(mp.joinBuf.length===6) mpGuestJoin(mp.joinBuf);
+    else mp.errMsg='Codigo de 6 caracteres';
+  });
+})();
+
 // ── Service worker (offline / installable PWA) ──────────────────────────────
 if ('serviceWorker' in navigator) {
   // Reload once the new service worker takes control so the phone always runs
@@ -108,6 +127,7 @@ function loop(ts) {
   const t = ts/1000;
 
   updateSceneTrans(dt);
+  mpCodeInputSync();
   ctx.clearRect(0,0,W,H);
 
   const scene = renderScene();

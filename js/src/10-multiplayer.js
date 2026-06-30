@@ -60,7 +60,9 @@ function mpSend(obj){
   try{ mp.conn.send(JSON.stringify(obj)); }catch(e){}
 }
 function mpInviteUrl(){
-  const u=new URL(location.href); u.searchParams.set('sala', mp.roomCode); return u.href;
+  const u=new URL(location.href); u.searchParams.set('sala', mp.roomCode);
+  if(mp.gameMode==='kart') u.searchParams.set('mode','kart');
+  return u.href;
 }
 async function mpCopyInvite(){
   const url=mpInviteUrl(), txt='Super Bear Adventure — Codigo: '+mp.roomCode+'\n'+url;

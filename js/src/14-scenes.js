@@ -120,7 +120,7 @@ function drawMpJoin(t) {
   hud('Escribe el codigo de 6 letras', W/2, 195, UI.dim, 17, 'center');
   const code=(mp.joinBuf+'______').slice(0,6).split('').map((c,i)=>mp.joinBuf[i]||'_').join(' ');
   uiTitle(code, 240, 64, mp.joinBuf.length===6?UI.green:UI.gold);
-  hud(mp.status||'Teclado A-Z y 0-9 · Backspace borrar', W/2, 320, UI.bright, 16, 'center');
+  hud(mp.status||'Toca el cuadro para escribir · 6 caracteres', W/2, 320, UI.bright, 16, 'center');
   if (mp.errMsg) hud(mp.errMsg, W/2, 360, UI.red, 16, 'center');
   if (mp.connected) hud('Conectado — espera a que el anfitrion elija nivel', W/2, 400, UI.green, 17, 'center');
   uiFooter('Enter unirse · Esc volver');

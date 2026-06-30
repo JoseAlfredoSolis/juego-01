@@ -16,8 +16,14 @@ const COIN_PTS = 50, STAR_PTS = 200, ENEMY_PTS = 100, BOSS_PTS = 1000, LEVEL_PTS
 // === 02-input.js (from index.html lines 12-19) ===
 // ── Input ──────────────────────────────────────────────────────────────────
 const keys = {}, keyDown = {}, keyUp = {};
-document.addEventListener('keydown', e => { audioInit(); if (!keys[e.code]) keyDown[e.code] = true; keys[e.code] = true; e.preventDefault(); });
-document.addEventListener('keyup',   e => { keys[e.code] = false; keyUp[e.code] = true; });
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  audioInit(); if (!keys[e.code]) keyDown[e.code] = true; keys[e.code] = true; e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  keys[e.code] = false; keyUp[e.code] = true;
+});
 function clearFrame() { for (const k in keyDown) delete keyDown[k]; for (const k in keyUp) delete keyUp[k]; }
 function pressed(c) { return !!keyDown[c]; }
 function held(c)    { return !!keys[c]; }
@@ -1215,7 +1221,9 @@ function mpSend(obj){
   try{ mp.conn.send(JSON.stringify(obj)); }catch(e){}
 }
 function mpInviteUrl(){
-  const u=new URL(location.href); u.searchParams.set('sala', mp.roomCode); return u.href;
+  const u=new URL(location.href); u.searchParams.set('sala', mp.roomCode);
+  if(mp.gameMode==='kart') u.searchParams.set('mode','kart');
+  return u.href;
 }
 async function mpCopyInvite(){
   const url=mpInviteUrl(), txt='Super Bear Adventure — Codigo: '+mp.roomCode+'\n'+url;
@@ -1367,12 +1375,35 @@ function drawRemotePlayer(){
 }
 function mpJoinKeys(){
   for(const k in keyDown){
-    if(k==='Backspace'){ mp.joinBuf=mp.joinBuf.slice(0,-1); sfx.select(); return; }
+    if(k==='Backspace'){ mp.joinBuf=mp.joinBuf.slice(0,-1); mpCodeInputSet(mp.joinBuf); sfx.select(); return; }
     if(k==='Enter' && mp.joinBuf.length===6){ mpGuestJoin(mp.joinBuf); return; }
     if(k.startsWith('Key') && mp.joinBuf.length<6){
-      const ch=k.slice(3); if(ch.length===1 && ch>='A' && ch<='Z'){ mp.joinBuf+=ch; sfx.select(); return; }
+      const ch=k.slice(3); if(ch.length===1 && ch>='A' && ch<='Z'){ mp.joinBuf+=ch; mpCodeInputSet(mp.joinBuf); sfx.select(); return; }
     }
-    if(k.startsWith('Digit') && mp.joinBuf.length<6){ mp.joinBuf+=k.slice(5); sfx.select(); return; }
+    if(k.startsWith('Digit') && mp.joinBuf.length<6){ mp.joinBuf+=k.slice(5); mpCodeInputSet(mp.joinBuf); sfx.select(); return; }
+  }
+}
+function mpCodeInputSet(val){
+  const el=document.getElementById('mpCodeInput');
+  if(el && el.value!==val) el.value=val;
+}
+let mpCodeInputFocused=false;
+function mpCodeInputSync(){
+  const show=gs.scene==='mpjoin'||gs.scene==='kartjoin';
+  document.body.classList.toggle('mp-join', show);
+  document.body.classList.toggle('kart-race', gs.scene==='kart');
+  const jump=document.getElementById('bJump');
+  const sp=document.getElementById('bSp');
+  if(jump) jump.textContent=gs.scene==='kart'?'DRIFT':'JUMP';
+  if(sp) sp.textContent=gs.scene==='kart'?'ITEM':'SP';
+  const el=document.getElementById('mpCodeInput');
+  if(!el) return;
+  if(show){
+    if(el.value!==mp.joinBuf) el.value=mp.joinBuf;
+    if(!mpCodeInputFocused){ mpCodeInputFocused=true; setTimeout(()=>el.focus(), 80); }
+  } else {
+    mpCodeInputFocused=false;
+    el.blur();
   }
 }
 function drawSceneTrans(){
@@ -2581,7 +2612,7 @@ function drawMpJoin(t) {
   hud('Escribe el codigo de 6 letras', W/2, 195, UI.dim, 17, 'center');
   const code=(mp.joinBuf+'______').slice(0,6).split('').map((c,i)=>mp.joinBuf[i]||'_').join(' ');
   uiTitle(code, 240, 64, mp.joinBuf.length===6?UI.green:UI.gold);
-  hud(mp.status||'Teclado A-Z y 0-9 · Backspace borrar', W/2, 320, UI.bright, 16, 'center');
+  hud(mp.status||'Toca el cuadro para escribir · 6 caracteres', W/2, 320, UI.bright, 16, 'center');
   if (mp.errMsg) hud(mp.errMsg, W/2, 360, UI.red, 16, 'center');
   if (mp.connected) hud('Conectado — espera a que el anfitrion elija nivel', W/2, 400, UI.green, 17, 'center');
   uiFooter('Enter unirse · Esc volver');
@@ -3124,6 +3155,25 @@ function tryImmersive() {
 }
 setupTouch();
 
+(function(){
+  const inp=document.getElementById('mpCodeInput');
+  const btn=document.getElementById('mpJoinBtn');
+  if(!inp) return;
+  inp.addEventListener('input', ()=>{
+    mp.joinBuf=inp.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    if(inp.value!==mp.joinBuf) inp.value=mp.joinBuf;
+    mp.errMsg='';
+  });
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter' && mp.joinBuf.length===6){ e.stopPropagation(); mpGuestJoin(mp.joinBuf); }
+  });
+  btn?.addEventListener('click', ()=>{
+    audioInit();
+    if(mp.joinBuf.length===6) mpGuestJoin(mp.joinBuf);
+    else mp.errMsg='Codigo de 6 caracteres';
+  });
+})();
+
 // ── Service worker (offline / installable PWA) ──────────────────────────────
 if ('serviceWorker' in navigator) {
   // Reload once the new service worker takes control so the phone always runs
@@ -3149,6 +3199,7 @@ function loop(ts) {
   const t = ts/1000;
 
   updateSceneTrans(dt);
+  mpCodeInputSync();
   ctx.clearRect(0,0,W,H);
 
   const scene = renderScene();
@@ -3442,6 +3493,13 @@ function kartGuestApplyState(msg) {
       const k = race.karts[s.i];
       if (!k) continue;
       if (s.i === kartLocalIdx()) {
+        if (k.x === undefined) { k.x = s.x; k.y = s.y; k.angle = s.a; k.speed = s.s; }
+        else {
+          k.x = lerp(k.x, s.x, 0.45);
+          k.y = lerp(k.y, s.y, 0.45);
+          k.angle = lerp(k.angle, s.a, 0.35);
+          k.speed = lerp(k.speed, s.s, 0.35);
+        }
         k.lap = s.l; k.cp = s.c; k.finished = s.f; k.finishTime = s.ft;
         k.rank = s.r; k.item = s.it || k.item;
       } else {
@@ -3647,7 +3705,7 @@ function updateKartMenu(dt) {
     const it = kartMenuItems[kartMenuSel];
     if (it === 'CREAR CARRERA') { mp.gameMode = 'kart'; mpHostCreate(); changeScene('kartcreate'); mp.createT = 0; }
     else if (it === 'UNIRSE A CARRERA') { mp.gameMode = 'kart'; mp.joinBuf = ''; mp.errMsg = ''; changeScene('kartjoin'); }
-    else if (it === 'CARRERA SOLO') { mp.gameMode = 'kart'; race = null; changeScene('kartlobby'); kartLobbySel = 0; startKartRace(true); changeScene('kart'); }
+    else if (it === 'CARRERA SOLO') { mp.gameMode = 'kart'; startKartRace(true); changeScene('kart'); }
     else if (it === 'VOLVER') { mpDisconnect(); changeScene('menu'); }
   }
 }
@@ -3700,7 +3758,7 @@ function drawKartJoin(t) {
   hud('Codigo de 6 letras del anfitrion', W / 2, 195, UI.dim, 17, 'center');
   const code = (mp.joinBuf + '______').slice(0, 6).split('').map((c, i) => mp.joinBuf[i] || '_').join(' ');
   uiTitle(code, 240, 64, mp.joinBuf.length === 6 ? UI.green : UI.gold);
-  hud(mp.status || 'Teclado A-Z y 0-9', W / 2, 320, UI.bright, 16, 'center');
+  hud(mp.status || 'Toca el cuadro para escribir · 6 caracteres', W / 2, 320, UI.bright, 16, 'center');
   if (mp.errMsg) hud(mp.errMsg, W / 2, 360, UI.red, 16, 'center');
   if (mp.connected) hud('Conectado — espera al anfitrion', W / 2, 400, UI.green, 17, 'center');
   uiFooter('Enter unirse · Esc volver');
@@ -3721,8 +3779,11 @@ function updateKartLobby(dt) {
     if (kartTrackSel !== prev) { sfx.select(); mpHostBroadcast(); }
   }
   if (pressed('Enter') || pressed('Space')) {
-    if (mp.connected || mp.role === 'host') {
+    if (mp.connected) {
       startKartRace(false);
+      changeScene('kart');
+    } else {
+      startKartRace(true);
       changeScene('kart');
     }
   }
@@ -3746,7 +3807,7 @@ function drawKartLobby(t) {
     hud('Esperando al anfitrion...', W / 2, 500, UI.cyan, 20, 'center');
     hud('Pista: ' + tr.name, W / 2, 530, UI.bright, 18, 'center');
   } else {
-    hud(mp.connected ? 'Rival listo — Enter para INICIAR' : 'Esperando rival (o inicia 1 jugador)', W / 2, 500, mp.connected ? UI.green : UI.dim, 18, 'center');
+    hud(mp.connected ? 'Rival listo — Enter para INICIAR' : 'Sin rival — Enter para jugar vs CPU', W / 2, 500, mp.connected ? UI.green : UI.dim, 18, 'center');
   }
   uiFooter('Enter=Iniciar carrera · Esc=Salir');
 }

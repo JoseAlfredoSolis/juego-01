@@ -86,6 +86,49 @@ body.touch #touch { display: block; pointer-events: auto; }
 @media (orientation: portrait) {
   #touch .pad, #touch .btns { bottom: 64px; }
 }
+
+/* Campo de codigo multijugador (movil) */
+#mpJoinUi {
+  display: none;
+  position: fixed;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: min(92vw, 400px);
+}
+body.touch.mp-join #mpJoinUi { display: flex; }
+body.touch.mp-join #touch { display: none !important; }
+body.touch.kart-race #bJump { font-size: 12px; }
+body.touch.kart-race #bSp { font-size: 12px; }
+#mpCodeInput {
+  width: 100%;
+  padding: 16px 20px;
+  font: bold 32px monospace;
+  text-align: center;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  border: 2px solid rgba(255,215,0,0.65);
+  border-radius: 14px;
+  background: rgba(8,12,24,0.96);
+  color: #ffd700;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+#mpCodeInput::placeholder { color: rgba(255,215,0,0.35); letter-spacing: 0.2em; }
+#mpJoinBtn {
+  width: 100%;
+  padding: 14px;
+  font: bold 22px monospace;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffd700, #c9a000);
+  color: #111;
+}
 </style>
 </head>
 <body>
@@ -106,7 +149,17 @@ body.touch #touch { display: block; pointer-events: auto; }
   <div class="tbtn" id="bPause" data-code="Escape">II</div>
 </div>
 
+<div id="mpJoinUi">
+  <input id="mpCodeInput" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" inputmode="text" placeholder="CODIGO">
+  <button id="mpJoinBtn" type="button">UNIRSE</button>
+</div>
+
 <script src="vendor/peer.min.js"></script>
+<script>
+if (typeof Peer === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');
+}
+</script>
 <script src="js/game.js"></script>
 </body>
 </html>

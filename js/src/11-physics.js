@@ -15,12 +15,35 @@ function drawRemotePlayer(){
 }
 function mpJoinKeys(){
   for(const k in keyDown){
-    if(k==='Backspace'){ mp.joinBuf=mp.joinBuf.slice(0,-1); sfx.select(); return; }
+    if(k==='Backspace'){ mp.joinBuf=mp.joinBuf.slice(0,-1); mpCodeInputSet(mp.joinBuf); sfx.select(); return; }
     if(k==='Enter' && mp.joinBuf.length===6){ mpGuestJoin(mp.joinBuf); return; }
     if(k.startsWith('Key') && mp.joinBuf.length<6){
-      const ch=k.slice(3); if(ch.length===1 && ch>='A' && ch<='Z'){ mp.joinBuf+=ch; sfx.select(); return; }
+      const ch=k.slice(3); if(ch.length===1 && ch>='A' && ch<='Z'){ mp.joinBuf+=ch; mpCodeInputSet(mp.joinBuf); sfx.select(); return; }
     }
-    if(k.startsWith('Digit') && mp.joinBuf.length<6){ mp.joinBuf+=k.slice(5); sfx.select(); return; }
+    if(k.startsWith('Digit') && mp.joinBuf.length<6){ mp.joinBuf+=k.slice(5); mpCodeInputSet(mp.joinBuf); sfx.select(); return; }
+  }
+}
+function mpCodeInputSet(val){
+  const el=document.getElementById('mpCodeInput');
+  if(el && el.value!==val) el.value=val;
+}
+let mpCodeInputFocused=false;
+function mpCodeInputSync(){
+  const show=gs.scene==='mpjoin'||gs.scene==='kartjoin';
+  document.body.classList.toggle('mp-join', show);
+  document.body.classList.toggle('kart-race', gs.scene==='kart');
+  const jump=document.getElementById('bJump');
+  const sp=document.getElementById('bSp');
+  if(jump) jump.textContent=gs.scene==='kart'?'DRIFT':'JUMP';
+  if(sp) sp.textContent=gs.scene==='kart'?'ITEM':'SP';
+  const el=document.getElementById('mpCodeInput');
+  if(!el) return;
+  if(show){
+    if(el.value!==mp.joinBuf) el.value=mp.joinBuf;
+    if(!mpCodeInputFocused){ mpCodeInputFocused=true; setTimeout(()=>el.focus(), 80); }
+  } else {
+    mpCodeInputFocused=false;
+    el.blur();
   }
 }
 function drawSceneTrans(){

@@ -215,6 +215,13 @@ function kartGuestApplyState(msg) {
       const k = race.karts[s.i];
       if (!k) continue;
       if (s.i === kartLocalIdx()) {
+        if (k.x === undefined) { k.x = s.x; k.y = s.y; k.angle = s.a; k.speed = s.s; }
+        else {
+          k.x = lerp(k.x, s.x, 0.45);
+          k.y = lerp(k.y, s.y, 0.45);
+          k.angle = lerp(k.angle, s.a, 0.35);
+          k.speed = lerp(k.speed, s.s, 0.35);
+        }
         k.lap = s.l; k.cp = s.c; k.finished = s.f; k.finishTime = s.ft;
         k.rank = s.r; k.item = s.it || k.item;
       } else {
@@ -420,7 +427,7 @@ function updateKartMenu(dt) {
     const it = kartMenuItems[kartMenuSel];
     if (it === 'CREAR CARRERA') { mp.gameMode = 'kart'; mpHostCreate(); changeScene('kartcreate'); mp.createT = 0; }
     else if (it === 'UNIRSE A CARRERA') { mp.gameMode = 'kart'; mp.joinBuf = ''; mp.errMsg = ''; changeScene('kartjoin'); }
-    else if (it === 'CARRERA SOLO') { mp.gameMode = 'kart'; race = null; changeScene('kartlobby'); kartLobbySel = 0; startKartRace(true); changeScene('kart'); }
+    else if (it === 'CARRERA SOLO') { mp.gameMode = 'kart'; startKartRace(true); changeScene('kart'); }
     else if (it === 'VOLVER') { mpDisconnect(); changeScene('menu'); }
   }
 }
@@ -473,7 +480,7 @@ function drawKartJoin(t) {
   hud('Codigo de 6 letras del anfitrion', W / 2, 195, UI.dim, 17, 'center');
   const code = (mp.joinBuf + '______').slice(0, 6).split('').map((c, i) => mp.joinBuf[i] || '_').join(' ');
   uiTitle(code, 240, 64, mp.joinBuf.length === 6 ? UI.green : UI.gold);
-  hud(mp.status || 'Teclado A-Z y 0-9', W / 2, 320, UI.bright, 16, 'center');
+  hud(mp.status || 'Toca el cuadro para escribir · 6 caracteres', W / 2, 320, UI.bright, 16, 'center');
   if (mp.errMsg) hud(mp.errMsg, W / 2, 360, UI.red, 16, 'center');
   if (mp.connected) hud('Conectado — espera al anfitrion', W / 2, 400, UI.green, 17, 'center');
   uiFooter('Enter unirse · Esc volver');
@@ -494,8 +501,11 @@ function updateKartLobby(dt) {
     if (kartTrackSel !== prev) { sfx.select(); mpHostBroadcast(); }
   }
   if (pressed('Enter') || pressed('Space')) {
-    if (mp.connected || mp.role === 'host') {
+    if (mp.connected) {
       startKartRace(false);
+      changeScene('kart');
+    } else {
+      startKartRace(true);
       changeScene('kart');
     }
   }
@@ -519,7 +529,7 @@ function drawKartLobby(t) {
     hud('Esperando al anfitrion...', W / 2, 500, UI.cyan, 20, 'center');
     hud('Pista: ' + tr.name, W / 2, 530, UI.bright, 18, 'center');
   } else {
-    hud(mp.connected ? 'Rival listo — Enter para INICIAR' : 'Esperando rival (o inicia 1 jugador)', W / 2, 500, mp.connected ? UI.green : UI.dim, 18, 'center');
+    hud(mp.connected ? 'Rival listo — Enter para INICIAR' : 'Sin rival — Enter para jugar vs CPU', W / 2, 500, mp.connected ? UI.green : UI.dim, 18, 'center');
   }
   uiFooter('Enter=Iniciar carrera · Esc=Salir');
 }
