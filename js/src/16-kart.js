@@ -1,66 +1,128 @@
-// ── Kart Racing (Mario Kart-style multiplayer) ───────────────────────────────
+// ── Kart Racing (Need for Speed-style road circuits) ─────────────────────────
 const KART_LAPS = 3;
-const KART_MAX_SPEED = 480;
-const KART_ACCEL = 620;
-const KART_BRAKE = 900;
-const KART_FRICTION = 320;
-const KART_TURN = 3.8;
-const KART_DRIFT_BOOST = 180;
+const KART_MAX_SPEED = 540;
+const KART_ACCEL = 680;
+const KART_BRAKE = 950;
+const KART_FRICTION = 300;
+const KART_TURN = 3.4;
+const KART_DRIFT_BOOST = 200;
 
 const KART_TRACKS = [
   {
-    name: 'BOSQUE OVAL',
-    bg: ['#143818', '#2d6e1a'],
-    grass: ['#1e4a1e', '#2f7a28'],
-    asphalt: ['#3d4248', '#565c64'],
+    name: 'AUTOPISTA COSTA',
+    bg: ['#1a4080', '#70b8f0'],
+    grass: ['#2a5820', '#3a9030'],
+    asphalt: ['#4a4e56', '#626870'],
     kerb: ['#e03030', '#f0f0f0'],
-    accent: '#7cff7c',
-    decor: 'tree',
-    cx: 640, cy: 360, rxOut: 420, ryOut: 308, rxIn: 232, ryIn: 160,
+    accent: '#5ee0ff',
+    decor: 'palm',
+    roadWidth: 108,
+    path: [
+      { x: 160, y: 520 }, { x: 320, y: 450 }, { x: 520, y: 400 }, { x: 740, y: 370 },
+      { x: 960, y: 330 }, { x: 1120, y: 240 }, { x: 1080, y: 110 }, { x: 880, y: 70 },
+      { x: 640, y: 90 }, { x: 420, y: 150 }, { x: 260, y: 260 }, { x: 150, y: 400 },
+    ],
   },
   {
-    name: 'CIRCUITO CIELO',
-    bg: ['#1a3060', '#4a80c0'],
-    grass: ['#1a4878', '#3a90c8'],
-    asphalt: ['#505868', '#6a7488'],
+    name: 'PASO MONTAÑA',
+    bg: ['#1a2838', '#4a6888'],
+    grass: ['#2a4028', '#4a6838'],
+    asphalt: ['#484c54', '#5e646c'],
+    kerb: ['#ff8020', '#ffcc40'],
+    accent: '#ffb060',
+    decor: 'rock',
+    roadWidth: 96,
+    path: [
+      { x: 140, y: 380 }, { x: 260, y: 290 }, { x: 420, y: 200 }, { x: 620, y: 170 },
+      { x: 820, y: 210 }, { x: 1000, y: 310 }, { x: 1100, y: 440 }, { x: 1040, y: 560 },
+      { x: 880, y: 640 }, { x: 680, y: 660 }, { x: 460, y: 600 }, { x: 280, y: 500 },
+    ],
+  },
+  {
+    name: 'CIRCUITO URBANO',
+    bg: ['#181828', '#383858'],
+    grass: ['#1a2820', '#2a3828'],
+    asphalt: ['#505460', '#686e78'],
     kerb: ['#3080ff', '#ffffff'],
-    accent: '#9ed4ff',
-    decor: 'cloud',
-    cx: 640, cy: 360, rxOut: 395, ryOut: 278, rxIn: 210, ryIn: 138,
-  },
-  {
-    name: 'VOLCANO',
-    bg: ['#2a0808', '#6a1a0a'],
-    grass: ['#3a1810', '#6a2818'],
-    asphalt: ['#4a3830', '#625048'],
-    kerb: ['#ff6020', '#ffcc40'],
-    accent: '#ff9040',
-    decor: 'lava',
-    cx: 640, cy: 370, rxOut: 435, ryOut: 292, rxIn: 218, ryIn: 145,
+    accent: '#80b0ff',
+    decor: 'city',
+    roadWidth: 92,
+    path: [
+      { x: 200, y: 600 }, { x: 440, y: 570 }, { x: 680, y: 510 }, { x: 920, y: 430 },
+      { x: 1080, y: 300 }, { x: 1060, y: 170 }, { x: 900, y: 110 }, { x: 700, y: 140 },
+      { x: 520, y: 240 }, { x: 400, y: 380 }, { x: 420, y: 500 }, { x: 300, y: 570 },
+    ],
   },
 ].map(kartLayoutTrack);
 
-function kartMidRadii(tr) {
-  return { rx: (tr.rxOut + tr.rxIn) * 0.5, ry: (tr.ryOut + tr.ryIn) * 0.5 };
+// ── Spline path helpers ──────────────────────────────────────────────────────
+function kartPathCatmull(p0, p1, p2, p3, t) {
+  const t2 = t * t, t3 = t2 * t;
+  return {
+    x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+    y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+  };
 }
-function kartCpRadius(tr) {
-  return Math.max(62, (tr.rxOut + tr.ryOut) * 0.12);
+function kartPathSample(tr, u) {
+  const pts = tr.path, n = pts.length;
+  const f = ((u % 1) + 1) % 1 * n;
+  const i = Math.floor(f) % n;
+  const t = f - Math.floor(f);
+  return kartPathCatmull(pts[(i - 1 + n) % n], pts[i], pts[(i + 1) % n], pts[(i + 2) % n], t);
+}
+function kartPathTangent(tr, u, eps) {
+  eps = eps || 0.003;
+  const a = kartPathSample(tr, u);
+  const b = kartPathSample(tr, u + eps);
+  return { x: a.x, y: a.y, angle: Math.atan2(b.y - a.y, b.x - a.x) };
+}
+function kartPathLength(tr, segs) {
+  segs = segs || 80;
+  let len = 0, prev = kartPathSample(tr, 0);
+  for (let i = 1; i <= segs; i++) {
+    const p = kartPathSample(tr, i / segs);
+    len += Math.hypot(p.x - prev.x, p.y - prev.y);
+    prev = p;
+  }
+  return len;
+}
+function kartNearestPath(tr, x, y, samples) {
+  samples = samples || 64;
+  let best = { dist: 1e9, u: 0, x: tr.cx, y: tr.cy, angle: 0 };
+  for (let i = 0; i <= samples; i++) {
+    const u = i / samples;
+    const p = kartPathSample(tr, u);
+    const d = Math.hypot(x - p.x, y - p.y);
+    if (d < best.dist) {
+      const tg = kartPathTangent(tr, u);
+      best = { dist: d, u, x: p.x, y: p.y, angle: tg.angle };
+    }
+  }
+  return best;
 }
 function kartLayoutTrack(tr) {
-  const { rx, ry } = kartMidRadii(tr);
-  const cpAngles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
-  tr.items = cpAngles.map((a, i) => {
-    const ang = a + (i % 2 ? 0.42 : -0.42);
-    return { x: tr.cx + Math.cos(ang) * rx * 0.96, y: tr.cy + Math.sin(ang) * ry * 0.96 };
+  let cx = 0, cy = 0;
+  for (const p of tr.path) { cx += p.x; cy += p.y; }
+  tr.cx = cx / tr.path.length;
+  tr.cy = cy / tr.path.length;
+  tr.checkpoints = [0, 0.25, 0.5, 0.75].map(frac => {
+    const tg = kartPathTangent(tr, frac);
+    return { u: frac, x: tg.x, y: tg.y, angle: tg.angle };
   });
-  const sa = -Math.PI / 2 - 0.32;
-  const sx = tr.cx + Math.cos(sa) * rx * 0.9;
-  const sy = tr.cy + Math.sin(sa) * ry * 0.9;
+  const st = kartPathTangent(tr, 0.008);
+  const nx = -Math.sin(st.angle) * 24, ny = Math.cos(st.angle) * 24;
   tr.starts = [
-    { x: sx - 20, y: sy, a: -0.4 },
-    { x: sx + 20, y: sy, a: -0.4 },
+    { x: st.x - nx, y: st.y - ny, a: st.angle },
+    { x: st.x + nx, y: st.y + ny, a: st.angle },
   ];
+  tr.items = [0.14, 0.36, 0.58, 0.80].map(u => {
+    const p = kartPathSample(tr, u);
+    return { x: p.x, y: p.y, taken: false };
+  });
   return tr;
+}
+function kartCpRadius(tr) {
+  return Math.max(58, (tr.roadWidth || 100) * 0.62);
 }
 
 let race = null;
@@ -69,118 +131,171 @@ let kartLobbySel = 0;
 let kartMenuSel = 0;
 let kartResultsT = 0;
 
-function kartCpAngles(tr) {
-  return [ -Math.PI/2, 0, Math.PI/2, Math.PI ];
-}
-function kartEllPt(cx, cy, rx, ry, ang) {
-  return { x: cx + Math.cos(ang) * rx, y: cy + Math.sin(ang) * ry };
-}
-function kartToScreen(x, y) {
-  return { x: x - race.camX + W / 2, y: y - race.camY + H / 2 };
-}
-function kartGrip(tr, x, y) {
-  const ang = Math.atan2(y - tr.cy, x - tr.cx);
-  const rx = (tr.rxOut + tr.rxIn) * 0.5, ry = (tr.ryOut + tr.ryIn) * 0.5;
-  const mx = tr.cx + Math.cos(ang) * rx, my = tr.cy + Math.sin(ang) * ry;
-  const lane = Math.hypot(x - mx, y - my);
-  const half = ((tr.rxOut - tr.rxIn) + (tr.ryOut - tr.ryIn)) * 0.22;
-  if (lane < half * 0.45) return 1;
-  if (lane < half * 0.85) return 0.88;
-  return 0.68;
-}
-function kartDrawKerbs(scx, scy, tr, rx, ry, segs) {
-  const w = Math.max(6, (tr.rxOut - tr.rxIn) * 0.07);
-  for (let i = 0; i < segs; i++) {
-    const a0 = (i / segs) * Math.PI * 2, a1 = ((i + 1) / segs) * Math.PI * 2;
-    const p0 = kartEllPt(scx, scy, rx, ry, a0);
-    const p1 = kartEllPt(scx, scy, rx, ry, a1);
-    ctx.strokeStyle = (i % 2) ? tr.kerb[1] : tr.kerb[0];
-    ctx.lineWidth = w;
-    ctx.lineCap = 'butt';
-    ctx.beginPath();
-    ctx.moveTo(p0.x, p0.y);
-    ctx.lineTo(p1.x, p1.y);
-    ctx.stroke();
+function kartToScreen(x, y, mini) {
+  if (mini) {
+    const s = mini.scale || 0.35;
+    return { x: mini.px + (x - mini.tx) * s, y: mini.py + (y - mini.ty) * s };
   }
+  let dx = x - race.camX, dy = y - race.camY;
+  const ca = race.camAngle || 0;
+  if (ca) {
+    const c = Math.cos(-ca), sn = Math.sin(-ca);
+    return { x: dx * c - dy * sn + W / 2, y: dx * sn + dy * c + H / 2 };
+  }
+  return { x: dx + W / 2, y: dy + H / 2 };
 }
-function kartDrawTrackDecor(tr, scx, scy, t, scale) {
-  scale = scale || 1;
-  const n = tr.decor === 'cloud' ? 10 : tr.decor === 'lava' ? 14 : 18;
-  for (let i = 0; i < n; i++) {
-    const ang = (i / n) * Math.PI * 2 + t * 0.08;
-    const p = kartEllPt(scx, scy, (tr.rxOut + 58) * scale, (tr.ryOut + 42) * scale, ang);
-    if (tr.decor === 'tree') {
-      ctx.fillStyle = '#1a3a12';
-      ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#2d6a1a';
-      ctx.beginPath(); ctx.arc(p.x, p.y - 8, 14, 0, Math.PI * 2); ctx.fill();
-    } else if (tr.decor === 'cloud') {
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+function kartRoadHalf(tr, mini) {
+  return (tr.roadWidth || 100) * (mini ? (mini.scale || 0.35) : 1) * 0.5;
+}
+function kartGrip(tr, x, y, angle) {
+  const near = kartNearestPath(tr, x, y);
+  const half = tr.roadWidth * 0.5;
+  const lane = near.dist;
+  if (angle !== undefined) {
+    const diff = Math.abs(kartAngleDiff(near.angle, angle));
+    if (diff < 0.35 && lane < half * 0.6) return 1.05;
+  }
+  if (lane < half * 0.35) return 1;
+  if (lane < half * 0.7) return 0.9;
+  if (lane < half) return 0.75;
+  return 0.48;
+}
+function kartAngleDiff(a, b) {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+function kartDrawRoadRibbon(tr, t, mini) {
+  const segs = mini ? 48 : 120;
+  const hw = kartRoadHalf(tr, mini);
+  const left = [], right = [];
+  for (let i = 0; i <= segs; i++) {
+    const u = i / segs;
+    const p = kartPathSample(tr, u);
+    const tg = kartPathTangent(tr, u);
+    const nx = -Math.sin(tg.angle), ny = Math.cos(tg.angle);
+    left.push(kartToScreen(p.x + nx * hw, p.y + ny * hw, mini));
+    right.push(kartToScreen(p.x - nx * hw, p.y - ny * hw, mini));
+  }
+  ctx.fillStyle = tr.grass[0];
+  if (!mini) ctx.fillRect(0, 0, W, H);
+  else {
+    const b = kartRoadBounds(left, right);
+    fillRR(b.x - 20, b.y - 20, b.w + 40, b.h + 40, 12, tr.grass[0]);
+  }
+  ctx.beginPath();
+  ctx.moveTo(left[0].x, left[0].y);
+  for (let i = 1; i < left.length; i++) ctx.lineTo(left[i].x, left[i].y);
+  for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
+  ctx.closePath();
+  const mid = kartToScreen(tr.cx, tr.cy, mini);
+  const ag = ctx.createRadialGradient(mid.x, mid.y, 10, mid.x, mid.y, mini ? 120 : 600);
+  ag.addColorStop(0, tr.asphalt[1]); ag.addColorStop(1, tr.asphalt[0]);
+  ctx.fillStyle = ag;
+  ctx.fill();
+  kartDrawRoadKerbs(left, right, tr, mini);
+  ctx.setLineDash(mini ? [6, 8] : [14, 16]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = mini ? 1.5 : 2.5;
+  ctx.beginPath();
+  for (let i = 0; i <= segs; i++) {
+    const u = i / segs;
+    const p = kartPathSample(tr, u);
+    const sp = kartToScreen(p.x, p.y, mini);
+    if (i === 0) ctx.moveTo(sp.x, sp.y); else ctx.lineTo(sp.x, sp.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (!mini) {
+    for (let i = 0; i < 20; i++) {
+      const u = ((i / 20) + t * 0.4) % 1;
+      const p = kartPathSample(tr, u);
+      const tg = kartPathTangent(tr, u);
+      const sp = kartToScreen(p.x, p.y, mini);
+      const sp2 = kartToScreen(p.x + Math.cos(tg.angle) * 18, p.y + Math.sin(tg.angle) * 18, mini);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
-      ctx.arc(p.x + 12, p.y + 2, 10, 0, Math.PI * 2);
-      ctx.arc(p.x - 10, p.y + 3, 9, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      const pulse = 0.45 + Math.sin(t * 3 + i) * 0.25;
-      ctx.fillStyle = `rgba(255,${80 + (i % 3) * 40},20,${pulse})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 7 + (i % 3) * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.moveTo(sp2.x, sp2.y);
+      ctx.lineTo(sp.x - Math.sin(tg.angle) * 5, sp.y + Math.cos(tg.angle) * 5);
+      ctx.lineTo(sp.x + Math.sin(tg.angle) * 5, sp.y - Math.cos(tg.angle) * 5);
+      ctx.closePath(); ctx.fill();
     }
   }
 }
-function kartDrawTrackSurface(tr, scx, scy, t, mini) {
-  const scale = mini ? 0.38 : 1;
-  const rxO = tr.rxOut * scale, ryO = tr.ryOut * scale;
-  const rxI = tr.rxIn * scale, ryI = tr.ryIn * scale;
-  const g = ctx.createRadialGradient(scx, scy, 20, scx, scy, Math.max(rxO, ryO) + 80);
-  g.addColorStop(0, tr.grass[1]); g.addColorStop(1, tr.grass[0]);
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.ellipse(scx, scy, rxO + 46 * scale, ryO + 34 * scale, 0, 0, Math.PI * 2); ctx.fill();
-
-  const ag = ctx.createLinearGradient(scx - rxO, scy - ryO, scx + rxO, scy + ryO);
-  ag.addColorStop(0, tr.asphalt[0]); ag.addColorStop(0.5, tr.asphalt[1]); ag.addColorStop(1, tr.asphalt[0]);
-  ctx.fillStyle = ag;
-  ctx.beginPath(); ctx.ellipse(scx, scy, rxO, ryO, 0, 0, Math.PI * 2); ctx.fill();
-
-  ctx.fillStyle = tr.bg[0];
-  ctx.beginPath(); ctx.ellipse(scx, scy, rxI, ryI, 0, 0, Math.PI * 2); ctx.fill();
-
-  kartDrawKerbs(scx, scy, tr, rxO, ryO, mini ? 28 : 56);
-  kartDrawKerbs(scx, scy, tr, rxI, ryI, mini ? 24 : 48);
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = mini ? 1.5 : 2.5; ctx.setLineDash([mini ? 8 : 18, mini ? 10 : 16]);
-  ctx.beginPath();
-  ctx.ellipse(scx, scy, (rxO + rxI) * 0.5, (ryO + ryI) * 0.5, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  if (!mini) {
-    const chevs = 16;
-    for (let i = 0; i < chevs; i++) {
-      const a = (i / chevs) * Math.PI * 2 + t * 1.6;
-      const p = kartEllPt(scx, scy, (rxO + rxI) * 0.5, (ryO + ryI) * 0.5, a);
-      const p2 = kartEllPt(scx, scy, (rxO + rxI) * 0.5, (ryO + ryI) * 0.5, a + 0.08);
-      const dx = p2.x - p.x, dy = p2.y - p.y;
-      const len = Math.hypot(dx, dy) || 1;
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+function kartRoadBounds(left, right) {
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const p of left.concat(right)) {
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+function kartDrawRoadKerbs(left, right, tr, mini) {
+  const w = mini ? 3 : Math.max(5, tr.roadWidth * 0.07);
+  for (let side = 0; side < 2; side++) {
+    const pts = side ? right : left;
+    for (let i = 0; i < pts.length - 1; i++) {
+      ctx.strokeStyle = (i % 3 < 2) ? tr.kerb[side ? 1 : 0] : tr.kerb[side ? 0 : 1];
+      ctx.lineWidth = w;
       ctx.beginPath();
-      ctx.moveTo(p.x + dx / len * 10, p.y + dy / len * 10);
-      ctx.lineTo(p.x - dy / len * 5, p.y + dx / len * 5);
-      ctx.lineTo(p.x + dy / len * 5, p.y - dx / len * 5);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(pts[i].x, pts[i].y);
+      ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
+      ctx.stroke();
+    }
+  }
+}
+function kartDrawTrackDecor(tr, t, mini) {
+  const n = mini ? 12 : 28;
+  const hw = (tr.roadWidth || 100) * 0.5 + (mini ? 18 : 50);
+  for (let i = 0; i < n; i++) {
+    const u = (i / n + t * 0.02) % 1;
+    const p = kartPathSample(tr, u);
+    const tg = kartPathTangent(tr, u);
+    const side = (i % 2) ? 1 : -1;
+    const off = hw + (i % 4) * (mini ? 8 : 22);
+    const px = p.x + Math.cos(tg.angle + Math.PI / 2 * side) * off;
+    const py = p.y + Math.sin(tg.angle + Math.PI / 2 * side) * off;
+    const sp = kartToScreen(px, py, mini);
+    if (tr.decor === 'palm') {
+      ctx.fillStyle = '#6a4020';
+      ctx.fillRect(sp.x - 2, sp.y, 4, mini ? 10 : 18);
+      ctx.fillStyle = '#2a8830';
+      ctx.beginPath(); ctx.arc(sp.x, sp.y - (mini ? 6 : 12), mini ? 8 : 16, 0, Math.PI * 2); ctx.fill();
+    } else if (tr.decor === 'rock') {
+      ctx.fillStyle = '#5a5a68';
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, mini ? 7 : 14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#787888';
+      ctx.beginPath(); ctx.arc(sp.x - 3, sp.y - 3, mini ? 4 : 8, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(80,90,120,0.85)';
+      fillRR(sp.x - (mini ? 5 : 10), sp.y - (mini ? 12 : 24), mini ? 10 : 20, mini ? 24 : 48, 3, ctx.fillStyle);
+      ctx.fillStyle = 'rgba(255,220,100,0.5)';
+      for (let w = 0; w < 3; w++) ctx.fillRect(sp.x - 4 + w * 4, sp.y - (mini ? 8 : 16), 2, mini ? 4 : 8);
     }
   }
 }
 function kartDrawStartLine(tr, t) {
   const st = tr.starts[0];
-  const s = kartToScreen(st.x, st.y);
+  const tg = kartPathTangent(tr, 0.008);
+  const nx = -Math.sin(tg.angle), ny = Math.cos(tg.angle);
+  const hw = tr.roadWidth * 0.42;
   const bob = Math.sin(t * 8) * 2;
   for (let i = 0; i < 10; i++) {
+    const along = (i - 4.5) * 10;
+    const wx = st.x + Math.cos(tg.angle) * along + nx * hw;
+    const wy = st.y + Math.sin(tg.angle) * along + ny * hw;
+    const s = kartToScreen(wx, wy);
+    ctx.save();
+    ctx.translate(s.x, s.y + bob);
+    ctx.rotate(tg.angle);
     ctx.fillStyle = (Math.floor(i / 2) % 2) ? '#111' : '#fff';
-    ctx.fillRect(s.x - 48 + i * 10, s.y - 24 + bob, 10, 48);
+    ctx.fillRect(-5, -20, 10, 40);
+    ctx.restore();
   }
-  ctx.fillStyle = tr.accent; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('META', s.x, s.y - 32 + bob);
+  const ms = kartToScreen(st.x, st.y - 30);
+  ctx.fillStyle = tr.accent; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('META', ms.x, ms.y + bob);
 }
 function kartDrawCheckpoints(tr) {
   for (let i = 0; i < 4; i++) {
@@ -209,25 +324,18 @@ function kartDrawItemBoxes(tr, t) {
   }
 }
 function kartCpPos(tr, i) {
-  const a = kartCpAngles(tr)[i];
-  const { rx, ry } = kartMidRadii(tr);
-  return { x: tr.cx + Math.cos(a) * rx, y: tr.cy + Math.sin(a) * ry };
+  return tr.checkpoints[i];
 }
 function kartInTrack(tr, x, y) {
-  const dx = (x - tr.cx) / tr.rxOut, dy = (y - tr.cy) / tr.ryOut;
-  const dout = dx * dx + dy * dy;
-  const dxi = (x - tr.cx) / tr.rxIn, dyi = (y - tr.cy) / tr.ryIn;
-  const din = dxi * dxi + dyi * dyi;
-  return dout <= 1.02 && din >= 0.92;
+  const near = kartNearestPath(tr, x, y);
+  return near.dist <= tr.roadWidth * 0.55;
 }
 function kartPushToTrack(tr, k) {
-  const ang = Math.atan2(k.y - tr.cy, k.x - tr.cx);
-  const rMid = ((tr.rxOut + tr.rxIn) / 2 + (tr.ryOut + tr.ryIn) / 2) / 2;
-  const rx = (tr.rxOut + tr.rxIn) / 2, ry = (tr.ryOut + tr.ryIn) / 2;
-  k.x = tr.cx + Math.cos(ang) * rx;
-  k.y = tr.cy + Math.sin(ang) * ry;
-  k.speed *= 0.55;
-  spawnParticles(k.x, k.y, '#fff', 6, 200);
+  const near = kartNearestPath(tr, k.x, k.y, 80);
+  k.x = near.x;
+  k.y = near.y;
+  k.speed *= 0.45;
+  spawnParticles(k.x, k.y, '#ccc', 8, 220);
 }
 function mkKart(idx, tr, solo) {
   const st = tr.starts[idx] || tr.starts[0];
@@ -251,7 +359,7 @@ function startKartRace(solo) {
   race = {
     track: tr, solo: !!solo, phase: 'countdown', countdown: 3.5,
     timer: 0, karts: [],
-    itemCd: 0, camX: tr.cx, camY: tr.cy, syncAcc: 0,
+    itemCd: 0, camX: tr.starts[0].x, camY: tr.starts[0].y, camAngle: 0, syncAcc: 0,
   };
   for (let i = 0; i < count; i++) race.karts.push(mkKart(i, tr, solo));
   kartResultsT = 0;
@@ -269,22 +377,24 @@ function kartReadInput(k) {
   k.input.useItem = pressed('KeyJ') || pressed('ShiftLeft');
 }
 function kartAIInput(k, tr) {
-  const target = kartCpPos(tr, k.cp);
+  const near = kartNearestPath(tr, k.x, k.y, 72);
+  let lookU = near.u + 0.06;
+  if (lookU > 1) lookU -= 1;
+  const target = kartPathSample(tr, lookU);
   const dx = target.x - k.x, dy = target.y - k.y;
   const want = Math.atan2(dy, dx);
-  let diff = want - k.angle;
-  while (diff > Math.PI) diff -= Math.PI * 2;
-  while (diff < -Math.PI) diff += Math.PI * 2;
-  k.input.steer = clamp(diff * 2.5, -1, 1);
-  k.input.accel = 1;
-  k.input.brake = k.speed > KART_MAX_SPEED * 0.85 ? 0.3 : 0;
-  k.input.drift = Math.abs(diff) > 0.8 && k.speed > 200;
+  let diff = kartAngleDiff(want, k.angle);
+  k.input.steer = clamp(diff * 2.8, -1, 1);
+  const curve = Math.abs(diff);
+  k.input.accel = curve > 1.2 ? 0.5 : 1;
+  k.input.brake = (curve > 0.9 && k.speed > 280) || k.speed > KART_MAX_SPEED * 0.9 ? 0.6 : 0;
+  k.input.drift = curve > 0.7 && k.speed > 220;
   k.input.useItem = false;
 }
 function kartSimKart(k, dt, tr) {
   if (k.finished) return;
   const inp = k.input;
-  const grip = kartGrip(tr, k.x, k.y);
+  const grip = kartGrip(tr, k.x, k.y, k.angle);
   const turn = KART_TURN * grip * (0.35 + 0.65 * Math.min(1, Math.abs(k.speed) / 280));
   if (inp.steer) k.angle += inp.steer * turn * dt;
   let target = 0;
@@ -467,31 +577,39 @@ function updateKart(dt) {
   kartTick(dt);
   if (race.phase === 'racing' || race.phase === 'countdown') {
     const me = race.karts[kartLocalIdx()];
-    if (me) { race.camX = lerp(race.camX, me.x, 0.12); race.camY = lerp(race.camY, me.y, 0.12); }
+    if (me) {
+      const look = me.speed > 80 ? me.angle : kartPathTangent(race.track, kartNearestPath(race.track, me.x, me.y).u).angle;
+      race.camX = lerp(race.camX, me.x - Math.cos(look) * 60, 0.1);
+      race.camY = lerp(race.camY, me.y - Math.sin(look) * 60, 0.1);
+      let targetA = look - Math.PI / 2;
+      let da = kartAngleDiff(targetA, race.camAngle || 0);
+      race.camAngle = (race.camAngle || 0) + da * 0.08;
+    }
   }
   if (pressed('Escape') || pressed('KeyP')) {
     if (race.solo) { race = null; changeScene('kartmenu'); }
   }
 }
 function drawKartTrack(tr, t) {
-  const sc = kartToScreen(tr.cx, tr.cy);
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, tr.bg[1]); grad.addColorStop(1, tr.bg[0]);
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-  kartDrawTrackDecor(tr, sc.x, sc.y, t || 0, 1);
-  kartDrawTrackSurface(tr, sc.x, sc.y, t || 0, false);
+  kartDrawTrackDecor(tr, t || 0, false);
+  kartDrawRoadRibbon(tr, t || 0, false);
   kartDrawStartLine(tr, t || 0);
   kartDrawCheckpoints(tr);
   kartDrawItemBoxes(tr, t || 0);
 }
 function drawKartEntity(k, tr) {
-  const px = k.x - race.camX + W / 2, py = k.y - race.camY + H / 2;
+  const sp = kartToScreen(k.x, k.y);
+  const px = sp.x, py = sp.y;
+  const visAngle = k.angle - (race.camAngle || 0);
   const col = ['#e33', '#33e', '#3e3', '#ee3'][k.idx % 4];
   if (k.driftCharge > 0.2 && Math.abs(k.speed) > 120) {
     ctx.fillStyle = tr.accent || '#ff0';
     for (let i = 0; i < 3; i++) {
-      const bx = px - Math.cos(k.angle) * (14 + i * 8) + Math.sin(k.angle) * (i - 1) * 6;
-      const by = py - Math.sin(k.angle) * (14 + i * 8) - Math.cos(k.angle) * (i - 1) * 6;
+      const bx = px - Math.cos(visAngle) * (14 + i * 8) + Math.sin(visAngle) * (i - 1) * 6;
+      const by = py - Math.sin(visAngle) * (14 + i * 8) - Math.cos(visAngle) * (i - 1) * 6;
       ctx.globalAlpha = 0.35 - i * 0.08;
       ctx.beginPath(); ctx.arc(bx, by, 5 - i, 0, Math.PI * 2); ctx.fill();
     }
@@ -499,7 +617,7 @@ function drawKartEntity(k, tr) {
   }
   ctx.save();
   ctx.translate(px, py);
-  ctx.rotate(k.angle);
+  ctx.rotate(visAngle);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath(); ctx.ellipse(2, 4, 22, 12, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = col;
@@ -553,7 +671,7 @@ function drawKart(t) {
   });
   if (mp.connected) uiPill(W / 2 - 60, H - 36, 'ONLINE 1v1', UI.cyan);
   else if (race.solo) uiPill(W / 2 - 50, H - 36, 'VS CPU', UI.green);
-  uiFooter('Flechas=Acelerar/Girar · Espacio=Drift · J=Item · Esc=Salir');
+  uiFooter('Flechas=Acelerar/Girar · Espacio=Drift · J=Turbo · Esc=Salir');
   drawBanner();
 }
 function updateKartResults(dt) {
@@ -611,7 +729,7 @@ function updateKartMenu(dt) {
 function drawKartMenu(t) {
   uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
   uiTitle('KART RACE', 80, 52);
-  hud('Carreras estilo Mario Kart · Multijugador online', W / 2, 135, UI.cyan, 18, 'center');
+  hud('Carreras en carretera · Estilo Need for Speed', W / 2, 135, UI.cyan, 18, 'center');
   uiPanel(W / 2 - 240, 165, 480, 300, 18);
   for (let i = 0; i < kartMenuItems.length; i++) uiMenuRow(kartMenuItems[i], 220 + i * 58, i === kartMenuSel, 420, 46, i);
   hud('Invita a un amigo o practica contra la CPU', W / 2, 500, UI.dim, 16, 'center');
@@ -703,9 +821,10 @@ function drawKartLobby(t) {
   hud('PISTA', W / 2, 150, UI.dim, 16, 'center');
   uiTitle(tr.name, 200, 48, UI.gold);
   const cx = W / 2, cy = 330;
-  kartDrawTrackSurface(tr, cx, cy, t, true);
-  kartDrawTrackDecor(tr, cx, cy, t * 0.6, 0.38);
-  const decor = tr.decor === 'tree' ? 'Bosque · Grip alto' : tr.decor === 'cloud' ? 'Cielo · Curvas rapidas' : 'Volcan · Riesgo y boost';
+  const mini = { px: cx, py: cy, tx: tr.cx, ty: tr.cy, scale: 0.38 };
+  kartDrawTrackDecor(tr, t * 0.6, mini);
+  kartDrawRoadRibbon(tr, t, mini);
+  const decor = tr.decor === 'palm' ? 'Costa · Rectas rapidas' : tr.decor === 'rock' ? 'Montaña · Curvas cerradas' : 'Urbano · Tecnica pura';
   hud(decor, W / 2, 430, tr.accent, 15, 'center');
   ctx.fillStyle = UI.dim; ctx.font = '16px monospace'; ctx.textAlign = 'center';
   ctx.fillText('< Izq/Der cambiar pista >', W / 2, 460);
