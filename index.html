@@ -238,6 +238,24 @@ body.touch.mob-nav-wide #mobRight { display: flex; }
 }
 body.touch.mob-menu-html #mobMenuHtml { display: flex; }
 body.touch.mob-menu-html canvas { visibility: hidden; pointer-events: none; }
+#mobMenuHtml.theme-purple {
+  background: linear-gradient(180deg, #1a0830 0%, #301858 55%, #180828 100%);
+}
+#mmhDetail {
+  text-align: center;
+  font: 600 14px system-ui, sans-serif;
+  color: #bdf;
+  margin-bottom: 12px;
+}
+.mmh-start {
+  background: linear-gradient(180deg, #4ade80, #16a34a) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.35) !important;
+  font-size: 20px !important;
+  min-height: 58px !important;
+}
+body.touch.portrait.playing canvas { visibility: hidden; pointer-events: none; }
+body.touch.portrait.playing #touch { z-index: 50; }
 .mmh-title {
   font: 900 28px system-ui, sans-serif;
   color: #ffd700;
@@ -387,6 +405,7 @@ body.touch.mob-join #mobNav { display: none !important; }
   <div class="mmh-title">SUPER BEAR</div>
   <div class="mmh-sub">ADVENTURE</div>
   <div id="mmhMeta"></div>
+  <div id="mmhDetail"></div>
   <div id="mobMenuHtmlList"></div>
   <div id="mmhVer"></div>
 </div>

@@ -56,7 +56,12 @@ function resize() {
   availW = Math.max(200, availW);
   availH = Math.max(160, availH);
 
-  const scale = Math.min(availW / W, availH / H);
+  let scale = Math.min(availW / W, availH / H);
+  if (document.body.classList.contains('touch') && document.body.classList.contains('playing')
+    && window.innerWidth >= window.innerHeight) {
+    scale = Math.min(availW / W, availH / H);
+  }
+
   const dw = Math.floor(W * scale);
   const dh = Math.floor(H * scale);
   canvas.style.width = dw + 'px';

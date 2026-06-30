@@ -1099,6 +1099,10 @@ function drawKartMenu(t) {
   uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
   const lay = mobMenuLayout(kartMenuItems.length);
   if (lay.mode !== 'desktop') {
+    if (document.body.classList.contains('mob-menu-html')) {
+      uiBgGrad('#1a0830', '#301858');
+      return;
+    }
     uiTitle('MARIO KART', lay.mode === 'port' ? 50 : 68, lay.mode === 'port' ? 32 : 44);
     if (lay.mode === 'land') hud('8 corredores · Copa · Drift · Objetos', W / 2, 118, UI.cyan, 14, 'center');
     uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
@@ -1206,6 +1210,10 @@ function updateKartLobby(dt) {
   if (pressed('Escape')) { mpDisconnect(); changeScene('kartmenu'); }
 }
 function drawKartLobby(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    uiBgGrad('#1a0830', '#301858');
+    return;
+  }
   const tr = KART_TRACKS[kartTrackSel];
   uiBgGrad(tr.bg[0], tr.bg[1]); uiSparkles(t * 0.3, 16);
   uiTitle('PISTA DE CARRERA', 70, 40);

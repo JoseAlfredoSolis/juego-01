@@ -368,6 +368,10 @@ function updateKartSelect(dt) {
   }
 }
 function drawKartSelect(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    uiBgGrad('#0a1830', '#1a2848');
+    return;
+  }
   uiBgGrad('#0a1830', '#1a2848');
   uiSparkles(t * 0.4, 18);
   const port = mobTouchPortrait();

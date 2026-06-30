@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v39';
+const GAME_VERSION = 'v40';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -1198,6 +1198,7 @@ function uiBtn(x,y,w,h,label,sel,color=UI.gold){
 let sceneTrans = { active:false, t:0, dur:0.34, from:'menu', to:'menu', mode:'in' };
 function changeScene(next, instant=false){
   if(next===gs.scene && !sceneTrans.active) return;
+  if(!instant && document.body.classList.contains('mob-menu-html')) instant=true;
   if(instant){ gs.scene=next; sceneTrans.active=false; mpHostBroadcast(); return; }
   if(sceneTrans.active) return;
   sceneTrans = { active:true, t:0, dur:0.34, from:gs.scene, to:next, mode:'out' };
@@ -3376,7 +3377,12 @@ function resize() {
   availW = Math.max(200, availW);
   availH = Math.max(160, availH);
 
-  const scale = Math.min(availW / W, availH / H);
+  let scale = Math.min(availW / W, availH / H);
+  if (document.body.classList.contains('touch') && document.body.classList.contains('playing')
+    && window.innerWidth >= window.innerHeight) {
+    scale = Math.min(availW / W, availH / H);
+  }
+
   const dw = Math.floor(W * scale);
   const dh = Math.floor(H * scale);
   canvas.style.width = dw + 'px';
@@ -4648,6 +4654,10 @@ function drawKartMenu(t) {
   uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
   const lay = mobMenuLayout(kartMenuItems.length);
   if (lay.mode !== 'desktop') {
+    if (document.body.classList.contains('mob-menu-html')) {
+      uiBgGrad('#1a0830', '#301858');
+      return;
+    }
     uiTitle('MARIO KART', lay.mode === 'port' ? 50 : 68, lay.mode === 'port' ? 32 : 44);
     if (lay.mode === 'land') hud('8 corredores · Copa · Drift · Objetos', W / 2, 118, UI.cyan, 14, 'center');
     uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
@@ -4755,6 +4765,10 @@ function updateKartLobby(dt) {
   if (pressed('Escape')) { mpDisconnect(); changeScene('kartmenu'); }
 }
 function drawKartLobby(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    uiBgGrad('#1a0830', '#301858');
+    return;
+  }
   const tr = KART_TRACKS[kartTrackSel];
   uiBgGrad(tr.bg[0], tr.bg[1]); uiSparkles(t * 0.3, 16);
   uiTitle('PISTA DE CARRERA', 70, 40);
@@ -4921,18 +4935,16 @@ function mobUiSync() {
   const menu = MOB_MENU_SCENES.includes(s);
   const join = MOB_JOIN_SCENES.includes(s);
   const portrait = window.innerHeight > window.innerWidth;
-  const htmlMenu = menu && portrait && s === 'menu' && typeof menuItems !== 'undefined';
   document.body.classList.toggle('playing', playing);
   document.body.classList.toggle('mob-menu', menu);
   document.body.classList.toggle('mob-join', join);
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
   document.body.classList.toggle('portrait', portrait);
-  document.body.classList.toggle('mob-menu-html', htmlMenu);
   const nav = document.getElementById('mobNav');
   if (nav) nav.classList.toggle('visible', menu);
   if (!menu) { mobSelGet = null; mobSelSet = null; }
-  mobMenuHtmlSync(htmlMenu);
+  mobMenuHtmlSync();
   if (typeof resize === 'function') resize();
 }
 
@@ -5040,45 +5052,150 @@ function setupMobileUi() {
   canvas.addEventListener('pointercancel', () => { mobPtr = null; });
 }
 
-let mobMenuHtmlBuilt = false;
+let mobMenuHtmlScene = '';
+let mobKartSelectSel = 0;
 
-function mobMenuHtmlSync(show) {
+function mobGetHtmlMenuConfig() {
+  if (!document.body.classList.contains('touch')) return null;
+  if (window.innerWidth >= window.innerHeight) return null;
+  if (!MOB_MENU_SCENES.includes(gs.scene)) return null;
+
+  if (gs.scene === 'menu' && typeof menuItems !== 'undefined') {
+    return {
+      type: 'list', theme: 'green', title: 'SUPER BEAR', subtitle: 'ADVENTURE',
+      items: menuItems, getSel: () => menuSel, setSel: v => { menuSel = v; },
+      onPick: () => mobQueueAction('ok'), showMeta: true,
+    };
+  }
+  if (gs.scene === 'kartmenu' && typeof kartMenuItems !== 'undefined') {
+    return {
+      type: 'list', theme: 'purple', title: 'MARIO KART', subtitle: 'Elige modo de carrera',
+      items: kartMenuItems, getSel: () => kartMenuSel, setSel: v => { kartMenuSel = v; },
+      onPick: () => mobQueueAction('ok'),
+    };
+  }
+  if (gs.scene === 'kartselect') {
+    const ch = CHARACTERS[kartSelectDriver] || CHARACTERS[0];
+    const st = typeof kartPlayerStats === 'function' ? kartPlayerStats() : null;
+    return {
+      type: 'list', theme: 'purple', title: 'PERSONALIZAR', subtitle: ch.name,
+      detail: st ? 'Clase: ' + st.archetype : '',
+      items: ['CONTINUAR', 'VOLVER'],
+      getSel: () => mobKartSelectSel, setSel: v => { mobKartSelectSel = v; },
+      onPick: idx => { if (idx === 0) mobQueueAction('ok'); else mobQueueAction('back'); },
+    };
+  }
+  if (gs.scene === 'kartlobby' && typeof KART_TRACKS !== 'undefined') {
+    const tr = KART_TRACKS[kartTrackSel];
+    return { type: 'kartlobby', theme: 'purple', title: 'PISTA DE CARRERA', subtitle: tr.name, track: tr };
+  }
+  return null;
+}
+
+function mobMenuHtmlSync() {
   const root = document.getElementById('mobMenuHtml');
   const list = document.getElementById('mobMenuHtmlList');
+  const titleEl = root?.querySelector('.mmh-title');
+  const subEl = root?.querySelector('.mmh-sub');
+  const meta = document.getElementById('mmhMeta');
+  const detail = document.getElementById('mmhDetail');
+  const ver = document.getElementById('mmhVer');
+  const cfg = mobGetHtmlMenuConfig();
+  const show = !!cfg;
+
+  document.body.classList.toggle('mob-menu-html', show);
+  if (root) root.classList.toggle('theme-purple', show && cfg?.theme === 'purple');
+
   if (!root || !list) return;
   if (!show) {
-    mobMenuHtmlBuilt = false;
+    mobMenuHtmlScene = '';
+    list.innerHTML = '';
+    if (detail) detail.textContent = '';
     return;
   }
-  if (!mobMenuHtmlBuilt && typeof menuItems !== 'undefined') {
-    mobMenuHtmlBuilt = true;
+
+  if (titleEl) titleEl.textContent = cfg.title || '';
+  if (subEl) subEl.textContent = cfg.subtitle || '';
+  if (detail) detail.textContent = cfg.detail || '';
+
+  if (mobMenuHtmlScene !== gs.scene) {
+    mobMenuHtmlScene = gs.scene;
     list.innerHTML = '';
-    menuItems.forEach((label, idx) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'mmh-item';
-      btn.dataset.idx = String(idx);
-      btn.textContent = label;
-      btn.addEventListener('click', e => {
+
+    if (cfg.type === 'kartlobby') {
+      const prev = document.createElement('button');
+      prev.type = 'button'; prev.className = 'mmh-item';
+      prev.textContent = '◀ PISTA ANTERIOR';
+      prev.addEventListener('click', e => {
         e.preventDefault();
-        menuSel = idx;
+        kartTrackSel = (kartTrackSel - 1 + KART_TRACKS.length) % KART_TRACKS.length;
         sfx.select();
-        mobQueueAction('ok');
+        if (mp.role === 'host') mpHostBroadcast();
+        mobMenuHtmlSync();
       });
-      list.appendChild(btn);
-    });
+      const next = document.createElement('button');
+      next.type = 'button'; next.className = 'mmh-item';
+      next.textContent = 'PISTA SIGUIENTE ▶';
+      next.addEventListener('click', e => {
+        e.preventDefault();
+        kartTrackSel = (kartTrackSel + 1) % KART_TRACKS.length;
+        sfx.select();
+        if (mp.role === 'host') mpHostBroadcast();
+        mobMenuHtmlSync();
+      });
+      const start = document.createElement('button');
+      start.type = 'button'; start.className = 'mmh-item mmh-start';
+      start.textContent = '¡EMPEZAR CARRERA!';
+      start.addEventListener('click', e => {
+        e.preventDefault();
+        audioInit();
+        sfx.select();
+        if (mp.connected) {
+          startKartRace(false);
+        } else {
+          if (!kartRaceMode) kartRaceMode = 'single';
+          startKartRace(true);
+        }
+        changeScene('kart', true);
+      });
+      list.appendChild(prev);
+      list.appendChild(next);
+      list.appendChild(start);
+    } else if (cfg.items) {
+      cfg.items.forEach((label, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mmh-item';
+        btn.dataset.idx = String(idx);
+        btn.textContent = label;
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          if (cfg.setSel) cfg.setSel(idx);
+          sfx.select();
+          if (cfg.onPick) cfg.onPick(idx);
+        });
+        list.appendChild(btn);
+      });
+    }
   }
-  if (typeof menuSel === 'number') {
+
+  if (cfg.type === 'list' && cfg.getSel) {
+    const sel = cfg.getSel();
     list.querySelectorAll('.mmh-item').forEach((btn, i) => {
-      btn.classList.toggle('sel', i === menuSel);
+      btn.classList.toggle('sel', i === sel);
     });
   }
-  const meta = document.getElementById('mmhMeta');
-  if (meta && typeof gs !== 'undefined' && typeof CHARACTERS !== 'undefined') {
-    const ch = CHARACTERS[gs.character] || CHARACTERS[0];
-    meta.innerHTML = '<span>Best: ' + gs.highScore + '</span><span>🪙 ' + gs.wallet + '</span><span>' + ch.name + '</span>';
+
+  if (meta) {
+    if (cfg.showMeta && typeof gs !== 'undefined' && typeof CHARACTERS !== 'undefined') {
+      const ch = CHARACTERS[gs.character] || CHARACTERS[0];
+      meta.innerHTML = '<span>Best: ' + gs.highScore + '</span><span>🪙 ' + gs.wallet + '</span><span>' + ch.name + '</span>';
+      meta.style.display = 'flex';
+    } else {
+      meta.innerHTML = '';
+      meta.style.display = 'none';
+    }
   }
-  const ver = document.getElementById('mmhVer');
   if (ver && typeof GAME_VERSION !== 'undefined') ver.textContent = GAME_VERSION;
 }
 
@@ -5847,6 +5964,10 @@ function updateKartSelect(dt) {
   }
 }
 function drawKartSelect(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    uiBgGrad('#0a1830', '#1a2848');
+    return;
+  }
   uiBgGrad('#0a1830', '#1a2848');
   uiSparkles(t * 0.4, 18);
   const port = mobTouchPortrait();

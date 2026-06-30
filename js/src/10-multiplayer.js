@@ -15,6 +15,7 @@ function uiBtn(x,y,w,h,label,sel,color=UI.gold){
 let sceneTrans = { active:false, t:0, dur:0.34, from:'menu', to:'menu', mode:'in' };
 function changeScene(next, instant=false){
   if(next===gs.scene && !sceneTrans.active) return;
+  if(!instant && document.body.classList.contains('mob-menu-html')) instant=true;
   if(instant){ gs.scene=next; sceneTrans.active=false; mpHostBroadcast(); return; }
   if(sceneTrans.active) return;
   sceneTrans = { active:true, t:0, dur:0.34, from:gs.scene, to:next, mode:'out' };
