@@ -50,7 +50,12 @@ function kartUpdateJump(k, dt) {
   k.vz -= KART_JUMP_GRAV * dt;
   k.z += k.vz * dt;
   if (k.z < 0) {
-    if (k.vz < -120) {
+    const hard = k.vz < -120;
+    if (hard && (k.input?.accel || k.input?.drift)) {
+      k.boost = Math.max(k.boost || 0, 120);
+      spawnText(k.x, k.y - 28, 'TRUCO +BOOST!', '#8cf', 14);
+      sfx.djump();
+    } else if (hard) {
       spawnDust(k.x, k.y, 6);
       k.speed *= 0.98;
     }
@@ -91,7 +96,7 @@ function kartUpdateAntigrav(k, tr) {
     spawnText(k.x, k.y - 24, 'ANTIGRAVEDAD!', '#c8f', 16);
     showBanner('ANTIGRAVEDAD', '#a8f');
   }
-  if (k._agWarn > 0) k._agWarn -= 0.016;
+  if (k._agWarn > 0) k._agWarn -= dt;
 }
 
 function kartAntigravCamTilt(me, tr) {

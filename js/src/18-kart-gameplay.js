@@ -181,8 +181,9 @@ function kartUseItem(k, tr) {
     spawnRing(k.x, k.y, meta.color, 55, 0.35);
     sfx.power();
   } else if (it === 'coin') {
-    k.boost = 80;
-    spawnText(k.x, k.y - 16, '+VELOCIDAD', meta.color, 13);
+    k.coins = (k.coins || 0) + 1;
+    k.boost = 90;
+    spawnText(k.x, k.y - 16, 'MONEDA x' + k.coins, meta.color, 13);
     sfx.coin();
   } else if (it === 'mushroom') {
     k.boost = 200;

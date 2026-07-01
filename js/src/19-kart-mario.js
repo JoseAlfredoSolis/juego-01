@@ -359,11 +359,11 @@ function updateKartSelect(dt) {
     if (kartRaceMode === 'cup') {
       kartInitCup(kartCupSel);
       startKartRace(true);
-      changeScene('kart');
+      changeScene('kart', true);
     } else if (kartRaceMode === 'online') {
-      changeScene(mp.connected ? 'kartlobby' : 'kartcreate');
+      changeScene(mp.connected ? 'kartlobby' : 'kartcreate', true);
     } else {
-      changeScene('kartlobby');
+      changeScene('kartlobby', true);
     }
   }
 }

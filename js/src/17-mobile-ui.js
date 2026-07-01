@@ -277,10 +277,22 @@ function mobGetHtmlMenuConfig() {
     const st = typeof kartPlayerStats === 'function' ? kartPlayerStats() : null;
     return {
       type: 'list', theme: 'purple', title: 'PERSONALIZAR', subtitle: ch.name,
-      detail: st ? 'Clase: ' + st.archetype : '',
-      items: ['CONTINUAR', 'VOLVER'],
+      detail: (st ? 'Clase: ' + st.archetype + ' · ' : '') + 'Toca para cambiar piloto',
+      items: ['◀ OTRO PILOTO', 'CONTINUAR', 'VOLVER'],
       getSel: () => mobKartSelectSel, setSel: v => { mobKartSelectSel = v; },
-      onPick: idx => { if (idx === 0) mobQueueAction('ok'); else mobQueueAction('back'); },
+      onPick: idx => {
+        if (idx === 0) {
+          const unlocked = [];
+          for (let i = 0; i < CHARACTERS.length; i++) if (isCharUnlocked(i)) unlocked.push(i);
+          const pos = unlocked.indexOf(kartSelectDriver);
+          kartSelectDriver = unlocked[(pos - 1 + unlocked.length) % unlocked.length];
+          gs.character = kartSelectDriver;
+          sfx.select();
+          mobMenuHtmlScene = '';
+          mobMenuHtmlSync();
+        } else if (idx === 1) mobQueueAction('ok');
+        else mobQueueAction('back');
+      },
     };
   }
   if (gs.scene === 'kartlobby' && typeof KART_TRACKS !== 'undefined') {
@@ -315,12 +327,32 @@ function mobMenuHtmlSync() {
   if (titleEl) titleEl.textContent = cfg.title || '';
   if (subEl) subEl.textContent = cfg.subtitle || '';
   if (detail) detail.textContent = cfg.detail || '';
+  if (cfg.type === 'kartlobby' && subEl && typeof KART_TRACKS !== 'undefined') {
+    subEl.textContent = KART_TRACKS[kartTrackSel].name;
+  }
 
   if (mobMenuHtmlScene !== gs.scene) {
     mobMenuHtmlScene = gs.scene;
     list.innerHTML = '';
 
     if (cfg.type === 'kartlobby') {
+      if (mp.role === 'guest') {
+        const wait = document.createElement('p');
+        wait.className = 'mmh-wait';
+        wait.textContent = 'Esperando al anfitrión para iniciar...';
+        list.appendChild(wait);
+      } else {
+      const diff = document.createElement('button');
+      diff.type = 'button'; diff.className = 'mmh-item';
+      diff.textContent = 'IA: ' + (typeof kartDiff === 'function' ? kartDiff().name : 'NORMAL');
+      diff.addEventListener('click', e => {
+        e.preventDefault();
+        kartDifficulty = (kartDifficulty + 1) % (typeof KART_DIFFICULTIES !== 'undefined' ? KART_DIFFICULTIES.length : 4);
+        sfx.select();
+        mobMenuHtmlScene = '';
+        mobMenuHtmlSync();
+      });
+      list.appendChild(diff);
       const prev = document.createElement('button');
       prev.type = 'button'; prev.className = 'mmh-item';
       prev.textContent = '◀ PISTA ANTERIOR';
@@ -346,6 +378,7 @@ function mobMenuHtmlSync() {
       start.textContent = '¡EMPEZAR CARRERA!';
       start.addEventListener('click', e => {
         e.preventDefault();
+        if (mp.role === 'guest') return;
         audioInit();
         sfx.select();
         if (mp.connected) {
@@ -359,6 +392,7 @@ function mobMenuHtmlSync() {
       list.appendChild(prev);
       list.appendChild(next);
       list.appendChild(start);
+      }
     } else if (cfg.items) {
       cfg.items.forEach((label, idx) => {
         const btn = document.createElement('button');
