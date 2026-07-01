@@ -592,6 +592,7 @@ function startKartRace(solo) {
   for (let i = 0; i < roster.length; i++) race.karts.push(mkKart(i, tr, roster[i]));
   kartInitRaceExtras(tr);
   kartResultsT = 0;
+  particles = []; fx = []; shake = 0; flash = null; banner = null;
   sfx.select();
 }
 function kartTryCheckpoint(k, tr) {
