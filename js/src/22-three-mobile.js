@@ -5,7 +5,6 @@ const THREE_RACE_SCENES = ['kart'];
 const THREE_GAMEPLAY_SCENES = ['gameplay'];
 const THREE_GP_SCALE = 0.045;
 
-let threeCtx = null;
 const threeTexCache = {};
 
 function threeCanUse() {
@@ -124,7 +123,8 @@ function threeTexChecker() {
 function threeEnsure() {
   if (threeCtx) return threeCtx;
   const el = document.getElementById('three-c');
-  if (!el) return null;
+  if (!el || typeof THREE === 'undefined') return null;
+  try {
   const renderer = new THREE.WebGLRenderer({ canvas: el, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
@@ -150,6 +150,9 @@ function threeEnsure() {
   };
   threeCtx.resize();
   return threeCtx;
+  } catch (_) {
+    return null;
+  }
 }
 
 function threeClearGroup(g) {
@@ -892,11 +895,11 @@ function threeMobileSync(scene, dt, t) {
 }
 
 function threeGameplayHudOnly() {
-  return threeCanUse() && gs.scene === 'gameplay' && threeCtx?.mode === 'gameplay';
+  return threeCanUse() && gs.scene === 'gameplay' && threeCtx && threeCtx.mode === 'gameplay';
 }
 
 function threeKartHudOnly() {
-  return threeCanUse() && gs.scene === 'kart' && threeCtx?.mode === 'race';
+  return threeCanUse() && gs.scene === 'kart' && threeCtx && threeCtx.mode === 'race';
 }
 
 function threeMobileHudOnly() {

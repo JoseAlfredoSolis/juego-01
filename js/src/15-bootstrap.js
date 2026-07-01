@@ -69,7 +69,9 @@ function resize() {
   const dh = Math.floor(H * scale);
   canvas.style.width = dw + 'px';
   canvas.style.height = dh + 'px';
-  if (typeof threeCtx !== 'undefined' && threeCtx?.resize) threeCtx.resize();
+  if (typeof threeEnsure === 'function') {
+    try { threeEnsure()?.resize?.(); } catch (_) {}
+  }
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 100));
@@ -77,7 +79,6 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', resize);
   window.visualViewport.addEventListener('scroll', resize);
 }
-resize();
 
 // ── Touch controls ──────────────────────────────────────────────────────────
 // Reuse the same key maps the keyboard handlers feed, so the game logic

@@ -1,7 +1,8 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v47';
+const GAME_VERSION = 'v48';
 const W = 1280, H = 720;
+let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
 const WORLDS_PER_ROW = 5;
@@ -2843,10 +2844,10 @@ function updateMenu(dt) {
 }
 
 function drawMenu(t) {
-  if (!document.body.classList.contains('three-menu') && !document.body.classList.contains('mob-menu-html')) {
-    uiBgGrad('#0a2010','#1a5c1a');
-  }
-  if (!document.body.classList.contains('mob-menu-html')) uiSparkles(t);
+  const useHtml = document.body.classList.contains('mob-menu-html');
+  const use3d = document.body.classList.contains('three-menu');
+  if (!useHtml && !use3d) uiBgGrad('#0a2010','#1a5c1a');
+  if (!useHtml) uiSparkles(t);
   const lay = mobMenuLayout(menuItems.length);
   const bob = Math.sin(t * 2) * (lay.mode !== 'desktop' ? 4 : 8);
 
@@ -3397,7 +3398,9 @@ function resize() {
   const dh = Math.floor(H * scale);
   canvas.style.width = dw + 'px';
   canvas.style.height = dh + 'px';
-  if (typeof threeCtx !== 'undefined' && threeCtx?.resize) threeCtx.resize();
+  if (typeof threeEnsure === 'function') {
+    try { threeEnsure()?.resize?.(); } catch (_) {}
+  }
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 100));
@@ -3405,7 +3408,6 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', resize);
   window.visualViewport.addEventListener('scroll', resize);
 }
-resize();
 
 // ── Touch controls ──────────────────────────────────────────────────────────
 // Reuse the same key maps the keyboard handlers feed, so the game logic
@@ -6484,7 +6486,6 @@ const THREE_RACE_SCENES = ['kart'];
 const THREE_GAMEPLAY_SCENES = ['gameplay'];
 const THREE_GP_SCALE = 0.045;
 
-let threeCtx = null;
 const threeTexCache = {};
 
 function threeCanUse() {
@@ -6603,7 +6604,8 @@ function threeTexChecker() {
 function threeEnsure() {
   if (threeCtx) return threeCtx;
   const el = document.getElementById('three-c');
-  if (!el) return null;
+  if (!el || typeof THREE === 'undefined') return null;
+  try {
   const renderer = new THREE.WebGLRenderer({ canvas: el, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
@@ -6629,6 +6631,9 @@ function threeEnsure() {
   };
   threeCtx.resize();
   return threeCtx;
+  } catch (_) {
+    return null;
+  }
 }
 
 function threeClearGroup(g) {
@@ -7180,7 +7185,7 @@ function threeBuildGameplayScene(ctx, ld, world) {
       new THREE.BoxGeometry(pw * THREE_GP_SCALE, Math.min(0.35, ph * THREE_GP_SCALE * 0.12), 3.4),
       topMat
     );
-    cap.position.set(c.x, py * -THREE_GP_SCALE, 0.05);
+    cap.position.set(c.x, -py * THREE_GP_SCALE, 0.05);
     ctx.gameGroup.add(cap);
   }
   ctx.scene.add(ctx.gameGroup);
@@ -7194,6 +7199,8 @@ function threeBuildGameplayScene(ctx, ld, world) {
   ctx.scene.add(ctx.entityGroup);
   ctx.itemMeshes = [];
   ctx.enemyMeshes = [];
+  ctx._itemsRef = items;
+  ctx._enemiesRef = enemies;
   threeRebuildGameplayEntities(ctx);
   ctx.mode = 'gameplay';
   ctx.gameLevelKey = gs.world + '-' + gs.level;
@@ -7266,6 +7273,11 @@ function threeSyncGameplay(ctx, t) {
   const ld = levelData;
   const key = gs.world + '-' + gs.level;
   if (ctx.gameLevelKey !== key) threeBuildGameplayScene(ctx, ld, gs.world);
+  if (ctx._itemsRef !== items || ctx._enemiesRef !== enemies) {
+    ctx._itemsRef = items;
+    ctx._enemiesRef = enemies;
+    threeRebuildGameplayEntities(ctx);
+  }
 
   const px = player.x + player.w / 2;
   const py = player.y + player.h / 2;
@@ -7364,11 +7376,11 @@ function threeMobileSync(scene, dt, t) {
 }
 
 function threeGameplayHudOnly() {
-  return threeCanUse() && gs.scene === 'gameplay' && threeCtx?.mode === 'gameplay';
+  return threeCanUse() && gs.scene === 'gameplay' && threeCtx && threeCtx.mode === 'gameplay';
 }
 
 function threeKartHudOnly() {
-  return threeCanUse() && gs.scene === 'kart' && threeCtx?.mode === 'race';
+  return threeCanUse() && gs.scene === 'kart' && threeCtx && threeCtx.mode === 'race';
 }
 
 function threeMobileHudOnly() {

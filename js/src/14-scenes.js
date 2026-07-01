@@ -177,10 +177,10 @@ function updateMenu(dt) {
 }
 
 function drawMenu(t) {
-  if (!document.body.classList.contains('three-menu') && !document.body.classList.contains('mob-menu-html')) {
-    uiBgGrad('#0a2010','#1a5c1a');
-  }
-  if (!document.body.classList.contains('mob-menu-html')) uiSparkles(t);
+  const useHtml = document.body.classList.contains('mob-menu-html');
+  const use3d = document.body.classList.contains('three-menu');
+  if (!useHtml && !use3d) uiBgGrad('#0a2010','#1a5c1a');
+  if (!useHtml) uiSparkles(t);
   const lay = mobMenuLayout(menuItems.length);
   const bob = Math.sin(t * 2) * (lay.mode !== 'desktop' ? 4 : 8);
 
