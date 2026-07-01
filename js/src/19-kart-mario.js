@@ -441,6 +441,10 @@ function updateKartCup(dt) {
   }
 }
 function drawKartCup(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
+    return;
+  }
   if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
   uiSparkles(t * 0.5, 20);
   const port = mobTouchPortrait();

@@ -6,8 +6,14 @@ function rectOverlap(ax,ay,aw,ah, bx,by,bw,bh) {
   return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
 }
 
-/** Pantalla tactil real (no el stub ontouchstart de Chrome en PC). */
+/** App solo móvil (HTML táctil). */
+function isMobileApp() {
+  return typeof MOBILE_ONLY !== 'undefined' && MOBILE_ONLY;
+}
+
+/** Pantalla táctil real, o forzada en modo solo móvil. */
 function isTouchDevice() {
+  if (isMobileApp()) return true;
   if (navigator.maxTouchPoints > 0) return true;
   const coarse = window.matchMedia('(pointer: coarse)').matches;
   const fine = window.matchMedia('(pointer: fine)').matches;

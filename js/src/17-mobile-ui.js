@@ -139,6 +139,7 @@ function mobUiSync() {
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
   document.body.classList.toggle('portrait', portrait);
+  document.body.classList.toggle('landscape', !portrait);
   if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s) && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
     if (typeof threeEnsure === 'function') threeEnsure();
   }
@@ -161,6 +162,7 @@ function mobTouchPortrait() {
 
 /** Layout compacto para menus en movil (vertical u horizontal). */
 function mobUseDesktopMenu() {
+  if (isMobileApp()) return false;
   if (!document.body.classList.contains('touch')) return true;
   return Math.max(window.innerWidth, window.innerHeight) >= 900;
 }
@@ -258,7 +260,6 @@ let mobKartSelectSel = 0;
 
 function mobGetHtmlMenuConfig() {
   if (!document.body.classList.contains('touch')) return null;
-  if (window.innerWidth >= window.innerHeight) return null;
   if (!MOB_MENU_SCENES.includes(gs.scene)) return null;
 
   if (gs.scene === 'menu' && typeof menuItems !== 'undefined') {
@@ -266,6 +267,21 @@ function mobGetHtmlMenuConfig() {
       type: 'list', theme: 'green', title: 'SUPER BEAR', subtitle: 'ADVENTURE',
       items: menuItems, getSel: () => menuSel, setSel: v => { menuSel = v; },
       onPick: () => mobQueueAction('ok'), showMeta: true,
+    };
+  }
+  if (gs.scene === 'multimenu' && typeof mpMenuItems !== 'undefined') {
+    return {
+      type: 'list', theme: 'blue', title: 'JUGAR EN LINEA', subtitle: 'Multijugador',
+      items: mpMenuItems, getSel: () => mp.menuSel, setSel: v => { mp.menuSel = v; },
+      onPick: () => mobQueueAction('ok'),
+    };
+  }
+  if (gs.scene === 'kartcup' && typeof KART_CUPS !== 'undefined') {
+    return {
+      type: 'list', theme: 'purple', title: 'MODO COPA', subtitle: '3 carreras · puntos MK',
+      items: KART_CUPS.map(c => c.name),
+      getSel: () => kartCupSel, setSel: v => { kartCupSel = v; },
+      onPick: () => mobQueueAction('ok'),
     };
   }
   if (gs.scene === 'kartmenu' && typeof kartMenuItems !== 'undefined') {
@@ -317,7 +333,10 @@ function mobMenuHtmlSync() {
   const show = !!cfg;
 
   document.body.classList.toggle('mob-menu-html', show);
-  if (root) root.classList.toggle('theme-purple', show && cfg?.theme === 'purple');
+  if (root) {
+    root.classList.toggle('theme-purple', show && cfg?.theme === 'purple');
+    root.classList.toggle('theme-blue', show && cfg?.theme === 'blue');
+  }
 
   if (!root || !list) return;
   if (!show) {

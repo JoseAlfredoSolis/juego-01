@@ -71,6 +71,10 @@ function updateMultiMenu(dt) {
 }
 
 function drawMultiMenu(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a1428', '#1a2848');
+    return;
+  }
   uiBgGrad('#0a1428','#1a2848'); uiSparkles(t*0.6, 20);
   const lay = mobMenuLayout(mpMenuItems.length);
   if (lay.mode !== 'desktop') {
@@ -173,8 +177,10 @@ function updateMenu(dt) {
 }
 
 function drawMenu(t) {
-  if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a2010','#1a5c1a');
-  uiSparkles(t);
+  if (!document.body.classList.contains('three-menu') && !document.body.classList.contains('mob-menu-html')) {
+    uiBgGrad('#0a2010','#1a5c1a');
+  }
+  if (!document.body.classList.contains('mob-menu-html')) uiSparkles(t);
   const lay = mobMenuLayout(menuItems.length);
   const bob = Math.sin(t * 2) * (lay.mode !== 'desktop' ? 4 : 8);
 

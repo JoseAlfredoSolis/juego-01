@@ -86,7 +86,8 @@ function touchPress(code)   { if (!keys[code]) keyDown[code] = true; keys[code] 
 function touchRelease(code) { keys[code] = false; keyUp[code] = true; }
 
 function setupTouch() {
-  if (isTouchDevice()) document.body.classList.add('touch');
+  document.body.classList.add('touch');
+  if (isMobileApp()) document.body.classList.add('mobile-only');
 
   document.querySelectorAll('#touch .tbtn').forEach(btn => {
     const code = btn.dataset.code;

@@ -1,12 +1,12 @@
 {
   "name": "Super Bear Adventure",
   "short_name": "Super Bear",
-  "description": "Un juego de plataformas 2D estilo retro.",
+  "description": "Juego móvil HTML5 — plataformas y carreras kart. Solo celular.",
   "lang": "es",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#000000",
   "theme_color": "#1a5c1a",
   "icons": [

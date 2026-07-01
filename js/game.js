@@ -1,6 +1,7 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v44';
+const GAME_VERSION = 'v45';
+const MOBILE_ONLY = true;
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -38,8 +39,14 @@ function rectOverlap(ax,ay,aw,ah, bx,by,bw,bh) {
   return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
 }
 
-/** Pantalla tactil real (no el stub ontouchstart de Chrome en PC). */
+/** App solo móvil (HTML táctil). */
+function isMobileApp() {
+  return typeof MOBILE_ONLY !== 'undefined' && MOBILE_ONLY;
+}
+
+/** Pantalla táctil real, o forzada en modo solo móvil. */
 function isTouchDevice() {
+  if (isMobileApp()) return true;
   if (navigator.maxTouchPoints > 0) return true;
   const coarse = window.matchMedia('(pointer: coarse)').matches;
   const fine = window.matchMedia('(pointer: fine)').matches;
@@ -2737,6 +2744,10 @@ function updateMultiMenu(dt) {
 }
 
 function drawMultiMenu(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a1428', '#1a2848');
+    return;
+  }
   uiBgGrad('#0a1428','#1a2848'); uiSparkles(t*0.6, 20);
   const lay = mobMenuLayout(mpMenuItems.length);
   if (lay.mode !== 'desktop') {
@@ -2839,8 +2850,10 @@ function updateMenu(dt) {
 }
 
 function drawMenu(t) {
-  if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a2010','#1a5c1a');
-  uiSparkles(t);
+  if (!document.body.classList.contains('three-menu') && !document.body.classList.contains('mob-menu-html')) {
+    uiBgGrad('#0a2010','#1a5c1a');
+  }
+  if (!document.body.classList.contains('mob-menu-html')) uiSparkles(t);
   const lay = mobMenuLayout(menuItems.length);
   const bob = Math.sin(t * 2) * (lay.mode !== 'desktop' ? 4 : 8);
 
@@ -3408,7 +3421,8 @@ function touchPress(code)   { if (!keys[code]) keyDown[code] = true; keys[code] 
 function touchRelease(code) { keys[code] = false; keyUp[code] = true; }
 
 function setupTouch() {
-  if (isTouchDevice()) document.body.classList.add('touch');
+  document.body.classList.add('touch');
+  if (isMobileApp()) document.body.classList.add('mobile-only');
 
   document.querySelectorAll('#touch .tbtn').forEach(btn => {
     const code = btn.dataset.code;
@@ -5053,6 +5067,7 @@ function mobUiSync() {
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
   document.body.classList.toggle('portrait', portrait);
+  document.body.classList.toggle('landscape', !portrait);
   if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s) && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
     if (typeof threeEnsure === 'function') threeEnsure();
   }
@@ -5075,6 +5090,7 @@ function mobTouchPortrait() {
 
 /** Layout compacto para menus en movil (vertical u horizontal). */
 function mobUseDesktopMenu() {
+  if (isMobileApp()) return false;
   if (!document.body.classList.contains('touch')) return true;
   return Math.max(window.innerWidth, window.innerHeight) >= 900;
 }
@@ -5172,7 +5188,6 @@ let mobKartSelectSel = 0;
 
 function mobGetHtmlMenuConfig() {
   if (!document.body.classList.contains('touch')) return null;
-  if (window.innerWidth >= window.innerHeight) return null;
   if (!MOB_MENU_SCENES.includes(gs.scene)) return null;
 
   if (gs.scene === 'menu' && typeof menuItems !== 'undefined') {
@@ -5180,6 +5195,21 @@ function mobGetHtmlMenuConfig() {
       type: 'list', theme: 'green', title: 'SUPER BEAR', subtitle: 'ADVENTURE',
       items: menuItems, getSel: () => menuSel, setSel: v => { menuSel = v; },
       onPick: () => mobQueueAction('ok'), showMeta: true,
+    };
+  }
+  if (gs.scene === 'multimenu' && typeof mpMenuItems !== 'undefined') {
+    return {
+      type: 'list', theme: 'blue', title: 'JUGAR EN LINEA', subtitle: 'Multijugador',
+      items: mpMenuItems, getSel: () => mp.menuSel, setSel: v => { mp.menuSel = v; },
+      onPick: () => mobQueueAction('ok'),
+    };
+  }
+  if (gs.scene === 'kartcup' && typeof KART_CUPS !== 'undefined') {
+    return {
+      type: 'list', theme: 'purple', title: 'MODO COPA', subtitle: '3 carreras · puntos MK',
+      items: KART_CUPS.map(c => c.name),
+      getSel: () => kartCupSel, setSel: v => { kartCupSel = v; },
+      onPick: () => mobQueueAction('ok'),
     };
   }
   if (gs.scene === 'kartmenu' && typeof kartMenuItems !== 'undefined') {
@@ -5231,7 +5261,10 @@ function mobMenuHtmlSync() {
   const show = !!cfg;
 
   document.body.classList.toggle('mob-menu-html', show);
-  if (root) root.classList.toggle('theme-purple', show && cfg?.theme === 'purple');
+  if (root) {
+    root.classList.toggle('theme-purple', show && cfg?.theme === 'purple');
+    root.classList.toggle('theme-blue', show && cfg?.theme === 'blue');
+  }
 
   if (!root || !list) return;
   if (!show) {
@@ -6187,6 +6220,10 @@ function updateKartCup(dt) {
   }
 }
 function drawKartCup(t) {
+  if (document.body.classList.contains('mob-menu-html')) {
+    if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
+    return;
+  }
   if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
   uiSparkles(t * 0.5, 20);
   const port = mobTouchPortrait();
@@ -7035,10 +7072,10 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const w = threeGameToWorld(k.x, k.y, k.z, tr);
     entry.mesh.position.set(w.x, w.y + 0.2, w.z);
     entry.mesh.rotation.y = -k.angle + Math.PI / 2;
-    const wl = entry.mesh.children.filter(c => c.geometry?.type === 'CylinderGeometry');
-    if (wl.length) {
-      const spin = (k.speed || 0) * 0.02 * (t || 0);
-      wl.forEach(wheel => { wheel.rotation.x = spin; });
+    const wheels = entry.mesh.userData.wheels;
+    if (wheels) {
+      const spin = (k.speed || 0) * 0.015;
+      wheels.forEach(wheel => { wheel.rotation.x += spin; });
     }
     if (k.boost > 50) {
       entry.mesh.traverse(obj => {
