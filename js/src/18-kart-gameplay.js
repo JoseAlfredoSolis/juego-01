@@ -59,6 +59,7 @@ function kartInitRaceExtras(tr) {
 
 function kartUpdateObstacles(dt, tr) {
   if (!race?.obstacles) return;
+  for (const k of race.karts) { if (k._obHitCd > 0) k._obHitCd -= dt; }
   for (const ob of race.obstacles) {
     ob.phase += dt * (ob.kind === 'crab' ? 2.2 : 1.4);
     const tg = kartPathTangent(tr, ob.u);
@@ -67,12 +68,14 @@ function kartUpdateObstacles(dt, tr) {
     ob.y = kartPathSample(tr, ob.u).y + Math.sin(tg.angle + Math.PI / 2) * lane;
     ob.angle = tg.angle;
     for (const k of race.karts) {
-      if (k.finished || k.shieldTimer > 0 || k.starTimer > 0) continue;
+      if (k.finished || k.shieldTimer > 0 || k.starTimer > 0 || k._obHitCd > 0) continue;
       if (Math.hypot(k.x - ob.x, k.y - ob.y) < 28) {
         k.speed *= 0.35;
         k.stunTimer = Math.max(k.stunTimer || 0, 0.6);
+        k._obHitCd = 0.6;
         spawnParticles(k.x, k.y, '#888', 8, 180);
         sfx.hurt();
+        if (k.idx === kartLocalIdx()) addShake(0.16);
       }
     }
   }
@@ -93,6 +96,7 @@ function kartUpdateHazards(dt) {
         spawnParticles(h.x, h.y, '#ffe040', 10, 140);
         race.hazards.splice(i, 1);
         sfx.hurt();
+        if (k.idx === kartLocalIdx()) addShake(0.14);
         break;
       }
     }
@@ -123,6 +127,7 @@ function kartUpdateProjectiles(dt) {
         spawnParticles(p.x, p.y, '#40c878', 12, 200);
         spawnText(k.x, k.y - 18, 'GOLPE!', '#f44', 15);
         sfx.hurt();
+        if (k.idx === kartLocalIdx()) addShake(0.18);
         hit = true; break;
       }
     }
@@ -171,6 +176,7 @@ function kartUseItem(k, tr) {
         o.speed *= 0.2;
         o.stunTimer = Math.max(o.stunTimer || 0, 2.2);
         spawnRing(o.x, o.y, '#aaf', 70, 0.4);
+        if (o.idx === kartLocalIdx()) addShake(0.1);
       }
     }
     addFlash('#aaf', 0.12);
@@ -225,7 +231,7 @@ function kartUpdateBlueShells(dt) {
         target.speed *= 0.1;
         target.stunTimer = Math.max(target.stunTimer || 0, 2.5);
         spawnParticles(p.x, p.y, '#3080ff', 20, 250);
-        addShake(0.2);
+        if (target.idx === kartLocalIdx()) addShake(0.2);
         showBanner('GOLPE AZUL!', '#3080ff');
         sfx.hurt();
       }

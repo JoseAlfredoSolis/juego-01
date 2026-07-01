@@ -59,13 +59,15 @@ function kartUpdateJump(k, dt) {
       spawnDust(k.x, k.y, 6);
       k.speed *= 0.98;
     }
+    if (hard && k.idx === kartLocalIdx()) addShake(0.1);
     k.z = 0;
     k.vz = 0;
   }
 }
 
-function kartResolveCollisions(k) {
+function kartResolveCollisions(k, dt) {
   if (!race || k.finished) return;
+  if (k._hitShakeCd > 0) k._hitShakeCd -= dt;
   const w = (k.stats?.weight || 1);
   for (const o of race.karts) {
     if (o === k || o.finished) continue;
@@ -84,10 +86,14 @@ function kartResolveCollisions(k) {
     if (dist < minD - 4 && Math.random() < 0.08) {
       spawnParticles((k.x + o.x) / 2, (k.y + o.y) / 2, '#ccc', 4, 120);
     }
+    if (k.idx === kartLocalIdx() && !(k._hitShakeCd > 0) && Math.abs(rel) > 30) {
+      addShake(Math.min(0.14, Math.abs(rel) / 500));
+      k._hitShakeCd = 0.25;
+    }
   }
 }
 
-function kartUpdateAntigrav(k, tr) {
+function kartUpdateAntigrav(k, tr, dt) {
   const surf = kartSurfaceType(tr, k.x, k.y);
   const was = k.antigrav;
   k.antigrav = surf === 'antigrav';
