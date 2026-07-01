@@ -195,8 +195,20 @@ function threeEnsure() {
       const h = el.clientHeight || window.innerHeight;
       if (w < 2 || h < 2) return;
       renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      const activeCam = threeCtx.camera;
+      if (activeCam?.isOrthographicCamera) {
+        const viewH = threeCtx.gpViewH || 36;
+        const aspect = w / h;
+        const viewW = viewH * aspect;
+        activeCam.left = -viewW / 2;
+        activeCam.right = viewW / 2;
+        activeCam.top = viewH / 2;
+        activeCam.bottom = -viewH / 2;
+        activeCam.updateProjectionMatrix();
+      } else if (activeCam) {
+        activeCam.aspect = w / h;
+        activeCam.updateProjectionMatrix();
+      }
     },
   };
   threeCtx.resize();
@@ -234,6 +246,39 @@ function threeClearScene(ctx) {
   ctx.kartMeshes = [];
   ctx._itemsRef = null;
   ctx._enemiesRef = null;
+  ctx.gpCamFocus = null;
+}
+
+function threeRestorePerspectiveCamera(ctx) {
+  if (!ctx._perspCam) return;
+  ctx.camera = ctx._perspCam;
+  ctx.gpCamOrtho = false;
+  ctx.gpCamFocus = null;
+  ctx.resize();
+}
+
+function threeSetupGameplayCamera(ctx) {
+  if (!ctx._perspCam) ctx._perspCam = ctx.camera;
+  const el = ctx.el;
+  const w = Math.max(el.clientWidth || W, 2);
+  const h = Math.max(el.clientHeight || H, 2);
+  const aspect = w / h;
+  const viewH = 36;
+  const viewW = viewH * aspect;
+  if (!ctx.gpCamOrtho || !ctx.camera.isOrthographicCamera) {
+    ctx.camera = new THREE.OrthographicCamera(-viewW / 2, viewW / 2, viewH / 2, -viewH / 2, 0.1, 400);
+    ctx.gpCamOrtho = true;
+    ctx.gpCamFocus = null;
+  } else {
+    ctx.camera.left = -viewW / 2;
+    ctx.camera.right = viewW / 2;
+    ctx.camera.top = viewH / 2;
+    ctx.camera.bottom = -viewH / 2;
+    ctx.camera.updateProjectionMatrix();
+  }
+  ctx.gpViewH = viewH;
+  ctx.camera.position.set(0, 0, 60);
+  ctx.camera.lookAt(0, 0, 0);
 }
 
 function threeAddLights(scene, warm) {
@@ -537,6 +582,7 @@ function threeAddMenuFloor(ctx, radius, texKey) {
 }
 
 function threeBuildMainMenuScene(ctx) {
+  threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, true);
   ctx.scene.background = new THREE.Color(0x1a4828);
@@ -612,6 +658,7 @@ function threeBuildMainMenuScene(ctx) {
 }
 
 function threeBuildKartMenuScene(ctx) {
+  threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
   ctx.scene.background = new THREE.Color(0x0a1020);
@@ -679,6 +726,7 @@ function threeBuildKartMenuScene(ctx) {
 }
 
 function threeBuildRaceScene(ctx, tr) {
+  threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
   ctx.scene.background = new THREE.Color(threeHexColor(tr.bg?.[0] || 0x0a1420));
@@ -798,10 +846,11 @@ function threeGpPos(gx, gy, gz) {
 
 function threeBuildGameplayScene(ctx, ld, world) {
   threeClearScene(ctx);
+  threeSetupGameplayCamera(ctx);
   ctx.lights = threeAddLights(ctx.scene, world < 3);
   const bg = threeHexColor(ld.bg?.[0] || '#1a3a1a');
   ctx.scene.background = new THREE.Color(bg);
-  ctx.scene.fog = new THREE.Fog(bg, 35, 220);
+  ctx.scene.fog = new THREE.Fog(bg, 80, 280);
   threeAddSkyDome(ctx.scene, ld.bg?.[1] || ld.bg?.[0] || '#2d5a1b', ld.bg?.[0] || '#1a3a1a');
 
   const [topCol, sideCol] = THREE_WORLD_COLS[world] || THREE_WORLD_COLS[0];
@@ -964,18 +1013,18 @@ function threeSyncGameplay(ctx, t) {
   }
 
   const velX = player.vx || 0;
-  const velY = player.vy || 0;
-  const leadX = player.facing * 2.8 + velX * THREE_GP_SCALE * 0.1;
-  const leadY = velY * THREE_GP_SCALE * 0.055;
-  const lookX = pp.x + leadX;
-  const lookY = pp.y + 2.5 + leadY;
-  const side = player.facing > 0 ? -1 : 1;
-  const camX = lookX + side * 11;
-  const camY = lookY + 10 + Math.min(5, Math.max(-3, -velY * 0.005));
-  const camZ = 22 + Math.min(8, Math.abs(velX) * 0.018);
-  const camLerp = player.onGround ? 0.11 : 0.14;
-  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), camLerp);
-  ctx.camera.lookAt(lookX, lookY, 0);
+  const moveDir = Math.abs(velX) > 24 ? Math.sign(velX) : player.facing;
+  const focusX = pp.x + moveDir * 2.5;
+  const focusY = pp.y + 1.5;
+  let targetCamY = focusY + (player.onGround ? 12 : (player.vy < -80 ? 6 : 9));
+  if (!player.onGround && player.vy > 120) targetCamY = focusY + 14;
+
+  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: focusX, y: targetCamY };
+  const lx = Math.abs(velX) > 80 ? 0.28 : 0.22;
+  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, focusX, lx);
+  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, targetCamY, player.onGround ? 0.24 : 0.3);
+  ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, 60);
+  ctx.camera.lookAt(focusX, focusY, 0);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {
       if (ch.userData?.isFlag) ch.rotation.z = Math.sin(t * 3) * 0.35;

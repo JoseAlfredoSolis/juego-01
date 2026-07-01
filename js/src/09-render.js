@@ -1,26 +1,40 @@
 // === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
-function camUpdate(px, py, levelW, snap=false, p=null) {
+const CAM_CFG = {
+  anchorY: 0.64,
+  leadX: 38,
+  leadVel: 0.07,
+  yLead: 0.05,
+  yLeadMax: 28,
+  yMin: -100,
+};
+
+function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
   const pcx = px + (p ? p.w : PLAYER_W) / 2;
   const pcy = py + (p ? p.h : PLAYER_H) / 2;
 
+  let anchorX = 0.5;
   let leadX = 0, leadY = 0;
   if (p) {
-    leadX = p.facing * 72 + (p.vx || 0) * 0.14;
-    if (!p.onGround) leadY = clamp((p.vy || 0) * 0.1, -55, 65);
-    else if (Math.abs(p.vx || 0) > 40) leadY = -12;
+    const moveDir = Math.abs(p.vx || 0) > 24 ? Math.sign(p.vx) : p.facing;
+    anchorX = moveDir > 0 ? 0.34 : 0.66;
+    leadX = moveDir * CAM_CFG.leadX + (p.vx || 0) * CAM_CFG.leadVel;
+    if (!p.onGround) {
+      leadY = clamp((p.vy || 0) * CAM_CFG.yLead, -CAM_CFG.yLeadMax, CAM_CFG.yLeadMax);
+    }
   }
 
-  const tx = clamp(pcx + leadX - W / 2, 0, Math.max(0, levelW - W));
-  const ty = clamp(pcy + leadY - H / 2, 0, 720 - H);
+  const maxCamY = Math.max(0, levelH - H);
+  const tx = clamp(pcx - W * anchorX + leadX, 0, Math.max(0, levelW - W));
+  const ty = clamp(pcy - H * CAM_CFG.anchorY + leadY, CAM_CFG.yMin, maxCamY);
 
   if (snap) { cam.x = tx; cam.y = ty; return; }
 
-  const dx = tx - cam.x, dy = ty - cam.y;
-  const dist = Math.hypot(dx, dy);
-  const t = dist > 140 ? 0.26 : dist > 50 ? 0.2 : 0.15;
-  cam.x = lerp(cam.x, tx, t);
-  cam.y = lerp(cam.y, ty, t);
+  const dx = Math.abs(tx - cam.x), dy = Math.abs(ty - cam.y);
+  const lx = dx > 100 ? 0.34 : dx > 35 ? 0.26 : 0.2;
+  const ly = dy > 70 ? 0.3 : dy > 20 ? 0.24 : 0.18;
+  cam.x = lerp(cam.x, tx, lx);
+  cam.y = lerp(cam.y, ty, ly);
 }
 
 // ── Drawing Helpers ────────────────────────────────────────────────────────

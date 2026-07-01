@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v50';
+const GAME_VERSION = 'v51';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -1086,27 +1086,41 @@ function drawBanner(){ // screen-space announcement (e.g. boss defeated)
 
 // === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
-function camUpdate(px, py, levelW, snap=false, p=null) {
+const CAM_CFG = {
+  anchorY: 0.64,
+  leadX: 38,
+  leadVel: 0.07,
+  yLead: 0.05,
+  yLeadMax: 28,
+  yMin: -100,
+};
+
+function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
   const pcx = px + (p ? p.w : PLAYER_W) / 2;
   const pcy = py + (p ? p.h : PLAYER_H) / 2;
 
+  let anchorX = 0.5;
   let leadX = 0, leadY = 0;
   if (p) {
-    leadX = p.facing * 72 + (p.vx || 0) * 0.14;
-    if (!p.onGround) leadY = clamp((p.vy || 0) * 0.1, -55, 65);
-    else if (Math.abs(p.vx || 0) > 40) leadY = -12;
+    const moveDir = Math.abs(p.vx || 0) > 24 ? Math.sign(p.vx) : p.facing;
+    anchorX = moveDir > 0 ? 0.34 : 0.66;
+    leadX = moveDir * CAM_CFG.leadX + (p.vx || 0) * CAM_CFG.leadVel;
+    if (!p.onGround) {
+      leadY = clamp((p.vy || 0) * CAM_CFG.yLead, -CAM_CFG.yLeadMax, CAM_CFG.yLeadMax);
+    }
   }
 
-  const tx = clamp(pcx + leadX - W / 2, 0, Math.max(0, levelW - W));
-  const ty = clamp(pcy + leadY - H / 2, 0, 720 - H);
+  const maxCamY = Math.max(0, levelH - H);
+  const tx = clamp(pcx - W * anchorX + leadX, 0, Math.max(0, levelW - W));
+  const ty = clamp(pcy - H * CAM_CFG.anchorY + leadY, CAM_CFG.yMin, maxCamY);
 
   if (snap) { cam.x = tx; cam.y = ty; return; }
 
-  const dx = tx - cam.x, dy = ty - cam.y;
-  const dist = Math.hypot(dx, dy);
-  const t = dist > 140 ? 0.26 : dist > 50 ? 0.2 : 0.15;
-  cam.x = lerp(cam.x, tx, t);
-  cam.y = lerp(cam.y, ty, t);
+  const dx = Math.abs(tx - cam.x), dy = Math.abs(ty - cam.y);
+  const lx = dx > 100 ? 0.34 : dx > 35 ? 0.26 : 0.2;
+  const ly = dy > 70 ? 0.3 : dy > 20 ? 0.24 : 0.18;
+  cam.x = lerp(cam.x, tx, lx);
+  cam.y = lerp(cam.y, ty, ly);
 }
 
 // ── Drawing Helpers ────────────────────────────────────────────────────────
@@ -6723,8 +6737,20 @@ function threeEnsure() {
       const h = el.clientHeight || window.innerHeight;
       if (w < 2 || h < 2) return;
       renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      const activeCam = threeCtx.camera;
+      if (activeCam?.isOrthographicCamera) {
+        const viewH = threeCtx.gpViewH || 36;
+        const aspect = w / h;
+        const viewW = viewH * aspect;
+        activeCam.left = -viewW / 2;
+        activeCam.right = viewW / 2;
+        activeCam.top = viewH / 2;
+        activeCam.bottom = -viewH / 2;
+        activeCam.updateProjectionMatrix();
+      } else if (activeCam) {
+        activeCam.aspect = w / h;
+        activeCam.updateProjectionMatrix();
+      }
     },
   };
   threeCtx.resize();
@@ -6762,6 +6788,39 @@ function threeClearScene(ctx) {
   ctx.kartMeshes = [];
   ctx._itemsRef = null;
   ctx._enemiesRef = null;
+  ctx.gpCamFocus = null;
+}
+
+function threeRestorePerspectiveCamera(ctx) {
+  if (!ctx._perspCam) return;
+  ctx.camera = ctx._perspCam;
+  ctx.gpCamOrtho = false;
+  ctx.gpCamFocus = null;
+  ctx.resize();
+}
+
+function threeSetupGameplayCamera(ctx) {
+  if (!ctx._perspCam) ctx._perspCam = ctx.camera;
+  const el = ctx.el;
+  const w = Math.max(el.clientWidth || W, 2);
+  const h = Math.max(el.clientHeight || H, 2);
+  const aspect = w / h;
+  const viewH = 36;
+  const viewW = viewH * aspect;
+  if (!ctx.gpCamOrtho || !ctx.camera.isOrthographicCamera) {
+    ctx.camera = new THREE.OrthographicCamera(-viewW / 2, viewW / 2, viewH / 2, -viewH / 2, 0.1, 400);
+    ctx.gpCamOrtho = true;
+    ctx.gpCamFocus = null;
+  } else {
+    ctx.camera.left = -viewW / 2;
+    ctx.camera.right = viewW / 2;
+    ctx.camera.top = viewH / 2;
+    ctx.camera.bottom = -viewH / 2;
+    ctx.camera.updateProjectionMatrix();
+  }
+  ctx.gpViewH = viewH;
+  ctx.camera.position.set(0, 0, 60);
+  ctx.camera.lookAt(0, 0, 0);
 }
 
 function threeAddLights(scene, warm) {
@@ -7065,6 +7124,7 @@ function threeAddMenuFloor(ctx, radius, texKey) {
 }
 
 function threeBuildMainMenuScene(ctx) {
+  threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, true);
   ctx.scene.background = new THREE.Color(0x1a4828);
@@ -7140,6 +7200,7 @@ function threeBuildMainMenuScene(ctx) {
 }
 
 function threeBuildKartMenuScene(ctx) {
+  threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
   ctx.scene.background = new THREE.Color(0x0a1020);
@@ -7207,6 +7268,7 @@ function threeBuildKartMenuScene(ctx) {
 }
 
 function threeBuildRaceScene(ctx, tr) {
+  threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
   ctx.scene.background = new THREE.Color(threeHexColor(tr.bg?.[0] || 0x0a1420));
@@ -7326,10 +7388,11 @@ function threeGpPos(gx, gy, gz) {
 
 function threeBuildGameplayScene(ctx, ld, world) {
   threeClearScene(ctx);
+  threeSetupGameplayCamera(ctx);
   ctx.lights = threeAddLights(ctx.scene, world < 3);
   const bg = threeHexColor(ld.bg?.[0] || '#1a3a1a');
   ctx.scene.background = new THREE.Color(bg);
-  ctx.scene.fog = new THREE.Fog(bg, 35, 220);
+  ctx.scene.fog = new THREE.Fog(bg, 80, 280);
   threeAddSkyDome(ctx.scene, ld.bg?.[1] || ld.bg?.[0] || '#2d5a1b', ld.bg?.[0] || '#1a3a1a');
 
   const [topCol, sideCol] = THREE_WORLD_COLS[world] || THREE_WORLD_COLS[0];
@@ -7492,18 +7555,18 @@ function threeSyncGameplay(ctx, t) {
   }
 
   const velX = player.vx || 0;
-  const velY = player.vy || 0;
-  const leadX = player.facing * 2.8 + velX * THREE_GP_SCALE * 0.1;
-  const leadY = velY * THREE_GP_SCALE * 0.055;
-  const lookX = pp.x + leadX;
-  const lookY = pp.y + 2.5 + leadY;
-  const side = player.facing > 0 ? -1 : 1;
-  const camX = lookX + side * 11;
-  const camY = lookY + 10 + Math.min(5, Math.max(-3, -velY * 0.005));
-  const camZ = 22 + Math.min(8, Math.abs(velX) * 0.018);
-  const camLerp = player.onGround ? 0.11 : 0.14;
-  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), camLerp);
-  ctx.camera.lookAt(lookX, lookY, 0);
+  const moveDir = Math.abs(velX) > 24 ? Math.sign(velX) : player.facing;
+  const focusX = pp.x + moveDir * 2.5;
+  const focusY = pp.y + 1.5;
+  let targetCamY = focusY + (player.onGround ? 12 : (player.vy < -80 ? 6 : 9));
+  if (!player.onGround && player.vy > 120) targetCamY = focusY + 14;
+
+  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: focusX, y: targetCamY };
+  const lx = Math.abs(velX) > 80 ? 0.28 : 0.22;
+  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, focusX, lx);
+  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, targetCamY, player.onGround ? 0.24 : 0.3);
+  ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, 60);
+  ctx.camera.lookAt(focusX, focusY, 0);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {
       if (ch.userData?.isFlag) ch.rotation.z = Math.sin(t * 3) * 0.35;
