@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v54';
+const GAME_VERSION = 'v55';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -861,6 +861,7 @@ const gs = {
   fxShake: true,        // screen shake
   fxParticles: true,    // particle effects
   vibration: true,      // haptic feedback on mobile
+  viewMode: '3d',       // '2d' | '3d' — vista del juego
 };
 
 // ── Difficulty ──────────────────────────────────────────────────────────────
@@ -951,6 +952,8 @@ function loadSave(){
     if(typeof s.fxShake==='boolean') gs.fxShake=s.fxShake;
     if(typeof s.fxParticles==='boolean') gs.fxParticles=s.fxParticles;
     if(typeof s.vibration==='boolean') gs.vibration=s.vibration;
+    if(s.viewMode==='2d' || s.viewMode==='3d') gs.viewMode=s.viewMode;
+    else if(typeof s.view3d==='boolean') gs.viewMode=s.view3d?'3d':'2d';
     // Guard against out-of-range or still-locked saved characters
     if(gs.character<0 || gs.character>=CHARACTERS.length || !isCharUnlocked(gs.character)) gs.character=0;
   }catch(e){}
@@ -963,7 +966,8 @@ function saveGame(){
       character:gs.character, difficulty:gs.difficulty,
       wallet:gs.wallet, bonusLives:gs.bonusLives, magnet:gs.magnet,
       bought:gs.bought, ach:gs.ach,
-      fxShake:gs.fxShake, fxParticles:gs.fxParticles, vibration:gs.vibration
+      fxShake:gs.fxShake, fxParticles:gs.fxParticles, vibration:gs.vibration,
+      viewMode:gs.viewMode
     }));
   }catch(e){}
 }
@@ -3197,11 +3201,11 @@ let setSel=0;
 function updateSettings(dt) {
   mobBindMenu(() => setSel, v => { setSel = v; });
   mobBindSwipe(dir => {
-    const n = 8;
+    const n = 9;
     if (dir === 'up') setSel = (setSel - 1 + n) % n;
     if (dir === 'down') setSel = (setSel + 1) % n;
   });
-  const n=8;
+  const n=9;
   if (pressed('ArrowUp')||pressed('KeyW'))   { setSel=(setSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { setSel=(setSel+1)%n; sfx.select(); }
   if (pressed('Escape')) { saveGame(); changeScene('menu'); return; }
@@ -3210,22 +3214,33 @@ function updateSettings(dt) {
     if (setSel===0)      { audio.sound=!audio.sound; sfx.select(); }
     else if (setSel===1) { audio.music=!audio.music; if(audio.music)musicStart(); else musicStop(); sfx.select(); }
     else if (setSel===2) { const d=left?-1:1; gs.difficulty=(gs.difficulty+d+DIFFICULTIES.length)%DIFFICULTIES.length; sfx.select(); }
-    else if (setSel===3) { gs.fxShake=!gs.fxShake; sfx.select(); }
-    else if (setSel===4) { gs.fxParticles=!gs.fxParticles; sfx.select(); }
-    else if (setSel===5) { gs.vibration=!gs.vibration; sfx.select(); }
-    else if (setSel===6) { if(enter){ resetProgress(); sfx.select(); } }
-    else if (setSel===7) { if(enter){ saveGame(); changeScene('menu'); sfx.select(); return; } }
+    else if (setSel===3) {
+      if (threeCanUse()) {
+        gs.viewMode = gs.viewMode === '3d' ? '2d' : '3d';
+        if (gs.viewMode === '2d') threeDisable();
+      }
+      sfx.select();
+    }
+    else if (setSel===4) { gs.fxShake=!gs.fxShake; sfx.select(); }
+    else if (setSel===5) { gs.fxParticles=!gs.fxParticles; sfx.select(); }
+    else if (setSel===6) { gs.vibration=!gs.vibration; sfx.select(); }
+    else if (setSel===7) { if(enter){ resetProgress(); sfx.select(); } }
+    else if (setSel===8) { if(enter){ saveGame(); changeScene('menu'); sfx.select(); return; } }
     saveGame();
   }
 }
 function drawSettings() {
   uiBgGrad('#0a1420','#0d1b2a', false);
   uiTitle('AJUSTES', 68, 42);
-  uiPanel(W/2-370,100,740,480,18);
+  uiPanel(W/2-370,100,740,530,18);
+  const viewLbl = typeof threeCanUse === 'function' && threeCanUse()
+    ? (gs.viewMode === '3d' ? '3D' : '2D')
+    : '2D';
   const opts=[
     ['Efectos de sonido', audio.sound?'ON':'OFF'],
     ['Musica', audio.music?'ON':'OFF'],
     ['Dificultad', diff().name],
+    ['Vista del juego', viewLbl],
     ['Sacudida de pantalla', gs.fxShake?'ON':'OFF'],
     ['Particulas', gs.fxParticles?'ON':'OFF'],
     ['Vibracion tactil', gs.vibration?'ON':'OFF'],
@@ -3235,6 +3250,7 @@ function drawSettings() {
   opts.forEach((o,i)=>{
     let vc=o[1]; if(o[1]==='ON') vc=UI.green; else if(o[1]==='OFF') vc=UI.red;
     if(i===2) vc=diff().color;
+    if(i===3) vc=gs.viewMode==='3d'?UI.cyan:UI.gold;
     uiListRow(155+i*52, o[0], o[1], i===setSel, vc, i);
   });
   const d=diff();
@@ -6553,6 +6569,21 @@ function threeCanUse() {
   return typeof THREE !== 'undefined';
 }
 
+function gameView3dEnabled() {
+  return threeCanUse() && gs.viewMode === '3d';
+}
+
+function gameViewModeLabel() {
+  return gameView3dEnabled() ? '3D' : '2D';
+}
+
+function threeDisable() {
+  if (!threeCtx) return;
+  threeCtx.mode = null;
+  threeCtx.el.style.display = 'none';
+  document.body.classList.remove('three-on', 'three-menu', 'three-race', 'three-gameplay', 'three-main-menu', 'three-play');
+}
+
 function threeMobileCanUse() {
   return threeCanUse();
 }
@@ -7719,7 +7750,7 @@ function threeMobileSceneKind(scene) {
 }
 
 function threeMobileSync(scene, dt, t) {
-  const can = threeCanUse();
+  const can = gameView3dEnabled();
   const kind = can ? threeSceneKind(scene) : null;
   const play3d = kind === 'gameplay' || kind === 'race';
   document.body.classList.toggle('three-on', !!kind);
@@ -7731,8 +7762,7 @@ function threeMobileSync(scene, dt, t) {
 
   if (!can || !kind) {
     if (threeCtx) {
-      threeCtx.mode = null;
-      threeCtx.el.style.display = 'none';
+      threeDisable();
     }
     return false;
   }
@@ -7770,11 +7800,11 @@ function threeMobileSync(scene, dt, t) {
 }
 
 function threeGameplayHudOnly() {
-  return threeCanUse() && gs.scene === 'gameplay' && threeCtx && threeCtx.mode === 'gameplay';
+  return gameView3dEnabled() && gs.scene === 'gameplay' && threeCtx && threeCtx.mode === 'gameplay';
 }
 
 function threeKartHudOnly() {
-  return threeCanUse() && gs.scene === 'kart' && threeCtx && threeCtx.mode === 'race';
+  return gameView3dEnabled() && gs.scene === 'kart' && threeCtx && threeCtx.mode === 'race';
 }
 
 function threeMobileHudOnly() {

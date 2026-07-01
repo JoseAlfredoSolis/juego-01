@@ -11,6 +11,21 @@ function threeCanUse() {
   return typeof THREE !== 'undefined';
 }
 
+function gameView3dEnabled() {
+  return threeCanUse() && gs.viewMode === '3d';
+}
+
+function gameViewModeLabel() {
+  return gameView3dEnabled() ? '3D' : '2D';
+}
+
+function threeDisable() {
+  if (!threeCtx) return;
+  threeCtx.mode = null;
+  threeCtx.el.style.display = 'none';
+  document.body.classList.remove('three-on', 'three-menu', 'three-race', 'three-gameplay', 'three-main-menu', 'three-play');
+}
+
 function threeMobileCanUse() {
   return threeCanUse();
 }
@@ -1177,7 +1192,7 @@ function threeMobileSceneKind(scene) {
 }
 
 function threeMobileSync(scene, dt, t) {
-  const can = threeCanUse();
+  const can = gameView3dEnabled();
   const kind = can ? threeSceneKind(scene) : null;
   const play3d = kind === 'gameplay' || kind === 'race';
   document.body.classList.toggle('three-on', !!kind);
@@ -1189,8 +1204,7 @@ function threeMobileSync(scene, dt, t) {
 
   if (!can || !kind) {
     if (threeCtx) {
-      threeCtx.mode = null;
-      threeCtx.el.style.display = 'none';
+      threeDisable();
     }
     return false;
   }
@@ -1228,11 +1242,11 @@ function threeMobileSync(scene, dt, t) {
 }
 
 function threeGameplayHudOnly() {
-  return threeCanUse() && gs.scene === 'gameplay' && threeCtx && threeCtx.mode === 'gameplay';
+  return gameView3dEnabled() && gs.scene === 'gameplay' && threeCtx && threeCtx.mode === 'gameplay';
 }
 
 function threeKartHudOnly() {
-  return threeCanUse() && gs.scene === 'kart' && threeCtx && threeCtx.mode === 'race';
+  return gameView3dEnabled() && gs.scene === 'kart' && threeCtx && threeCtx.mode === 'race';
 }
 
 function threeMobileHudOnly() {

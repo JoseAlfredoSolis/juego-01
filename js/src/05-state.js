@@ -16,6 +16,7 @@ const gs = {
   fxShake: true,        // screen shake
   fxParticles: true,    // particle effects
   vibration: true,      // haptic feedback on mobile
+  viewMode: '3d',       // '2d' | '3d' — vista del juego
 };
 
 // ── Difficulty ──────────────────────────────────────────────────────────────

@@ -34,6 +34,8 @@ function loadSave(){
     if(typeof s.fxShake==='boolean') gs.fxShake=s.fxShake;
     if(typeof s.fxParticles==='boolean') gs.fxParticles=s.fxParticles;
     if(typeof s.vibration==='boolean') gs.vibration=s.vibration;
+    if(s.viewMode==='2d' || s.viewMode==='3d') gs.viewMode=s.viewMode;
+    else if(typeof s.view3d==='boolean') gs.viewMode=s.view3d?'3d':'2d';
     // Guard against out-of-range or still-locked saved characters
     if(gs.character<0 || gs.character>=CHARACTERS.length || !isCharUnlocked(gs.character)) gs.character=0;
   }catch(e){}
@@ -46,7 +48,8 @@ function saveGame(){
       character:gs.character, difficulty:gs.difficulty,
       wallet:gs.wallet, bonusLives:gs.bonusLives, magnet:gs.magnet,
       bought:gs.bought, ach:gs.ach,
-      fxShake:gs.fxShake, fxParticles:gs.fxParticles, vibration:gs.vibration
+      fxShake:gs.fxShake, fxParticles:gs.fxParticles, vibration:gs.vibration,
+      viewMode:gs.viewMode
     }));
   }catch(e){}
 }

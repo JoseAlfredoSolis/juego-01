@@ -472,11 +472,11 @@ let setSel=0;
 function updateSettings(dt) {
   mobBindMenu(() => setSel, v => { setSel = v; });
   mobBindSwipe(dir => {
-    const n = 8;
+    const n = 9;
     if (dir === 'up') setSel = (setSel - 1 + n) % n;
     if (dir === 'down') setSel = (setSel + 1) % n;
   });
-  const n=8;
+  const n=9;
   if (pressed('ArrowUp')||pressed('KeyW'))   { setSel=(setSel-1+n)%n; sfx.select(); }
   if (pressed('ArrowDown')||pressed('KeyS')) { setSel=(setSel+1)%n; sfx.select(); }
   if (pressed('Escape')) { saveGame(); changeScene('menu'); return; }
@@ -485,22 +485,33 @@ function updateSettings(dt) {
     if (setSel===0)      { audio.sound=!audio.sound; sfx.select(); }
     else if (setSel===1) { audio.music=!audio.music; if(audio.music)musicStart(); else musicStop(); sfx.select(); }
     else if (setSel===2) { const d=left?-1:1; gs.difficulty=(gs.difficulty+d+DIFFICULTIES.length)%DIFFICULTIES.length; sfx.select(); }
-    else if (setSel===3) { gs.fxShake=!gs.fxShake; sfx.select(); }
-    else if (setSel===4) { gs.fxParticles=!gs.fxParticles; sfx.select(); }
-    else if (setSel===5) { gs.vibration=!gs.vibration; sfx.select(); }
-    else if (setSel===6) { if(enter){ resetProgress(); sfx.select(); } }
-    else if (setSel===7) { if(enter){ saveGame(); changeScene('menu'); sfx.select(); return; } }
+    else if (setSel===3) {
+      if (threeCanUse()) {
+        gs.viewMode = gs.viewMode === '3d' ? '2d' : '3d';
+        if (gs.viewMode === '2d') threeDisable();
+      }
+      sfx.select();
+    }
+    else if (setSel===4) { gs.fxShake=!gs.fxShake; sfx.select(); }
+    else if (setSel===5) { gs.fxParticles=!gs.fxParticles; sfx.select(); }
+    else if (setSel===6) { gs.vibration=!gs.vibration; sfx.select(); }
+    else if (setSel===7) { if(enter){ resetProgress(); sfx.select(); } }
+    else if (setSel===8) { if(enter){ saveGame(); changeScene('menu'); sfx.select(); return; } }
     saveGame();
   }
 }
 function drawSettings() {
   uiBgGrad('#0a1420','#0d1b2a', false);
   uiTitle('AJUSTES', 68, 42);
-  uiPanel(W/2-370,100,740,480,18);
+  uiPanel(W/2-370,100,740,530,18);
+  const viewLbl = typeof threeCanUse === 'function' && threeCanUse()
+    ? (gs.viewMode === '3d' ? '3D' : '2D')
+    : '2D';
   const opts=[
     ['Efectos de sonido', audio.sound?'ON':'OFF'],
     ['Musica', audio.music?'ON':'OFF'],
     ['Dificultad', diff().name],
+    ['Vista del juego', viewLbl],
     ['Sacudida de pantalla', gs.fxShake?'ON':'OFF'],
     ['Particulas', gs.fxParticles?'ON':'OFF'],
     ['Vibracion tactil', gs.vibration?'ON':'OFF'],
@@ -510,6 +521,7 @@ function drawSettings() {
   opts.forEach((o,i)=>{
     let vc=o[1]; if(o[1]==='ON') vc=UI.green; else if(o[1]==='OFF') vc=UI.red;
     if(i===2) vc=diff().color;
+    if(i===3) vc=gs.viewMode==='3d'?UI.cyan:UI.gold;
     uiListRow(155+i*52, o[0], o[1], i===setSel, vc, i);
   });
   const d=diff();
