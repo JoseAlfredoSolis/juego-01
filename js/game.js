@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v60';
+const GAME_VERSION = 'v61';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -6637,31 +6637,6 @@ function kartDrawJumpShadow(k, px, py) {
 }
 
 
-// ── Boot: touch UI + game loop (must run after all modules load) ─────────────
-setupTouch();
-setupPointerControls();
-setupMobileUi();
-mobUiSync();
-resize();
-
-(function () {
-  const params = new URLSearchParams(location.search);
-  const code = params.get('sala');
-  if (code) {
-    mp.joinBuf = code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-    if (mp.joinBuf.length === 6) {
-      mp.autoJoin = true;
-      if (params.get('mode') === 'kart') {
-        mp.gameMode = 'kart';
-        gs.scene = 'kartjoin';
-      } else gs.scene = 'mpjoin';
-    }
-  }
-})();
-
-requestAnimationFrame(loop);
-
-
 // ── Mobile 3D renderer (Three.js) — main menu, kart menus, 3D race ─────────
 const THREE_KART_MENU_SCENES = ['kartmenu', 'kartselect', 'kartlobby', 'kartcup'];
 const THREE_MAIN_MENU_SCENES = ['menu'];
@@ -8247,3 +8222,28 @@ function setupCameraOrbit() {
   camOrbitAttach(document.getElementById('three-c'));
   camOrbitBindKeys();
 }
+
+
+// ── Boot: touch UI + game loop (must run after all modules load) ─────────────
+setupTouch();
+setupPointerControls();
+setupMobileUi();
+mobUiSync();
+resize();
+
+(function () {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('sala');
+  if (code) {
+    mp.joinBuf = code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    if (mp.joinBuf.length === 6) {
+      mp.autoJoin = true;
+      if (params.get('mode') === 'kart') {
+        mp.gameMode = 'kart';
+        gs.scene = 'kartjoin';
+      } else gs.scene = 'mpjoin';
+    }
+  }
+})();
+
+requestAnimationFrame(loop);
