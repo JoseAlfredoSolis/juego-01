@@ -2,12 +2,18 @@
 const THREE_KART_MENU_SCENES = ['kartmenu', 'kartselect', 'kartlobby', 'kartcup'];
 const THREE_MAIN_MENU_SCENES = ['menu'];
 const THREE_RACE_SCENES = ['kart'];
+const THREE_GAMEPLAY_SCENES = ['gameplay'];
+const THREE_GP_SCALE = 0.045;
 
 let threeCtx = null;
 const threeTexCache = {};
 
+function threeCanUse() {
+  return typeof THREE !== 'undefined';
+}
+
 function threeMobileCanUse() {
-  return typeof isTouchDevice === 'function' && isTouchDevice() && typeof THREE !== 'undefined';
+  return threeCanUse();
 }
 
 function threeTrackScale(tr) {
@@ -166,7 +172,14 @@ function threeClearScene(ctx) {
   ctx.menuGroup = null;
   ctx.decorGroup = null;
   ctx.trackGroup = null;
+  ctx.gameGroup = null;
+  ctx.playerMesh = null;
+  ctx.entityGroup = null;
+  ctx.itemMeshes = [];
+  ctx.enemyMeshes = [];
   ctx.kartMeshes = [];
+  ctx._itemsRef = null;
+  ctx._enemiesRef = null;
 }
 
 function threeAddLights(scene, warm) {
@@ -638,20 +651,205 @@ function threeUpdateKartMenu(ctx, dt, t) {
   ctx.camera.lookAt(0, 2.2, 0);
 }
 
-function threeMobileSceneKind(scene) {
+const THREE_WORLD_COLS = [
+  ['#3d7a2a', '#2d5a1b'], ['#4a3520', '#2d1f0f'], ['#b0c8e0', '#8aaac0'],
+  ['#8a3320', '#5a1e10'], ['#dfeaf6', '#a9c4e0'], ['#d4b860', '#9a7830'],
+  ['#2a8a9a', '#145a70'], ['#d4a850', '#a07828'], ['#9a60e0', '#5a28a0'], ['#4a5080', '#1a2048'],
+];
+
+function threeGpPos(gx, gy, gz) {
+  return { x: gx * THREE_GP_SCALE, y: -gy * THREE_GP_SCALE, z: gz || 0 };
+}
+
+function threeBuildGameplayScene(ctx, ld, world) {
+  threeClearScene(ctx);
+  ctx.lights = threeAddLights(ctx.scene, world < 3);
+  const bg = threeHexColor(ld.bg?.[0] || '#1a3a1a');
+  ctx.scene.background = new THREE.Color(bg);
+  ctx.scene.fog = new THREE.Fog(bg, 35, 220);
+
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(280, 32, 18),
+    new THREE.MeshBasicMaterial({ color: threeHexColor(ld.bg?.[1] || ld.bg?.[0] || '#2d5a1b'), side: THREE.BackSide })
+  );
+  ctx.scene.add(sky);
+
+  const [topCol, sideCol] = THREE_WORLD_COLS[world] || THREE_WORLD_COLS[0];
+  const topMat = new THREE.MeshStandardMaterial({ color: threeHexColor(topCol), roughness: 0.88 });
+  const sideMat = new THREE.MeshStandardMaterial({ color: threeHexColor(sideCol), roughness: 0.92 });
+
+  ctx.gameGroup = new THREE.Group();
+  const ground = new THREE.Mesh(
+    new THREE.BoxGeometry(ld.levelW * THREE_GP_SCALE + 20, 1.2, 24),
+    new THREE.MeshStandardMaterial({ map: threeTexGrass(sideCol), roughness: 1 })
+  );
+  ground.position.set(ld.levelW * THREE_GP_SCALE * 0.5, 0.6, 0);
+  ground.receiveShadow = true;
+  ctx.gameGroup.add(ground);
+
+  for (const [px, py, pw, ph] of ld.platforms) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(pw * THREE_GP_SCALE, ph * THREE_GP_SCALE, 3.2),
+      ph > 24 ? sideMat : topMat
+    );
+    const c = threeGpPos(px + pw / 2, py + ph / 2);
+    mesh.position.set(c.x, c.y, 0);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    ctx.gameGroup.add(mesh);
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(pw * THREE_GP_SCALE, Math.min(0.35, ph * THREE_GP_SCALE * 0.12), 3.4),
+      topMat
+    );
+    cap.position.set(c.x, -py * THREE_GP_SCALE, 0.05);
+    ctx.gameGroup.add(cap);
+  }
+  ctx.scene.add(ctx.gameGroup);
+
+  const ch = (typeof CHARACTERS !== 'undefined' && CHARACTERS[gs.character]) ? CHARACTERS[gs.character] : null;
+  ctx.playerMesh = threeMkBear(ch?.color || '#c87830');
+  ctx.playerMesh.scale.set(0.55, 0.55, 0.55);
+  ctx.scene.add(ctx.playerMesh);
+
+  ctx.entityGroup = new THREE.Group();
+  ctx.scene.add(ctx.entityGroup);
+  ctx.itemMeshes = [];
+  ctx.enemyMeshes = [];
+  ctx._itemsRef = items;
+  ctx._enemiesRef = enemies;
+  threeRebuildGameplayEntities(ctx);
+  ctx.mode = 'gameplay';
+  ctx.gameLevelKey = gs.world + '-' + gs.level;
+}
+
+function threeRebuildGameplayEntities(ctx) {
+  threeClearGroup(ctx.entityGroup);
+  ctx.itemMeshes = [];
+  ctx.enemyMeshes = [];
+
+  if (typeof goalPos !== 'undefined' && goalPos) {
+    const g = threeGpPos(goalPos[0] + 20, goalPos[1] + 39);
+    const goal = new THREE.Mesh(
+      new THREE.BoxGeometry(2.2, 5.5, 1.2),
+      new THREE.MeshStandardMaterial({ color: 0x39d353, emissive: 0x1a8030, emissiveIntensity: 0.35 })
+    );
+    goal.position.set(g.x, g.y, 0.8);
+    goal.castShadow = true;
+    ctx.entityGroup.add(goal);
+    const flag = new THREE.Mesh(
+      new THREE.BoxGeometry(0.15, 2.8, 1.8),
+      new THREE.MeshStandardMaterial({ color: 0x2a9d4a })
+    );
+    flag.position.set(g.x + 1.2, g.y - 1.2, 1.6);
+    ctx.entityGroup.add(flag);
+  }
+
+  if (typeof items !== 'undefined') {
+    for (const it of items) {
+      let mesh;
+      if (it.type === 'coin') {
+        mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.45, 0.45, 0.12, 12),
+          new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800, emissiveIntensity: 0.3, metalness: 0.7 })
+        );
+        mesh.rotation.x = Math.PI / 2;
+      } else if (it.type === 'star') {
+        mesh = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.65, 0),
+          new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffaa00, emissiveIntensity: 0.45 })
+        );
+      } else {
+        mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(0.9, 0.9, 0.9),
+          new THREE.MeshStandardMaterial({ color: 0x3ecf6e, emissive: 0x1a8040, emissiveIntensity: 0.25 })
+        );
+      }
+      mesh.castShadow = true;
+      ctx.entityGroup.add(mesh);
+      ctx.itemMeshes.push({ it, mesh });
+    }
+  }
+
+  if (typeof enemies !== 'undefined') {
+    for (const e of enemies) {
+      const col = e.type === 'boss' ? 0x8b0000 : e.type === 'flyer' ? 0x6a3db0 : 0x2aa84a;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(e.w * THREE_GP_SCALE, e.h * THREE_GP_SCALE, 1.8),
+        new THREE.MeshStandardMaterial({ color: col, roughness: 0.75 })
+      );
+      mesh.castShadow = true;
+      ctx.entityGroup.add(mesh);
+      ctx.enemyMeshes.push({ e, mesh });
+    }
+  }
+}
+
+function threeSyncGameplay(ctx, t) {
+  if (!player || !levelData) return;
+  const ld = levelData;
+  const key = gs.world + '-' + gs.level;
+  if (ctx.gameLevelKey !== key) threeBuildGameplayScene(ctx, ld, gs.world);
+  if (ctx._itemsRef !== items || ctx._enemiesRef !== enemies) {
+    ctx._itemsRef = items;
+    ctx._enemiesRef = enemies;
+    threeRebuildGameplayEntities(ctx);
+  }
+
+  const px = player.x + player.w / 2;
+  const py = player.y + player.h / 2;
+  const pp = threeGpPos(px, py);
+  ctx.playerMesh.position.set(pp.x, pp.y + 1.2, 0.6);
+  ctx.playerMesh.rotation.y = player.facing < 0 ? Math.PI / 2 : -Math.PI / 2;
+
+  for (const { it, mesh } of ctx.itemMeshes) {
+    mesh.visible = !it.taken;
+    if (!it.taken) {
+      const bob = Math.sin(t * 3 + (it.bob || 0)) * 5;
+      const p = threeGpPos(it.x + it.w / 2, it.y + it.h / 2 + bob);
+      mesh.position.set(p.x, p.y, 0.8);
+      mesh.rotation.y = t * 2;
+    }
+  }
+
+  for (const { e, mesh } of ctx.enemyMeshes) {
+    mesh.visible = e.active !== false;
+    if (e.active !== false) {
+      const p = threeGpPos(e.x + e.w / 2, e.y + e.h / 2);
+      mesh.position.set(p.x, p.y, 0.5);
+    }
+  }
+
+  const lookX = pp.x;
+  const lookY = pp.y + 2.5;
+  const camX = lookX + 14;
+  const camY = lookY + 11;
+  const camZ = 26;
+  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
+  ctx.camera.lookAt(lookX, lookY, 0);
+}
+
+function threeSceneKind(scene) {
   if (THREE_RACE_SCENES.includes(scene)) return 'race';
+  if (THREE_GAMEPLAY_SCENES.includes(scene)) return 'gameplay';
   if (THREE_MAIN_MENU_SCENES.includes(scene)) return 'mainmenu';
   if (THREE_KART_MENU_SCENES.includes(scene)) return 'kartmenu';
   return null;
 }
 
+function threeMobileSceneKind(scene) {
+  return threeSceneKind(scene);
+}
+
 function threeMobileSync(scene, dt, t) {
-  const can = threeMobileCanUse();
-  const kind = can ? threeMobileSceneKind(scene) : null;
+  const can = threeCanUse();
+  const kind = can ? threeSceneKind(scene) : null;
+  const play3d = kind === 'gameplay' || kind === 'race';
   document.body.classList.toggle('three-on', !!kind);
   document.body.classList.toggle('three-menu', kind === 'mainmenu' || kind === 'kartmenu');
   document.body.classList.toggle('three-race', kind === 'race');
+  document.body.classList.toggle('three-gameplay', kind === 'gameplay');
   document.body.classList.toggle('three-main-menu', kind === 'mainmenu');
+  document.body.classList.toggle('three-play', play3d);
 
   if (!can || !kind) {
     if (threeCtx) {
@@ -669,12 +867,16 @@ function threeMobileSync(scene, dt, t) {
   if (kind === 'mainmenu' && (ctx.mode !== 'menu' || ctx.menuVariant !== 'main')) {
     threeBuildMainMenuScene(ctx);
     ctx.mode = 'menu';
-  }
-  if (kind === 'kartmenu' && (ctx.mode !== 'menu' || ctx.menuVariant !== 'kart')) {
+  } else if (kind === 'kartmenu' && (ctx.mode !== 'menu' || ctx.menuVariant !== 'kart')) {
     threeBuildKartMenuScene(ctx);
     ctx.mode = 'menu';
-  }
-  if (kind === 'race' && race?.track) {
+  } else if (kind === 'gameplay' && levelData) {
+    const gk = gs.world + '-' + gs.level;
+    if (ctx.mode !== 'gameplay' || ctx.gameLevelKey !== gk) {
+      threeBuildGameplayScene(ctx, levelData, gs.world);
+    }
+    threeSyncGameplay(ctx, t);
+  } else if (kind === 'race' && race?.track) {
     if (ctx.mode !== 'race' || ctx.raceTrackId !== race.track.name) {
       threeBuildRaceScene(ctx, race.track);
       ctx.mode = 'race';
@@ -689,6 +891,14 @@ function threeMobileSync(scene, dt, t) {
   return true;
 }
 
+function threeGameplayHudOnly() {
+  return threeCanUse() && gs.scene === 'gameplay' && threeCtx?.mode === 'gameplay';
+}
+
+function threeKartHudOnly() {
+  return threeCanUse() && gs.scene === 'kart' && threeCtx?.mode === 'race';
+}
+
 function threeMobileHudOnly() {
-  return threeMobileCanUse() && gs.scene === 'kart' && threeCtx?.mode === 'race';
+  return threeKartHudOnly();
 }

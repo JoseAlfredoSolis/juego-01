@@ -1089,7 +1089,7 @@ function drawKartEntity(k, tr) {
 }
 function drawKart(t) {
   if (!race) return;
-  const use3d = typeof threeMobileHudOnly === 'function' && threeMobileHudOnly();
+  const use3d = typeof threeKartHudOnly === 'function' && threeKartHudOnly();
   if (!use3d) {
     drawKartTrack(race.track, t);
     const sorted = [...race.karts].sort((a, b) => a.rank - b.rank || 0);

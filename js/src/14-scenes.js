@@ -1,5 +1,5 @@
 // === 14-scenes.js (from index.html lines 1981-2540) ===
-  drawPlayer(player);
+  if (!(typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly())) drawPlayer(player);
   drawRemotePlayer();
   cam.x=sx; cam.y=sy;
   drawFlash();

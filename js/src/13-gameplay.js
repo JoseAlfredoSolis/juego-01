@@ -303,16 +303,18 @@ function advanceLevel() {
 
 function drawGameplay(t) {
   const ld = levelData;
-  // Screen shake: jitter the camera during world rendering, then restore.
   const sx=cam.x, sy=cam.y;
   if (shake>0 && gs.fxShake!==false) { const m=Math.min(8, shake*55); cam.x+=(Math.random()*2-1)*m; cam.y+=(Math.random()*2-1)*m; }
-  drawBg(ld.bg, ld.levelW);
-  drawPlatforms(ld.platforms, gs.world);
-  drawCheckpoints();
-  drawHazards();
-  drawProjectiles();
-  for (const it of items) drawCollectible(it, t);
-  drawGoal(...goalPos, t);
-  for (const e of enemies) drawEnemy(e);
-  drawFx();
-  drawParticles();
+  const use3d = typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly();
+  if (!use3d) {
+    drawBg(ld.bg, ld.levelW);
+    drawPlatforms(ld.platforms, gs.world);
+    drawCheckpoints();
+    drawHazards();
+    drawProjectiles();
+    for (const it of items) drawCollectible(it, t);
+    drawGoal(...goalPos, t);
+    for (const e of enemies) drawEnemy(e);
+    drawFx();
+    drawParticles();
+  }
