@@ -519,6 +519,7 @@ function mkKart(idx, tr, cfg) {
     startBoostAttempt: false, pendingStartBoost: 0,
     chassis: cfg.chassis || 0, wheels: cfg.wheels || 0, glider: cfg.glider || 0,
     input: { steer: 0, accel: 0, brake: 0, drift: false, useItem: false },
+    _stuckT: 0, _stuckCp: 0, _stuckLap: 0,
   };
   kartInitJumpState(k);
   return k;
@@ -585,6 +586,7 @@ function startKartRace(solo) {
     itemCd: 0, camX: tr.starts[0].x, camY: tr.starts[0].y, camAngle: 0, camZoom: 1, syncAcc: 0,
     boxCooldowns: tr.items.map(() => 0),
     endTimer: 0, leaderName: '',
+    countdownBeep: -1,
     cupRace: kartCupState ? kartCupState.raceIdx + 1 : 0,
     cupTotal: kartCupState ? kartCupState.cup.tracks.length : 0,
   };
@@ -655,6 +657,21 @@ function kartCheckRaceEnd(dt) {
     race.phase = 'done';
     if (mp.connected && mp.role === 'host') { kartBroadcastState(); mpHostBroadcast(); }
     kartOnRaceFinished();
+  }
+}
+
+function kartAIStuckRecovery(k, tr, dt) {
+  if (!k.ai || k.finished) return;
+  if (k._stuckCp === k.cp && k._stuckLap === k.lap) k._stuckT += dt;
+  else { k._stuckT = 0; k._stuckCp = k.cp; k._stuckLap = k.lap; }
+  if (k._stuckT > 5 && k.speed < 100) {
+    const near = kartNearestPath(tr, k.x, k.y);
+    const ahead = kartPathSample(tr, (near.u + 0.04) % 1);
+    k.x = ahead.x;
+    k.y = ahead.y;
+    k.angle = kartPathTangent(tr, near.u).angle;
+    k.speed = 220;
+    k._stuckT = 0;
   }
 }
 
@@ -746,27 +763,34 @@ function kartSimKart(k, dt, tr) {
   if (inp.drift && inp.steer && Math.abs(k.speed) > 140) {
     k.driftCharge = Math.min(1.15, k.driftCharge + dt * 1.05);
     k.speed *= 0.988;
+    if (!k._drifting) { k._drifting = true; k.vz = Math.max(k.vz || 0, 18); }
     if (Math.random() < 0.5) spawnParticles(k.x, k.y, tr.accent || '#ff0', 2, 100);
-  } else if (k.driftCharge > 0.45) {
-    const charge = Math.min(1, k.driftCharge);
-    if (charge > 0.95) {
-      k.boost = KART_DRIFT_SUPER;
-      spawnText(k.x, k.y - 24, 'SUPER DRIFT!', '#f0f', 16);
-      spawnRing(k.x, k.y, '#f0f', 70, 0.4);
-      sfx.power();
-    } else if (charge > 0.75) {
-      k.boost = KART_DRIFT_BOOST * charge * 1.2;
-      spawnText(k.x, k.y - 20, 'MINI-TURBO!', '#f80', 14);
-      spawnRing(k.x, k.y, '#ff8800', 55, 0.3);
-      sfx.djump();
-    } else {
-      k.boost = KART_DRIFT_BOOST * charge;
-      spawnRing(k.x, k.y, '#ff0', 50, 0.25);
-      sfx.select();
-    }
-    k.driftCharge = 0;
   } else {
-    k.driftCharge = Math.max(0, k.driftCharge - dt * 2.5);
+    k._drifting = false;
+    if (k.driftCharge > 0.45) {
+      const charge = Math.min(1, k.driftCharge);
+      if (charge > 0.95) {
+        k.boost = KART_DRIFT_SUPER;
+        spawnText(k.x, k.y - 24, 'SUPER DRIFT!', '#f0f', 16);
+        spawnRing(k.x, k.y, '#f0f', 70, 0.4);
+        sfx.power();
+      } else if (charge > 0.75) {
+        k.boost = KART_DRIFT_BOOST * charge * 1.2;
+        spawnText(k.x, k.y - 20, 'MINI-TURBO!', '#f80', 14);
+        spawnRing(k.x, k.y, '#ff8800', 55, 0.3);
+        sfx.djump();
+      } else {
+        k.boost = KART_DRIFT_BOOST * charge;
+        spawnRing(k.x, k.y, '#ff0', 50, 0.25);
+        sfx.select();
+      }
+      k.driftCharge = 0;
+    } else {
+      k.driftCharge = Math.max(0, k.driftCharge - dt * 2.5);
+    }
+  }
+  if (k.boost > 50 && Math.random() < 0.35) {
+    spawnParticles(k.x - Math.cos(k.angle) * 20, k.y - Math.sin(k.angle) * 20, '#ff8800', 1, 90);
   }
   k.x += Math.cos(k.angle) * k.speed * dt;
   k.y += Math.sin(k.angle) * k.speed * dt;
@@ -785,13 +809,18 @@ function kartSimKart(k, dt, tr) {
     k.speed *= 0.3;
     sfx.win();
     spawnRing(k.x, k.y, '#ffd700', 90, 0.5);
+    if (!k.ai && k.idx === kartLocalIdx()) showBanner('¡META!', '#ffd700');
   }
 }
 function kartRank() {
   if (!race) return;
   const scored = race.karts.map(k => ({
     k,
-  score: k.finished ? 10000 - k.finishTime : k.lap * 10000 + k.cp * 100 - race.timer * 0.01,
+    score: k.finished && !k.dnf
+      ? 10000 - k.finishTime
+      : k.finished && k.dnf
+        ? 5000 - race.timer
+        : k.lap * 10000 + k.cp * 100 - race.timer * 0.01,
   }));
   scored.sort((a, b) => b.score - a.score);
   scored.forEach((s, i) => { s.k.rank = i + 1; });
@@ -813,6 +842,7 @@ function kartHostSim(dt) {
   for (const k of race.karts) {
     if (k.ai) kartAIInput(k, race.track);
     else if (k.idx === localIdx || (race.solo && k.idx === 0)) kartReadInput(k);
+    kartAIStuckRecovery(k, race.track, dt);
     kartSimKart(k, dt, race.track);
   }
   kartRank();
@@ -900,6 +930,13 @@ function kartTick(dt) {
     if (mp.role === 'guest' && mp.connected) return;
     race.countdown -= dt;
     if (me) kartCheckStartBoost(me);
+    const beep = kartCountdownPhase(race.countdown);
+    const beepKey = beep.text || (beep.lights > 0 ? String(beep.lights) : '');
+    if (beepKey && beepKey !== race.countdownBeep) {
+      race.countdownBeep = beepKey;
+      if (beep.text === 'GO!') sfx.win();
+      else if (beep.text) sfx.select();
+    }
     if (race.countdown <= 0) {
       race.phase = 'racing';
       race.countdown = 0;
@@ -1084,7 +1121,14 @@ function drawKart(t) {
   });
   if (mp.connected) uiPill(W / 2 - 70, H - 36, 'ONLINE 8K', UI.cyan);
   else if (race.solo) uiPill(W / 2 - 65, H - 36, '8 CORREDORES', UI.green);
-  if (race.track.huge && me) kartDrawMiniMap(race.track, me, race.karts);
+  if (me) kartDrawMiniMap(race.track, me, race.karts);
+  if (me && race.phase === 'racing') {
+    const spd = Math.hypot(me.vx || 0, me.vy || 0) || me.speed || 0;
+    fillRR(10, H - 50, 120, 40, 10, 'rgba(8,12,20,0.82)');
+    hud('P' + (me.rank || '?') + '/' + race.karts.length, 22, H - 34, UI.gold, 14);
+    hud(Math.round(spd * 2.6) + ' km/h', 22, H - 16, UI.cyan, 16);
+    if (me.boost > 50) hud('BOOST', 100, H - 34, '#ff0', 10);
+  }
   uiFooter('↑↓ Girar · Espacio=Drift turbo · J=Usar objeto · Esc=Salir');
   drawBanner();
 }
@@ -1105,9 +1149,11 @@ function drawKartResults() {
   sorted.forEach((k, i) => {
     const y = 155 + i * 46;
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.';
-    ctx.font = 'bold 22px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = i === 0 ? UI.gold : UI.bright;
-    ctx.fillText(medal + '  ' + k.name, W / 2 - 260, y);
+    const isMe = k.idx === kartLocalIdx();
+    if (isMe) fillRR(W / 2 - 270, y - 28, 540, 40, 8, 'rgba(255,215,0,0.12)');
+    ctx.font = isMe ? 'bold 22px monospace' : 'bold 22px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = isMe ? UI.gold : (i === 0 ? UI.gold : UI.bright);
+    ctx.fillText(medal + '  ' + k.name + (isMe ? '  (TÚ)' : ''), W / 2 - 260, y);
     ctx.font = '16px monospace'; ctx.fillStyle = UI.cyan;
     ctx.fillText('+' + (KART_POINTS[i] || 1) + ' pts', W / 2 + 60, y);
     ctx.font = '16px monospace'; ctx.fillStyle = UI.dim;

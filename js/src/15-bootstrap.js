@@ -51,6 +51,9 @@ function resize() {
     if (document.body.classList.contains('mob-join')) {
       availH -= 140;
     }
+    if (document.body.classList.contains('kart-race') && document.body.classList.contains('playing')) {
+      availH -= 76;
+    }
   }
 
   availW = Math.max(200, availW);

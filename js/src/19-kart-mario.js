@@ -252,10 +252,13 @@ function kartApplyStartBoost(k) {
 }
 
 function kartDrawTrafficLights(t) {
-  const cx = W / 2, cy = H / 2 - 40;
+  if (!race?.track?.starts?.[0]) return;
+  const st = race.track.starts[0];
+  const sp = kartToScreen(st.x, st.y);
   const phase = kartCountdownPhase(race.countdown);
-  fillRR(cx - 80, cy - 100, 160, 200, 16, 'rgba(0,0,0,0.75)');
-  strokeRR(cx - 80, cy - 100, 160, 200, 16, '#444', 2);
+  const cx = sp.x, cy = sp.y - 55;
+  fillRR(cx - 70, cy - 90, 140, 180, 14, 'rgba(0,0,0,0.8)');
+  strokeRR(cx - 70, cy - 90, 140, 180, 14, '#555', 2);
   const colors = ['#400', '#400', '#400'];
   const lit = phase.lights;
   for (let i = 0; i < 3; i++) {
@@ -265,17 +268,20 @@ function kartDrawTrafficLights(t) {
   for (let i = 0; i < 3; i++) {
     ctx.fillStyle = colors[i];
     ctx.beginPath();
-    ctx.arc(cx, cy - 60 + i * 50, 22, 0, Math.PI * 2);
+    ctx.arc(cx, cy - 55 + i * 42, 18, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#222';
     ctx.lineWidth = 2;
     ctx.stroke();
   }
   if (phase.text) {
-    uiTitle(phase.text, cy + 80, phase.text === 'GO!' ? 90 : 70, phase.text === 'GO!' ? UI.green : UI.gold);
+    ctx.font = 'bold ' + (phase.text === 'GO!' ? 52 : 44) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = phase.text === 'GO!' ? UI.green : UI.gold;
+    ctx.fillText(phase.text, cx, cy + 110);
   }
-  if (race.countdown > 0 && race.countdown < 0.25) {
-    hud('¡Mantén acelerar para boost!', W / 2, cy + 140, UI.cyan, 16, 'center');
+  if (race.countdown > 0 && race.countdown < 0.35) {
+    hud('¡Acelera para boost de salida!', W / 2, H - 88, UI.cyan, 15, 'center');
   }
 }
 
