@@ -259,26 +259,15 @@ function threeRestorePerspectiveCamera(ctx) {
 
 function threeSetupGameplayCamera(ctx) {
   if (!ctx._perspCam) ctx._perspCam = ctx.camera;
-  const el = ctx.el;
-  const w = Math.max(el.clientWidth || W, 2);
-  const h = Math.max(el.clientHeight || H, 2);
-  const aspect = w / h;
-  const viewH = 36;
-  const viewW = viewH * aspect;
-  if (!ctx.gpCamOrtho || !ctx.camera.isOrthographicCamera) {
-    ctx.camera = new THREE.OrthographicCamera(-viewW / 2, viewW / 2, viewH / 2, -viewH / 2, 0.1, 400);
-    ctx.gpCamOrtho = true;
-    ctx.gpCamFocus = null;
-  } else {
-    ctx.camera.left = -viewW / 2;
-    ctx.camera.right = viewW / 2;
-    ctx.camera.top = viewH / 2;
-    ctx.camera.bottom = -viewH / 2;
-    ctx.camera.updateProjectionMatrix();
+  if (ctx.gpCamOrtho) {
+    ctx.camera = ctx._perspCam;
+    ctx.gpCamOrtho = false;
   }
-  ctx.gpViewH = viewH;
-  ctx.camera.position.set(0, 0, 60);
-  ctx.camera.lookAt(0, 0, 0);
+  ctx.gpCamFocus = null;
+  ctx.camera.fov = 48;
+  ctx.camera.near = 0.1;
+  ctx.camera.far = 400;
+  ctx.resize();
 }
 
 function threeAddLights(scene, warm) {
@@ -992,7 +981,9 @@ function threeSyncGameplay(ctx, t) {
   const py = player.y + player.h / 2;
   const pp = threeGpPos(px, py);
   ctx.playerMesh.position.set(pp.x, pp.y + 1.2, 0.6);
-  ctx.playerMesh.rotation.y = player.facing < 0 ? Math.PI / 2 : -Math.PI / 2;
+  const sc = 0.55;
+  ctx.playerMesh.rotation.y = 0;
+  ctx.playerMesh.scale.set(sc * player.facing, sc, sc);
 
   for (const { it, mesh } of ctx.itemMeshes) {
     mesh.visible = !it.taken;
@@ -1014,17 +1005,18 @@ function threeSyncGameplay(ctx, t) {
 
   const velX = player.vx || 0;
   const moveDir = Math.abs(velX) > 24 ? Math.sign(velX) : player.facing;
-  const focusX = pp.x + moveDir * 2.5;
-  const focusY = pp.y + 1.5;
-  let targetCamY = focusY + (player.onGround ? 12 : (player.vy < -80 ? 6 : 9));
-  if (!player.onGround && player.vy > 120) targetCamY = focusY + 14;
+  const lookX = pp.x + moveDir * 2;
+  const lookY = pp.y + 2;
+  const camZ = 34;
+  let camY = pp.y + (player.onGround ? 11 : (player.vy < -80 ? 8 : 10));
+  if (!player.onGround && player.vy > 120) camY = pp.y + 13;
 
-  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: focusX, y: targetCamY };
-  const lx = Math.abs(velX) > 80 ? 0.28 : 0.22;
-  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, focusX, lx);
-  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, targetCamY, player.onGround ? 0.24 : 0.3);
-  ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, 60);
-  ctx.camera.lookAt(focusX, focusY, 0);
+  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: lookX, y: camY };
+  const lx = Math.abs(velX) > 80 ? 0.26 : 0.2;
+  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, lookX, lx);
+  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, camY, 0.22);
+  ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, camZ);
+  ctx.camera.lookAt(lookX, lookY, 0);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {
       if (ch.userData?.isFlag) ch.rotation.z = Math.sin(t * 3) * 0.35;
