@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v53';
+const GAME_VERSION = 'v54';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -6961,7 +6961,7 @@ function threeMkBear(color) {
   return g;
 }
 
-function threeAddTrackDecor(group, tr) {
+function threeAddTrackDecor(group, tr, curve) {
   const decor = tr.decor || 'palm';
   const segs = tr.huge ? 24 : 14;
   for (let i = 0; i < segs; i++) {
@@ -6970,10 +6970,11 @@ function threeAddTrackDecor(group, tr) {
     const tg = kartPathTangent(tr, u);
     const nx = -Math.sin(tg.angle), ny = Math.cos(tg.angle);
     const side = i % 2 ? 1 : -1;
-    const off = (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.75;
+    const off = (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.95;
     const wx = p.x + nx * off * side;
     const wy = p.y + ny * off * side;
     const w = threeGameToWorld(wx, wy, 0, tr);
+    const groundY = threeTrackHeightAt(tr, wx, wy, curve);
     let mesh;
     if (decor === 'palm') {
       mesh = threeMkTree(0, 0, 0.55);
@@ -6982,7 +6983,7 @@ function threeAddTrackDecor(group, tr) {
         new THREE.DodecahedronGeometry(1.2 + Math.random() * 0.8, 0),
         new THREE.MeshStandardMaterial({ color: 0x6a6a70, roughness: 0.95 })
       );
-      mesh.position.y = 0.8;
+      mesh.position.y = groundY + 0.8;
     } else if (decor === 'city') {
       const h = 3 + Math.random() * 8;
       mesh = new THREE.Mesh(
@@ -6992,21 +6993,60 @@ function threeAddTrackDecor(group, tr) {
           metalness: 0.35, roughness: 0.55,
         })
       );
-      mesh.position.y = h / 2;
+      mesh.position.y = groundY + h / 2;
     } else {
       const h = 2.5;
       mesh = new THREE.Mesh(
         new THREE.BoxGeometry(8, h, 3),
         new THREE.MeshStandardMaterial({ color: 0x505868, roughness: 0.8 })
       );
-      mesh.position.y = h / 2;
+      mesh.position.y = groundY + h / 2;
     }
     mesh.position.x += w.x;
     mesh.position.z += w.z;
+    if (decor === 'palm') mesh.position.y = groundY;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     group.add(mesh);
   }
+}
+
+function threeTrackElevation(u, tr) {
+  const w1 = Math.sin(u * Math.PI * 2 * 2.2) * 2.4;
+  const w2 = Math.sin(u * Math.PI * 2 * 5.1 + 1.2) * 1.0;
+  const w3 = Math.cos(u * Math.PI * 2 * 3.8) * 0.65;
+  const scale = tr.huge ? 1.4 : 1.05;
+  return (w1 + w2 + w3) * scale;
+}
+
+function threeTrackPathPoint(p, u, tr) {
+  const { sc, tcy } = threeTrackScale(tr);
+  const w = threeGameToWorld(p.x, p.y, 0, tr);
+  const layoutH = (tcy - p.y) * sc * 0.24;
+  const elev = layoutH + threeTrackElevation(u, tr);
+  return new THREE.Vector3(w.x, elev + 0.1, w.z);
+}
+
+function threeTrackHeightAt(tr, gx, gy, curve) {
+  if (!curve) return 0.1;
+  const near = kartNearestPath(tr, gx, gy);
+  return curve.getPointAt(near.u).y;
+}
+
+function threeBuildRollingGround(tr, b, sc) {
+  const gw = (b.maxX - b.minX) * sc + 55;
+  const gh = (b.maxY - b.minY) * sc + 55;
+  const geo = new THREE.PlaneGeometry(gw, gh, 36, 36);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = Math.sin(x * 0.065) * 2.2 + Math.cos(z * 0.055) * 1.6
+      + Math.sin((x + z) * 0.038) * 0.9 - 1.8;
+    pos.setY(i, h);
+  }
+  geo.computeVertexNormals();
+  return geo;
 }
 
 function threeBuildPathRibbon(curve, divisions, halfWidth, yOffset) {
@@ -7100,12 +7140,12 @@ function threeBuildTrackMesh(tr) {
   const pts = [];
   const segs = tr.huge ? 180 : 120;
   for (let i = 0; i <= segs; i++) {
-    const p = kartPathSample(tr, i / segs);
-    const w = threeGameToWorld(p.x, p.y, 0, tr);
-    pts.push(new THREE.Vector3(w.x, w.y + 0.05, w.z));
+    const u = i / segs;
+    const p = kartPathSample(tr, u);
+    pts.push(threeTrackPathPoint(p, u, tr));
   }
   const curve = new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.35);
-  const roadW = Math.max(3.8, (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.55);
+  const roadW = Math.max(5.4, (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.78);
   const halfRoad = roadW * 0.5;
   const asphaltTex = threeTexAsphalt();
 
@@ -7121,11 +7161,19 @@ function threeBuildTrackMesh(tr) {
   const kerbMat = new THREE.MeshStandardMaterial({
     map: threeTexKerb(), metalness: 0.05, roughness: 0.9, side: THREE.DoubleSide,
   });
-  const kerbW = 0.5;
+  const kerbW = 0.62;
   group.add(new THREE.Mesh(threeBuildKerbStrip(curve, segs, halfRoad, kerbW, -1, 0.06), kerbMat));
   group.add(new THREE.Mesh(threeBuildKerbStrip(curve, segs, halfRoad, kerbW, 1, 0.06), kerbMat));
 
-  const lineGeo = threeBuildPathRibbon(curve, segs, 0.14, 0.11);
+  const shoulderMat = new THREE.MeshStandardMaterial({
+    map: threeTexGrass(tr.grass?.[0] || '#2a5820'),
+    roughness: 1, metalness: 0, side: THREE.DoubleSide,
+  });
+  const shoulderW = 4.8;
+  group.add(new THREE.Mesh(threeBuildKerbStrip(curve, segs, halfRoad + kerbW, shoulderW, -1, 0.02), shoulderMat));
+  group.add(new THREE.Mesh(threeBuildKerbStrip(curve, segs, halfRoad + kerbW, shoulderW, 1, 0.02), shoulderMat));
+
+  const lineGeo = threeBuildPathRibbon(curve, segs, 0.16, 0.11);
   const centerLine = new THREE.Mesh(lineGeo, new THREE.MeshStandardMaterial({
     color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.25,
     side: THREE.DoubleSide,
@@ -7135,11 +7183,12 @@ function threeBuildTrackMesh(tr) {
   const st = tr.starts?.[0];
   if (st) {
     const sw = threeGameToWorld(st.x, st.y, 0, tr);
+    const startH = curve.getPointAt(0).y + 2.2;
     const arch = new THREE.Mesh(
       new THREE.TorusGeometry(roadW * 0.55, 0.35, 8, 24, Math.PI),
       new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xaaccff, emissiveIntensity: 0.35, metalness: 0.4 })
     );
-    arch.position.set(sw.x, 2.8, sw.z);
+    arch.position.set(sw.x, startH, sw.z);
     arch.rotation.y = -st.a + Math.PI / 2;
     arch.rotation.z = Math.PI / 2;
     group.add(arch);
@@ -7147,27 +7196,26 @@ function threeBuildTrackMesh(tr) {
 
   const b = kartTrackBounds(tr);
   const sc = threeTrackScale(tr).sc;
-  const gw = (b.maxX - b.minX) * sc + 35;
-  const gh = (b.maxY - b.minY) * sc + 35;
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(gw, gh),
+    threeBuildRollingGround(tr, b, sc),
     new THREE.MeshStandardMaterial({
       map: threeTexGrass(tr.grass?.[0] || '#2a5820'),
       roughness: 1, metalness: 0,
     })
   );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set(0, -0.1, 0);
   ground.receiveShadow = true;
   group.add(ground);
 
+  group.userData.raceCurve = curve;
+
   threeAddSkyDome(group, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
 
-  threeAddTrackDecor(group, tr);
+  threeAddTrackDecor(group, tr, curve);
 
   for (const box of tr.items || []) {
     if (box.taken) continue;
     const w = threeGameToWorld(box.x, box.y, 0, tr);
+    const itemH = threeTrackHeightAt(tr, box.x, box.y, curve) + 1.3;
     const item = new THREE.Mesh(
       new THREE.BoxGeometry(1.5, 1.5, 1.5),
       new THREE.MeshStandardMaterial({
@@ -7175,11 +7223,12 @@ function threeBuildTrackMesh(tr) {
         metalness: 0.4, roughness: 0.35,
       })
     );
-    item.position.set(w.x, 1.3, w.z);
+    item.position.set(w.x, itemH, w.z);
+    item.userData.baseY = itemH;
     item.castShadow = true;
     group.add(item);
     const glow = new THREE.PointLight(0xff66ff, 0.6, 8);
-    glow.position.set(w.x, 1.8, w.z);
+    glow.position.set(w.x, itemH + 0.5, w.z);
     group.add(glow);
   }
   return group;
@@ -7365,7 +7414,9 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const k = entry.kart;
     if (!k) continue;
     const w = threeGameToWorld(k.x, k.y, k.z, tr);
-    entry.mesh.position.set(w.x, w.y + 0.2, w.z);
+    const curve = ctx.trackGroup?.userData?.raceCurve;
+    const roadH = threeTrackHeightAt(tr, k.x, k.y, curve);
+    entry.mesh.position.set(w.x, roadH + w.y + 0.15, w.z);
     entry.mesh.rotation.y = -k.angle + Math.PI / 2;
     const wheels = entry.mesh.userData.wheels;
     if (wheels) {
@@ -7387,14 +7438,16 @@ function threeSyncRaceKarts(ctx, tr, t) {
   }
   if (local) {
     const w = threeGameToWorld(local.x, local.y, local.z, tr);
+    const curve = ctx.trackGroup?.userData?.raceCurve;
+    const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
     const ca = race.camAngle || local.angle || 0;
     const dist = 14 + (race.camZoom || 1) * 4 + Math.min(6, (local.speed || 0) * 0.02);
     const h = 7 + Math.min(6, (local.z || 0) * 0.04);
     const cx = w.x - Math.cos(ca) * dist;
     const cz = w.z - Math.sin(ca) * dist;
     const lookH = 2.8 + Math.min(2.5, (local.speed || 0) * 0.004);
-    ctx.camera.position.lerp(new THREE.Vector3(cx, w.y + h, cz), 0.15);
-    ctx.camera.lookAt(w.x, w.y + lookH, w.z);
+    ctx.camera.position.lerp(new THREE.Vector3(cx, roadH + w.y + h, cz), 0.15);
+    ctx.camera.lookAt(w.x, roadH + w.y + lookH, w.z);
     ctx.camera.fov = lerp(ctx.camera.fov, 62 + (local.speed || 0) * 0.008, 0.08);
     ctx.camera.updateProjectionMatrix();
   }
@@ -7403,7 +7456,8 @@ function threeSyncRaceKarts(ctx, tr, t) {
       if (ch.isPointLight) return;
       if (ch.geometry?.type === 'BoxGeometry' && ch.material?.emissive) {
         ch.rotation.y = (t || 0) * 2.5;
-        ch.position.y = 1.3 + Math.sin((t || 0) * 3 + ch.position.x) * 0.15;
+        const base = ch.userData.baseY ?? ch.position.y;
+        ch.position.y = base + Math.sin((t || 0) * 3 + ch.position.x) * 0.15;
       }
     });
   }
