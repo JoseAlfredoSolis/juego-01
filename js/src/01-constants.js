@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v56';
+const GAME_VERSION = 'v57';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)

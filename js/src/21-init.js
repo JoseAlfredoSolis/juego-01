@@ -1,5 +1,6 @@
 // ── Boot: touch UI + game loop (must run after all modules load) ─────────────
 setupTouch();
+setupPointerControls();
 setupMobileUi();
 mobUiSync();
 resize();

@@ -168,6 +168,7 @@ function loop(ts) {
   mobUiPreUpdate();
   mpCodeInputSync();
   mobUiSync();
+  if (typeof ptrCtlFrameSync === 'function') ptrCtlFrameSync();
   if (typeof threeMobileSync === 'function') threeMobileSync(gs.scene, dt, t);
   ctx.clearRect(0, 0, W, H);
 
