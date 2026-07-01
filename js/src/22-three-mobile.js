@@ -467,6 +467,92 @@ function threeAddTrackDecor(group, tr) {
   }
 }
 
+function threeBuildPathRibbon(curve, divisions, halfWidth, yOffset) {
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  const right = new THREE.Vector3();
+  const tan = new THREE.Vector3();
+
+  for (let i = 0; i <= divisions; i++) {
+    const u = i / divisions;
+    const pos = curve.getPointAt(u);
+    curve.getTangentAt(u, tan).normalize();
+    right.crossVectors(tan, up);
+    if (right.lengthSq() < 1e-6) right.set(1, 0, 0);
+    else right.normalize();
+
+    positions.push(
+      pos.x - right.x * halfWidth, pos.y + yOffset, pos.z - right.z * halfWidth,
+      pos.x + right.x * halfWidth, pos.y + yOffset, pos.z + right.z * halfWidth
+    );
+    const vu = u * 32;
+    uvs.push(0, vu, 1, vu);
+  }
+
+  for (let i = 0; i < divisions; i++) {
+    const a = i * 2;
+    const b = a + 1;
+    const ni = (i + 1) % (divisions + 1);
+    const c = ni * 2;
+    const d = ni * 2 + 1;
+    indices.push(a, c, b, b, c, d);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function threeBuildKerbStrip(curve, divisions, roadHalf, kerbW, side, yOffset) {
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  const right = new THREE.Vector3();
+  const tan = new THREE.Vector3();
+  const inner = roadHalf;
+  const outer = roadHalf + kerbW;
+
+  for (let i = 0; i <= divisions; i++) {
+    const u = i / divisions;
+    const pos = curve.getPointAt(u);
+    curve.getTangentAt(u, tan).normalize();
+    right.crossVectors(tan, up);
+    if (right.lengthSq() < 1e-6) right.set(1, 0, 0);
+    else right.normalize();
+
+    const inOff = side < 0 ? -inner : inner;
+    const outOff = side < 0 ? -outer : outer;
+    positions.push(
+      pos.x + right.x * inOff, pos.y + yOffset, pos.z + right.z * inOff,
+      pos.x + right.x * outOff, pos.y + yOffset, pos.z + right.z * outOff
+    );
+    const vu = u * 16;
+    uvs.push(0, vu, 1, vu);
+  }
+
+  for (let i = 0; i < divisions; i++) {
+    const a = i * 2;
+    const b = a + 1;
+    const ni = (i + 1) % (divisions + 1);
+    const c = ni * 2;
+    const d = ni * 2 + 1;
+    indices.push(a, c, b, b, c, d);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function threeBuildTrackMesh(tr) {
   const group = new THREE.Group();
   const pts = [];
@@ -478,30 +564,30 @@ function threeBuildTrackMesh(tr) {
   }
   const curve = new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.35);
   const roadW = Math.max(3.8, (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.55);
+  const halfRoad = roadW * 0.5;
   const asphaltTex = threeTexAsphalt();
-  const roadGeo = new THREE.TubeGeometry(curve, segs, roadW * 0.46, 12, true);
+
+  const roadGeo = threeBuildPathRibbon(curve, segs, halfRoad, 0.08);
   const road = new THREE.Mesh(roadGeo, new THREE.MeshStandardMaterial({
-    map: asphaltTex, metalness: 0.25, roughness: 0.72,
+    map: asphaltTex, metalness: 0.2, roughness: 0.78,
     color: threeHexColor(tr.asphalt?.[1] || '#5a5e66'),
+    side: THREE.DoubleSide,
   }));
-  road.position.y = 0.06;
   road.receiveShadow = true;
   group.add(road);
 
-  const kerbGeo = new THREE.TubeGeometry(curve, segs, roadW * 0.54, 10, true);
-  const kerb = new THREE.Mesh(kerbGeo, new THREE.MeshStandardMaterial({
-    map: threeTexKerb(), metalness: 0.05, roughness: 0.9,
-  }));
-  kerb.position.y = 0.02;
-  kerb.receiveShadow = true;
-  group.add(kerb);
-
-  const lineGeo = new THREE.TubeGeometry(curve, segs, 0.18, 4, true);
-  const lineMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.25,
+  const kerbMat = new THREE.MeshStandardMaterial({
+    map: threeTexKerb(), metalness: 0.05, roughness: 0.9, side: THREE.DoubleSide,
   });
-  const centerLine = new THREE.Mesh(lineGeo, lineMat);
-  centerLine.position.y = 0.14;
+  const kerbW = 0.5;
+  group.add(new THREE.Mesh(threeBuildKerbStrip(curve, segs, halfRoad, kerbW, -1, 0.06), kerbMat));
+  group.add(new THREE.Mesh(threeBuildKerbStrip(curve, segs, halfRoad, kerbW, 1, 0.06), kerbMat));
+
+  const lineGeo = threeBuildPathRibbon(curve, segs, 0.14, 0.11);
+  const centerLine = new THREE.Mesh(lineGeo, new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.25,
+    side: THREE.DoubleSide,
+  }));
   group.add(centerLine);
 
   const st = tr.starts?.[0];
