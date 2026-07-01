@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v55';
+const GAME_VERSION = 'v56';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -1091,12 +1091,12 @@ function drawBanner(){ // screen-space announcement (e.g. boss defeated)
 // === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
 const CAM_CFG = {
-  anchorY: 0.64,
-  leadX: 38,
-  leadVel: 0.07,
-  yLead: 0.05,
-  yLeadMax: 28,
-  yMin: -100,
+  anchorY: 0.62,
+  leadX: 30,
+  leadVel: 0.055,
+  yLead: 0.065,
+  yLeadMax: 42,
+  yMin: -120,
 };
 
 function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
@@ -1106,11 +1106,14 @@ function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
   let anchorX = 0.5;
   let leadX = 0, leadY = 0;
   if (p) {
-    const moveDir = Math.abs(p.vx || 0) > 24 ? Math.sign(p.vx) : p.facing;
-    anchorX = moveDir > 0 ? 0.34 : 0.66;
+    const moveDir = Math.abs(p.vx || 0) > 20 ? Math.sign(p.vx) : p.facing;
+    anchorX = moveDir > 0 ? 0.38 : 0.62;
     leadX = moveDir * CAM_CFG.leadX + (p.vx || 0) * CAM_CFG.leadVel;
     if (!p.onGround) {
-      leadY = clamp((p.vy || 0) * CAM_CFG.yLead, -CAM_CFG.yLeadMax, CAM_CFG.yLeadMax);
+      const vy = p.vy || 0;
+      leadY = clamp(vy * CAM_CFG.yLead, -CAM_CFG.yLeadMax, CAM_CFG.yLeadMax);
+      if (vy < -180) leadY -= 18;
+      if (vy > 200) leadY += 14;
     }
   }
 
@@ -1121,8 +1124,9 @@ function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
   if (snap) { cam.x = tx; cam.y = ty; return; }
 
   const dx = Math.abs(tx - cam.x), dy = Math.abs(ty - cam.y);
-  const lx = dx > 100 ? 0.34 : dx > 35 ? 0.26 : 0.2;
-  const ly = dy > 70 ? 0.3 : dy > 20 ? 0.24 : 0.18;
+  const fast = p && (p.dashTimer > 0 || Math.abs(p.vx || 0) > 200);
+  const lx = fast ? 0.38 : dx > 90 ? 0.3 : dx > 30 ? 0.24 : 0.19;
+  const ly = dy > 60 ? 0.28 : dy > 18 ? 0.22 : 0.17;
   cam.x = lerp(cam.x, tx, lx);
   cam.y = lerp(cam.y, ty, ly);
 }
@@ -4626,9 +4630,9 @@ function updateKart(dt) {
     const me = race.karts[kartLocalIdx()];
     if (me) {
       const look = me.speed > 80 ? me.angle : kartPathTangent(race.track, kartNearestPath(race.track, me.x, me.y).u).angle;
-      const speedFactor = Math.min(1, Math.abs(me.speed) / 420);
-      const lookAhead = 58 + speedFactor * 95;
-      const camLerp = 0.11 + speedFactor * 0.08;
+      const speedFactor = Math.min(1, Math.abs(me.speed) / 380);
+      const lookAhead = 52 + speedFactor * 110;
+      const camLerp = 0.12 + speedFactor * 0.09;
       race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead, camLerp);
       race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead, camLerp);
       let targetA = look - Math.PI / 2;
@@ -6837,7 +6841,7 @@ function threeSetupGameplayCamera(ctx) {
     ctx.gpCamOrtho = false;
   }
   ctx.gpCamFocus = null;
-  ctx.camera.fov = 48;
+  ctx.camera.fov = 50;
   ctx.camera.near = 0.1;
   ctx.camera.far = 400;
   ctx.resize();
@@ -7472,14 +7476,16 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const curve = ctx.trackGroup?.userData?.raceCurve;
     const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
     const ca = race.camAngle || local.angle || 0;
-    const dist = 14 + (race.camZoom || 1) * 4 + Math.min(6, (local.speed || 0) * 0.02);
-    const h = 7 + Math.min(6, (local.z || 0) * 0.04);
+    const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 380);
+    const dist = 16 + (race.camZoom || 1) * 4 + speedFactor * 8;
+    const h = 8.5 + Math.min(7, (local.z || 0) * 0.045) + speedFactor * 2;
     const cx = w.x - Math.cos(ca) * dist;
     const cz = w.z - Math.sin(ca) * dist;
-    const lookH = 2.8 + Math.min(2.5, (local.speed || 0) * 0.004);
-    ctx.camera.position.lerp(new THREE.Vector3(cx, roadH + w.y + h, cz), 0.15);
-    ctx.camera.lookAt(w.x, roadH + w.y + lookH, w.z);
-    ctx.camera.fov = lerp(ctx.camera.fov, 62 + (local.speed || 0) * 0.008, 0.08);
+    const lookH = 2.2 + Math.min(2, (local.speed || 0) * 0.003);
+    const camLerp = 0.12 + speedFactor * 0.06;
+    ctx.camera.position.lerp(new THREE.Vector3(cx, roadH + w.y + h, cz), camLerp);
+    ctx.camera.lookAt(w.x + Math.cos(ca) * 3, roadH + w.y + lookH, w.z + Math.sin(ca) * 3);
+    ctx.camera.fov = lerp(ctx.camera.fov, 58 + (local.speed || 0) * 0.01, 0.09);
     ctx.camera.updateProjectionMatrix();
   }
   if (ctx.trackGroup) {
@@ -7717,18 +7723,22 @@ function threeSyncGameplay(ctx, t) {
   }
 
   const velX = player.vx || 0;
-  const moveDir = Math.abs(velX) > 24 ? Math.sign(velX) : player.facing;
-  const lookX = pp.x + moveDir * 2;
-  const lookY = pp.y + 2;
-  const camZ = 34;
-  let camY = pp.y + (player.onGround ? 11 : (player.vy < -80 ? 8 : 10));
-  if (!player.onGround && player.vy > 120) camY = pp.y + 13;
+  const velY = player.vy || 0;
+  const moveDir = Math.abs(velX) > 20 ? Math.sign(velX) : player.facing;
+  const lookX = pp.x + moveDir * 1.2;
+  const lookY = pp.y + 1.6;
+  let camZ = player.onGround ? 30 : (velY < -120 ? 26 : velY > 140 ? 34 : 29);
+  camZ += Math.min(4, Math.abs(velX) * 0.008);
+  let camY = pp.y + (player.onGround ? 8.5 : (velY < -120 ? 6 : velY > 140 ? 10.5 : 8));
+  const camX = lookX + moveDir * 3.5;
 
-  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: lookX, y: camY };
-  const lx = Math.abs(velX) > 80 ? 0.26 : 0.2;
-  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, lookX, lx);
-  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, camY, 0.22);
-  ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, camZ);
+  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: camX, y: camY, z: camZ };
+  const lx = Math.abs(velX) > 100 ? 0.28 : 0.22;
+  const ly = player.onGround ? 0.2 : 0.26;
+  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, camX, lx);
+  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, camY, ly);
+  ctx.gpCamFocus.z = lerp(ctx.gpCamFocus.z, camZ, 0.18);
+  ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, ctx.gpCamFocus.z);
   ctx.camera.lookAt(lookX, lookY, 0);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {

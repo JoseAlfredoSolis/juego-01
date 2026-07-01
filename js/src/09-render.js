@@ -1,12 +1,12 @@
 // === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
 const CAM_CFG = {
-  anchorY: 0.64,
-  leadX: 38,
-  leadVel: 0.07,
-  yLead: 0.05,
-  yLeadMax: 28,
-  yMin: -100,
+  anchorY: 0.62,
+  leadX: 30,
+  leadVel: 0.055,
+  yLead: 0.065,
+  yLeadMax: 42,
+  yMin: -120,
 };
 
 function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
@@ -16,11 +16,14 @@ function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
   let anchorX = 0.5;
   let leadX = 0, leadY = 0;
   if (p) {
-    const moveDir = Math.abs(p.vx || 0) > 24 ? Math.sign(p.vx) : p.facing;
-    anchorX = moveDir > 0 ? 0.34 : 0.66;
+    const moveDir = Math.abs(p.vx || 0) > 20 ? Math.sign(p.vx) : p.facing;
+    anchorX = moveDir > 0 ? 0.38 : 0.62;
     leadX = moveDir * CAM_CFG.leadX + (p.vx || 0) * CAM_CFG.leadVel;
     if (!p.onGround) {
-      leadY = clamp((p.vy || 0) * CAM_CFG.yLead, -CAM_CFG.yLeadMax, CAM_CFG.yLeadMax);
+      const vy = p.vy || 0;
+      leadY = clamp(vy * CAM_CFG.yLead, -CAM_CFG.yLeadMax, CAM_CFG.yLeadMax);
+      if (vy < -180) leadY -= 18;
+      if (vy > 200) leadY += 14;
     }
   }
 
@@ -31,8 +34,9 @@ function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
   if (snap) { cam.x = tx; cam.y = ty; return; }
 
   const dx = Math.abs(tx - cam.x), dy = Math.abs(ty - cam.y);
-  const lx = dx > 100 ? 0.34 : dx > 35 ? 0.26 : 0.2;
-  const ly = dy > 70 ? 0.3 : dy > 20 ? 0.24 : 0.18;
+  const fast = p && (p.dashTimer > 0 || Math.abs(p.vx || 0) > 200);
+  const lx = fast ? 0.38 : dx > 90 ? 0.3 : dx > 30 ? 0.24 : 0.19;
+  const ly = dy > 60 ? 0.28 : dy > 18 ? 0.22 : 0.17;
   cam.x = lerp(cam.x, tx, lx);
   cam.y = lerp(cam.y, ty, ly);
 }

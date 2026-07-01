@@ -983,9 +983,9 @@ function updateKart(dt) {
     const me = race.karts[kartLocalIdx()];
     if (me) {
       const look = me.speed > 80 ? me.angle : kartPathTangent(race.track, kartNearestPath(race.track, me.x, me.y).u).angle;
-      const speedFactor = Math.min(1, Math.abs(me.speed) / 420);
-      const lookAhead = 58 + speedFactor * 95;
-      const camLerp = 0.11 + speedFactor * 0.08;
+      const speedFactor = Math.min(1, Math.abs(me.speed) / 380);
+      const lookAhead = 52 + speedFactor * 110;
+      const camLerp = 0.12 + speedFactor * 0.09;
       race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead, camLerp);
       race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead, camLerp);
       let targetA = look - Math.PI / 2;
