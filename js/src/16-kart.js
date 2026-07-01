@@ -1089,9 +1089,12 @@ function drawKartEntity(k, tr) {
 }
 function drawKart(t) {
   if (!race) return;
-  drawKartTrack(race.track, t);
-  const sorted = [...race.karts].sort((a, b) => a.rank - b.rank || 0);
-  for (const k of sorted) drawKartEntity(k, race.track);
+  const use3d = typeof threeMobileHudOnly === 'function' && threeMobileHudOnly();
+  if (!use3d) {
+    drawKartTrack(race.track, t);
+    const sorted = [...race.karts].sort((a, b) => a.rank - b.rank || 0);
+    for (const k of sorted) drawKartEntity(k, race.track);
+  }
   fillRR(8, 8, W - 16, 56, 14, 'rgba(8,12,20,0.85)');
   const me = race.karts[kartLocalIdx()];
   const laps = kartTrackLaps(race.track);
@@ -1202,7 +1205,7 @@ function drawKartMenu(t) {
   const lay = mobMenuLayout(kartMenuItems.length);
   if (lay.mode !== 'desktop') {
     if (document.body.classList.contains('mob-menu-html')) {
-      uiBgGrad('#1a0830', '#301858');
+      if (!document.body.classList.contains('three-menu')) uiBgGrad('#1a0830', '#301858');
       return;
     }
     uiTitle('MARIO KART', lay.mode === 'port' ? 50 : 68, lay.mode === 'port' ? 32 : 44);
@@ -1314,7 +1317,7 @@ function updateKartLobby(dt) {
 }
 function drawKartLobby(t) {
   if (document.body.classList.contains('mob-menu-html')) {
-    uiBgGrad('#1a0830', '#301858');
+    if (!document.body.classList.contains('three-menu')) uiBgGrad('#1a0830', '#301858');
     return;
   }
   const tr = KART_TRACKS[kartTrackSel];

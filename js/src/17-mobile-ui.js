@@ -139,6 +139,9 @@ function mobUiSync() {
   document.body.classList.toggle('mob-nav-wide', MOB_NAV_WIDE_SCENES.includes(s));
   document.body.classList.toggle('kart-race', s === 'kart');
   document.body.classList.toggle('portrait', portrait);
+  if (['kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s) && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
+    if (typeof threeEnsure === 'function') threeEnsure();
+  }
   const nav = document.getElementById('mobNav');
   if (nav) nav.classList.toggle('visible', menu);
   if (!menu) { mobSelGet = null; mobSelSet = null; }

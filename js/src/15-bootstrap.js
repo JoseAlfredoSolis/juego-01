@@ -69,6 +69,7 @@ function resize() {
   const dh = Math.floor(H * scale);
   canvas.style.width = dw + 'px';
   canvas.style.height = dh + 'px';
+  if (typeof threeCtx !== 'undefined' && threeCtx?.resize) threeCtx.resize();
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 100));
@@ -166,7 +167,8 @@ function loop(ts) {
   mobUiPreUpdate();
   mpCodeInputSync();
   mobUiSync();
-  ctx.clearRect(0,0,W,H);
+  if (typeof threeMobileSync === 'function') threeMobileSync(gs.scene, dt, t);
+  ctx.clearRect(0, 0, W, H);
 
   const scene = renderScene();
   const updating = sceneUpdating();

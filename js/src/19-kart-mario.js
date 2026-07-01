@@ -375,7 +375,7 @@ function updateKartSelect(dt) {
 }
 function drawKartSelect(t) {
   if (document.body.classList.contains('mob-menu-html')) {
-    uiBgGrad('#0a1830', '#1a2848');
+    if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a1830', '#1a2848');
     return;
   }
   uiBgGrad('#0a1830', '#1a2848');
@@ -441,7 +441,7 @@ function updateKartCup(dt) {
   }
 }
 function drawKartCup(t) {
-  uiBgGrad('#180828', '#301848');
+  if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
   uiSparkles(t * 0.5, 20);
   const port = mobTouchPortrait();
   uiTitle('MODO COPA', port ? 48 : 80, port ? 30 : 44);

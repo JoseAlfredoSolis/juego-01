@@ -34,6 +34,28 @@ canvas {
   border-radius: 8px;
   box-shadow: 0 8px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,215,0,0.08);
 }
+#three-c {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: none;
+  pointer-events: none;
+}
+body.three-on #three-c { display: block; }
+body.three-on canvas#c {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+body.three-race canvas#c {
+  image-rendering: auto;
+}
+body.three-menu.mob-menu-html #mobMenuHtml {
+  background: linear-gradient(180deg, rgba(8,12,24,0.55) 0%, rgba(8,12,24,0.82) 100%);
+}
 body.touch canvas {
   border-radius: 0;
   box-shadow: none;
@@ -261,6 +283,8 @@ body.touch.mob-menu-html canvas { visibility: hidden; pointer-events: none; }
   padding: 24px 12px;
 }
 body.touch.portrait.playing canvas { visibility: hidden; pointer-events: none; }
+body.touch.portrait.playing.three-race canvas#c { visibility: visible; pointer-events: none; }
+body.touch.portrait.playing.three-race #three-c { display: none; }
 body.touch.portrait.playing #touch { z-index: 50; }
 .mmh-title {
   font: 900 28px system-ui, sans-serif;
@@ -390,6 +414,7 @@ body.touch.mob-join #mobNav { display: none !important; }
 </style>
 </head>
 <body>
+<canvas id="three-c"></canvas>
 <canvas id="c"></canvas>
 
 <!-- Touch controls overlay -->
@@ -440,6 +465,12 @@ body.touch.mob-join #mobNav { display: none !important; }
 <script>
 if (typeof Peer === 'undefined') {
   document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');
+}
+</script>
+<script src="vendor/three.min.js"></script>
+<script>
+if (typeof THREE === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
 }
 </script>
 <script src="js/game.js"></script>
