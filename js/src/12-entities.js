@@ -31,6 +31,7 @@ function resolveY(e, plats) {
 function mkPlayer() {
   return { x:80, y:570, vx:0, vy:0, w:PLAYER_W, h:PLAYER_H,
     onGround:false, canDjump:false, djumpUsed:false,
+    coyoteTimer:0, jumpBuffer:0, jumpHeld:false,
     lives:gs.lives, invTimer:0, respawnTimer:0,
     power:null, powerTimer:0,
     facing:1,
@@ -101,22 +102,47 @@ function updatePlayer(p, dt, plats, levelW) {
   if (p.dashTimer>0)   ax = p.facing * 660;
   if (p.attackTimer>0) ax = p.facing * PLAYER_SPEED * 1.15;
 
-  const jumpKey = pressed('Space')||pressed('ArrowUp')||pressed('KeyW');
-  if (jumpKey && p.onGround) {
-    p.vy = JUMP_V * ch.jump; p.onGround = false; sfx.jump();
-    spawnDust(p.x+p.w/2, p.y+p.h, 7);                 // jump puff
+  const jumpHeld = held('Space')||held('ArrowUp')||held('KeyW');
+  const jumpPressed = pressed('Space')||pressed('ArrowUp')||pressed('KeyW');
+  if (jumpPressed) p.jumpBuffer = JUMP_BUFFER;
+  else if (p.jumpBuffer > 0) p.jumpBuffer -= dt;
+
+  if (p.onGround) p.coyoteTimer = COYOTE_TIME;
+  else if (p.coyoteTimer > 0) p.coyoteTimer -= dt;
+
+  const canGroundJump = p.onGround || p.coyoteTimer > 0;
+  if (p.jumpBuffer > 0 && canGroundJump) {
+    p.vy = JUMP_V * ch.jump; p.onGround = false; p.coyoteTimer = 0; p.jumpBuffer = 0;
+    sfx.jump();
+    spawnDust(p.x+p.w/2, p.y+p.h, 7);
     if (p.power==='djump') p.djumpUsed = false;
-  } else if (jumpKey && !p.onGround && p.power==='djump' && !p.djumpUsed) {
-    p.vy = DJUMP_V * ch.jump; p.djumpUsed = true; sfx.djump();
-    spawnRing(p.x+p.w/2, p.y+p.h/2, '#7df', 40, 0.3); // mid-air double-jump ring
+  } else if (p.jumpBuffer > 0 && !p.onGround && p.power==='djump' && !p.djumpUsed) {
+    p.vy = DJUMP_V * ch.jump; p.djumpUsed = true; p.jumpBuffer = 0;
+    sfx.djump();
+    spawnRing(p.x+p.w/2, p.y+p.h/2, '#7df', 40, 0.3);
     spawnSparks(p.x+p.w/2, p.y+p.h, '#7df', 8, 200);
   }
 
   // Physics
   const wasGround = p.onGround;
   const fallSpeed = p.vy;
-  p.vx = ax;
+  if (p.dashTimer > 0 || p.attackTimer > 0) {
+    p.vx = ax;
+  } else {
+    const accel = p.onGround ? GROUND_ACCEL : AIR_ACCEL;
+    const decel = p.onGround ? GROUND_DECEL : AIR_DECEL;
+    if (Math.abs(ax) > 0) {
+      if (Math.abs(p.vx - ax) <= accel * dt) p.vx = ax;
+      else p.vx += Math.sign(ax - p.vx) * accel * dt;
+    } else if (Math.abs(p.vx) <= decel * dt) {
+      p.vx = 0;
+    } else {
+      p.vx -= Math.sign(p.vx) * decel * dt;
+    }
+  }
   p.vy = Math.min(p.vy + (levelData?.lowGrav ? GRAVITY*0.55 : GRAVITY)*dt, levelData?.lowGrav ? MAX_FALL*0.75 : MAX_FALL);
+  if (p.jumpHeld && !jumpHeld && p.vy < 0) p.vy *= JUMP_CUT;
+  p.jumpHeld = jumpHeld;
   p.x += p.vx*dt; p.x = Math.max(0, Math.min(levelW-p.w, p.x));
   resolveX(p, plats);
   p.y += p.vy*dt;

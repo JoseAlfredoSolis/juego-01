@@ -983,15 +983,18 @@ function updateKart(dt) {
     const me = race.karts[kartLocalIdx()];
     if (me) {
       const look = me.speed > 80 ? me.angle : kartPathTangent(race.track, kartNearestPath(race.track, me.x, me.y).u).angle;
-      race.camX = lerp(race.camX, me.x - Math.cos(look) * 60, 0.1);
-      race.camY = lerp(race.camY, me.y - Math.sin(look) * 60, 0.1);
+      const speedFactor = Math.min(1, Math.abs(me.speed) / 420);
+      const lookAhead = 58 + speedFactor * 95;
+      const camLerp = 0.11 + speedFactor * 0.08;
+      race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead, camLerp);
+      race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead, camLerp);
       let targetA = look - Math.PI / 2;
       const agTilt = kartAntigravCamTilt(me, race.track);
       targetA += agTilt;
       let da = kartAngleDiff(targetA, race.camAngle || 0);
-      race.camAngle = (race.camAngle || 0) + da * 0.08;
-      const zoomTarget = 1 + Math.min(0.08, Math.abs(me.speed) / 8000);
-      race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.06);
+      race.camAngle = (race.camAngle || 0) + da * (0.07 + speedFactor * 0.05);
+      const zoomTarget = 1 + Math.min(0.12, Math.abs(me.speed) / 6500);
+      race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.07);
     }
   }
   if (pressed('Escape') || pressed('KeyP')) {

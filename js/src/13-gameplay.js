@@ -97,7 +97,7 @@ function startLevel() {
   levelCoins = 0; levelStars = 0; runNoHit = true;
   particles = [];
   fx = []; shake = 0; flash = null; banner = null;
-  camUpdate(player.x, player.y, levelData.levelW, true);
+  camUpdate(player.x, player.y, levelData.levelW, true, player);
 }
 
 function updateGameplay(dt) {
@@ -269,7 +269,7 @@ function updateGameplay(dt) {
     return;
   }
 
-  camUpdate(player.x, player.y, ld.levelW);
+  camUpdate(player.x, player.y, ld.levelW, false, player);
   if (gs.score > gs.highScore) gs.highScore = gs.score;
 
   // Pause
@@ -285,7 +285,7 @@ function gameOver(){
 function respawnPlayer() {
   player.x=player.respawnX||80; player.y=player.respawnY||570; player.vx=0; player.vy=0;
   player.invTimer=2; player.respawnTimer=1.5;
-  camUpdate(player.x, player.y, levelData.levelW, true);
+  camUpdate(player.x, player.y, levelData.levelW, true, player);
 }
 
 function advanceLevel() {

@@ -1,10 +1,26 @@
 // === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
-function camUpdate(px, py, levelW, snap=false) {
-  const tx = clamp(px + PLAYER_W/2 - W/2, 0, levelW - W);
-  const ty = clamp(py + PLAYER_H/2 - H/2, 0, 720 - H);
-  if (snap) { cam.x = tx; cam.y = ty; }
-  else { cam.x = lerp(cam.x, tx, 0.18); cam.y = lerp(cam.y, ty, 0.18); }
+function camUpdate(px, py, levelW, snap=false, p=null) {
+  const pcx = px + (p ? p.w : PLAYER_W) / 2;
+  const pcy = py + (p ? p.h : PLAYER_H) / 2;
+
+  let leadX = 0, leadY = 0;
+  if (p) {
+    leadX = p.facing * 72 + (p.vx || 0) * 0.14;
+    if (!p.onGround) leadY = clamp((p.vy || 0) * 0.1, -55, 65);
+    else if (Math.abs(p.vx || 0) > 40) leadY = -12;
+  }
+
+  const tx = clamp(pcx + leadX - W / 2, 0, Math.max(0, levelW - W));
+  const ty = clamp(pcy + leadY - H / 2, 0, 720 - H);
+
+  if (snap) { cam.x = tx; cam.y = ty; return; }
+
+  const dx = tx - cam.x, dy = ty - cam.y;
+  const dist = Math.hypot(dx, dy);
+  const t = dist > 140 ? 0.26 : dist > 50 ? 0.2 : 0.15;
+  cam.x = lerp(cam.x, tx, t);
+  cam.y = lerp(cam.y, ty, t);
 }
 
 // ── Drawing Helpers ────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v49';
+const GAME_VERSION = 'v50';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -9,6 +9,8 @@ const WORLDS_PER_ROW = 5;
 const GRAVITY = 1800, MAX_FALL = 900;
 const PLAYER_W = 36, PLAYER_H = 48;
 const PLAYER_SPEED = 290, JUMP_V = -700, DJUMP_V = -600;
+const COYOTE_TIME = 0.11, JUMP_BUFFER = 0.14, JUMP_CUT = 0.48;
+const GROUND_ACCEL = 2400, GROUND_DECEL = 3000, AIR_ACCEL = 1500, AIR_DECEL = 700;
 const STOMP_BOUNCE = -420;
 const COIN_PTS = 50, STAR_PTS = 200, ENEMY_PTS = 100, BOSS_PTS = 1000, LEVEL_PTS = 500, MINIBOSS_PTS = 500;
 
@@ -1084,11 +1086,27 @@ function drawBanner(){ // screen-space announcement (e.g. boss defeated)
 
 // === 09-render.js — camera, HUD, UI kit ─────────────────────────────────────
 const cam = { x:0, y:0 };
-function camUpdate(px, py, levelW, snap=false) {
-  const tx = clamp(px + PLAYER_W/2 - W/2, 0, levelW - W);
-  const ty = clamp(py + PLAYER_H/2 - H/2, 0, 720 - H);
-  if (snap) { cam.x = tx; cam.y = ty; }
-  else { cam.x = lerp(cam.x, tx, 0.18); cam.y = lerp(cam.y, ty, 0.18); }
+function camUpdate(px, py, levelW, snap=false, p=null) {
+  const pcx = px + (p ? p.w : PLAYER_W) / 2;
+  const pcy = py + (p ? p.h : PLAYER_H) / 2;
+
+  let leadX = 0, leadY = 0;
+  if (p) {
+    leadX = p.facing * 72 + (p.vx || 0) * 0.14;
+    if (!p.onGround) leadY = clamp((p.vy || 0) * 0.1, -55, 65);
+    else if (Math.abs(p.vx || 0) > 40) leadY = -12;
+  }
+
+  const tx = clamp(pcx + leadX - W / 2, 0, Math.max(0, levelW - W));
+  const ty = clamp(pcy + leadY - H / 2, 0, 720 - H);
+
+  if (snap) { cam.x = tx; cam.y = ty; return; }
+
+  const dx = tx - cam.x, dy = ty - cam.y;
+  const dist = Math.hypot(dx, dy);
+  const t = dist > 140 ? 0.26 : dist > 50 ? 0.2 : 0.15;
+  cam.x = lerp(cam.x, tx, t);
+  cam.y = lerp(cam.y, ty, t);
 }
 
 // ── Drawing Helpers ────────────────────────────────────────────────────────
@@ -1624,6 +1642,7 @@ function resolveY(e, plats) {
 function mkPlayer() {
   return { x:80, y:570, vx:0, vy:0, w:PLAYER_W, h:PLAYER_H,
     onGround:false, canDjump:false, djumpUsed:false,
+    coyoteTimer:0, jumpBuffer:0, jumpHeld:false,
     lives:gs.lives, invTimer:0, respawnTimer:0,
     power:null, powerTimer:0,
     facing:1,
@@ -1694,22 +1713,47 @@ function updatePlayer(p, dt, plats, levelW) {
   if (p.dashTimer>0)   ax = p.facing * 660;
   if (p.attackTimer>0) ax = p.facing * PLAYER_SPEED * 1.15;
 
-  const jumpKey = pressed('Space')||pressed('ArrowUp')||pressed('KeyW');
-  if (jumpKey && p.onGround) {
-    p.vy = JUMP_V * ch.jump; p.onGround = false; sfx.jump();
-    spawnDust(p.x+p.w/2, p.y+p.h, 7);                 // jump puff
+  const jumpHeld = held('Space')||held('ArrowUp')||held('KeyW');
+  const jumpPressed = pressed('Space')||pressed('ArrowUp')||pressed('KeyW');
+  if (jumpPressed) p.jumpBuffer = JUMP_BUFFER;
+  else if (p.jumpBuffer > 0) p.jumpBuffer -= dt;
+
+  if (p.onGround) p.coyoteTimer = COYOTE_TIME;
+  else if (p.coyoteTimer > 0) p.coyoteTimer -= dt;
+
+  const canGroundJump = p.onGround || p.coyoteTimer > 0;
+  if (p.jumpBuffer > 0 && canGroundJump) {
+    p.vy = JUMP_V * ch.jump; p.onGround = false; p.coyoteTimer = 0; p.jumpBuffer = 0;
+    sfx.jump();
+    spawnDust(p.x+p.w/2, p.y+p.h, 7);
     if (p.power==='djump') p.djumpUsed = false;
-  } else if (jumpKey && !p.onGround && p.power==='djump' && !p.djumpUsed) {
-    p.vy = DJUMP_V * ch.jump; p.djumpUsed = true; sfx.djump();
-    spawnRing(p.x+p.w/2, p.y+p.h/2, '#7df', 40, 0.3); // mid-air double-jump ring
+  } else if (p.jumpBuffer > 0 && !p.onGround && p.power==='djump' && !p.djumpUsed) {
+    p.vy = DJUMP_V * ch.jump; p.djumpUsed = true; p.jumpBuffer = 0;
+    sfx.djump();
+    spawnRing(p.x+p.w/2, p.y+p.h/2, '#7df', 40, 0.3);
     spawnSparks(p.x+p.w/2, p.y+p.h, '#7df', 8, 200);
   }
 
   // Physics
   const wasGround = p.onGround;
   const fallSpeed = p.vy;
-  p.vx = ax;
+  if (p.dashTimer > 0 || p.attackTimer > 0) {
+    p.vx = ax;
+  } else {
+    const accel = p.onGround ? GROUND_ACCEL : AIR_ACCEL;
+    const decel = p.onGround ? GROUND_DECEL : AIR_DECEL;
+    if (Math.abs(ax) > 0) {
+      if (Math.abs(p.vx - ax) <= accel * dt) p.vx = ax;
+      else p.vx += Math.sign(ax - p.vx) * accel * dt;
+    } else if (Math.abs(p.vx) <= decel * dt) {
+      p.vx = 0;
+    } else {
+      p.vx -= Math.sign(p.vx) * decel * dt;
+    }
+  }
   p.vy = Math.min(p.vy + (levelData?.lowGrav ? GRAVITY*0.55 : GRAVITY)*dt, levelData?.lowGrav ? MAX_FALL*0.75 : MAX_FALL);
+  if (p.jumpHeld && !jumpHeld && p.vy < 0) p.vy *= JUMP_CUT;
+  p.jumpHeld = jumpHeld;
   p.x += p.vx*dt; p.x = Math.max(0, Math.min(levelW-p.w, p.x));
   resolveX(p, plats);
   p.y += p.vy*dt;
@@ -2442,7 +2486,7 @@ function startLevel() {
   levelCoins = 0; levelStars = 0; runNoHit = true;
   particles = [];
   fx = []; shake = 0; flash = null; banner = null;
-  camUpdate(player.x, player.y, levelData.levelW, true);
+  camUpdate(player.x, player.y, levelData.levelW, true, player);
 }
 
 function updateGameplay(dt) {
@@ -2614,7 +2658,7 @@ function updateGameplay(dt) {
     return;
   }
 
-  camUpdate(player.x, player.y, ld.levelW);
+  camUpdate(player.x, player.y, ld.levelW, false, player);
   if (gs.score > gs.highScore) gs.highScore = gs.score;
 
   // Pause
@@ -2630,7 +2674,7 @@ function gameOver(){
 function respawnPlayer() {
   player.x=player.respawnX||80; player.y=player.respawnY||570; player.vx=0; player.vy=0;
   player.invTimer=2; player.respawnTimer=1.5;
-  camUpdate(player.x, player.y, levelData.levelW, true);
+  camUpdate(player.x, player.y, levelData.levelW, true, player);
 }
 
 function advanceLevel() {
@@ -4552,15 +4596,18 @@ function updateKart(dt) {
     const me = race.karts[kartLocalIdx()];
     if (me) {
       const look = me.speed > 80 ? me.angle : kartPathTangent(race.track, kartNearestPath(race.track, me.x, me.y).u).angle;
-      race.camX = lerp(race.camX, me.x - Math.cos(look) * 60, 0.1);
-      race.camY = lerp(race.camY, me.y - Math.sin(look) * 60, 0.1);
+      const speedFactor = Math.min(1, Math.abs(me.speed) / 420);
+      const lookAhead = 58 + speedFactor * 95;
+      const camLerp = 0.11 + speedFactor * 0.08;
+      race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead, camLerp);
+      race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead, camLerp);
       let targetA = look - Math.PI / 2;
       const agTilt = kartAntigravCamTilt(me, race.track);
       targetA += agTilt;
       let da = kartAngleDiff(targetA, race.camAngle || 0);
-      race.camAngle = (race.camAngle || 0) + da * 0.08;
-      const zoomTarget = 1 + Math.min(0.08, Math.abs(me.speed) / 8000);
-      race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.06);
+      race.camAngle = (race.camAngle || 0) + da * (0.07 + speedFactor * 0.05);
+      const zoomTarget = 1 + Math.min(0.12, Math.abs(me.speed) / 6500);
+      race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.07);
     }
   }
   if (pressed('Escape') || pressed('KeyP')) {
@@ -7204,12 +7251,13 @@ function threeSyncRaceKarts(ctx, tr, t) {
   if (local) {
     const w = threeGameToWorld(local.x, local.y, local.z, tr);
     const ca = race.camAngle || local.angle || 0;
-    const dist = 14 + (race.camZoom || 1) * 4;
+    const dist = 14 + (race.camZoom || 1) * 4 + Math.min(6, (local.speed || 0) * 0.02);
     const h = 7 + Math.min(6, (local.z || 0) * 0.04);
     const cx = w.x - Math.cos(ca) * dist;
     const cz = w.z - Math.sin(ca) * dist;
-    ctx.camera.position.lerp(new THREE.Vector3(cx, w.y + h, cz), 0.14);
-    ctx.camera.lookAt(w.x, w.y + 2.8, w.z);
+    const lookH = 2.8 + Math.min(2.5, (local.speed || 0) * 0.004);
+    ctx.camera.position.lerp(new THREE.Vector3(cx, w.y + h, cz), 0.15);
+    ctx.camera.lookAt(w.x, w.y + lookH, w.z);
     ctx.camera.fov = lerp(ctx.camera.fov, 62 + (local.speed || 0) * 0.008, 0.08);
     ctx.camera.updateProjectionMatrix();
   }
@@ -7443,12 +7491,18 @@ function threeSyncGameplay(ctx, t) {
     }
   }
 
-  const lookX = pp.x;
-  const lookY = pp.y + 2.5;
-  const camX = lookX + 14;
-  const camY = lookY + 11;
-  const camZ = 26;
-  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.1);
+  const velX = player.vx || 0;
+  const velY = player.vy || 0;
+  const leadX = player.facing * 2.8 + velX * THREE_GP_SCALE * 0.1;
+  const leadY = velY * THREE_GP_SCALE * 0.055;
+  const lookX = pp.x + leadX;
+  const lookY = pp.y + 2.5 + leadY;
+  const side = player.facing > 0 ? -1 : 1;
+  const camX = lookX + side * 11;
+  const camY = lookY + 10 + Math.min(5, Math.max(-3, -velY * 0.005));
+  const camZ = 22 + Math.min(8, Math.abs(velX) * 0.018);
+  const camLerp = player.onGround ? 0.11 : 0.14;
+  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), camLerp);
   ctx.camera.lookAt(lookX, lookY, 0);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {

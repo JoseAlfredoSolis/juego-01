@@ -723,12 +723,13 @@ function threeSyncRaceKarts(ctx, tr, t) {
   if (local) {
     const w = threeGameToWorld(local.x, local.y, local.z, tr);
     const ca = race.camAngle || local.angle || 0;
-    const dist = 14 + (race.camZoom || 1) * 4;
+    const dist = 14 + (race.camZoom || 1) * 4 + Math.min(6, (local.speed || 0) * 0.02);
     const h = 7 + Math.min(6, (local.z || 0) * 0.04);
     const cx = w.x - Math.cos(ca) * dist;
     const cz = w.z - Math.sin(ca) * dist;
-    ctx.camera.position.lerp(new THREE.Vector3(cx, w.y + h, cz), 0.14);
-    ctx.camera.lookAt(w.x, w.y + 2.8, w.z);
+    const lookH = 2.8 + Math.min(2.5, (local.speed || 0) * 0.004);
+    ctx.camera.position.lerp(new THREE.Vector3(cx, w.y + h, cz), 0.15);
+    ctx.camera.lookAt(w.x, w.y + lookH, w.z);
     ctx.camera.fov = lerp(ctx.camera.fov, 62 + (local.speed || 0) * 0.008, 0.08);
     ctx.camera.updateProjectionMatrix();
   }
@@ -962,12 +963,18 @@ function threeSyncGameplay(ctx, t) {
     }
   }
 
-  const lookX = pp.x;
-  const lookY = pp.y + 2.5;
-  const camX = lookX + 14;
-  const camY = lookY + 11;
-  const camZ = 26;
-  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.1);
+  const velX = player.vx || 0;
+  const velY = player.vy || 0;
+  const leadX = player.facing * 2.8 + velX * THREE_GP_SCALE * 0.1;
+  const leadY = velY * THREE_GP_SCALE * 0.055;
+  const lookX = pp.x + leadX;
+  const lookY = pp.y + 2.5 + leadY;
+  const side = player.facing > 0 ? -1 : 1;
+  const camX = lookX + side * 11;
+  const camY = lookY + 10 + Math.min(5, Math.max(-3, -velY * 0.005));
+  const camZ = 22 + Math.min(8, Math.abs(velX) * 0.018);
+  const camLerp = player.onGround ? 0.11 : 0.14;
+  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), camLerp);
   ctx.camera.lookAt(lookX, lookY, 0);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {
