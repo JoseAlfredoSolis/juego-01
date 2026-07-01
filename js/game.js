@@ -3776,11 +3776,12 @@ function kartToScreen(x, y, mini) {
   }
   let dx = x - race.camX, dy = y - race.camY;
   const ca = race.camAngle || 0;
+  const zoom = race.camZoom || 1;
   if (ca) {
-    const c = Math.cos(-ca), sn = Math.sin(-ca);
+    const c = Math.cos(-ca) * zoom, sn = Math.sin(-ca) * zoom;
     return { x: dx * c - dy * sn + W / 2, y: dx * sn + dy * c + H / 2 };
   }
-  return { x: dx + W / 2, y: dy + H / 2 };
+  return { x: dx * zoom + W / 2, y: dy * zoom + H / 2 };
 }
 function kartRoadHalf(tr, mini) {
   return (tr.roadWidth || 100) * (mini ? (mini.scale || 0.35) : 1) * 0.5;
@@ -4325,10 +4326,10 @@ function kartSimKart(k, dt, tr) {
   }
   k.x += Math.cos(k.angle) * k.speed * dt;
   k.y += Math.sin(k.angle) * k.speed * dt;
-  kartUpdateAntigrav(k, tr);
+  kartUpdateAntigrav(k, tr, dt);
   kartCheckJumpRamps(k, tr);
   kartUpdateJump(k, dt);
-  kartResolveCollisions(k);
+  kartResolveCollisions(k, dt);
   if (!kartInTrack(tr, k.x, k.y)) kartPushToTrack(tr, k);
   else if (grip < 0.75 && Math.random() < 0.15) spawnParticles(k.x, k.y, tr.grass[0], 1, 60);
   kartTryCheckpoint(k, tr);
@@ -4496,20 +4497,29 @@ function kartApplyGuestInput(msg) {
 }
 function updateKart(dt) {
   if (!race) { changeScene('kartlobby'); return; }
+  updateParticles(dt);
+  updateFx(dt);
   kartTick(dt);
   if (race.phase === 'racing' || race.phase === 'countdown') {
     const me = race.karts[kartLocalIdx()];
     if (me) {
       const look = me.speed > 80 ? me.angle : kartPathTangent(race.track, kartNearestPath(race.track, me.x, me.y).u).angle;
-      race.camX = lerp(race.camX, me.x - Math.cos(look) * 60, 0.1);
-      race.camY = lerp(race.camY, me.y - Math.sin(look) * 60, 0.1);
+      const speedT = Math.min(1, Math.abs(me.speed) / KART_MAX_SPEED);
+      const lookAhead = 60 + speedT * 55;
+      race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead, 0.1);
+      race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead, 0.1);
       let targetA = look - Math.PI / 2;
       const agTilt = kartAntigravCamTilt(me, race.track);
       targetA += agTilt;
+      if (me.driftCharge > 0.2 && me.input.steer) {
+        targetA -= me.input.steer * Math.min(0.16, me.driftCharge * 0.14);
+      }
       let da = kartAngleDiff(targetA, race.camAngle || 0);
       race.camAngle = (race.camAngle || 0) + da * 0.08;
-      const zoomTarget = 1 + Math.min(0.08, Math.abs(me.speed) / 8000);
-      race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.06);
+      const speedZoom = 1 - speedT * 0.07;
+      const boostPunch = Math.min(0.07, (me.boost || 0) / 2600);
+      const zoomTarget = speedZoom + boostPunch;
+      race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.08);
     }
   }
   if (pressed('Escape') || pressed('KeyP')) {
@@ -4605,11 +4615,53 @@ function drawKartEntity(k, tr) {
   ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
   ctx.fillText(k.name, px, py + 44);
 }
+function kartDrawParticles() {
+  for (const p of particles) {
+    const sp = kartToScreen(p.x, p.y);
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(sp.x, sp.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+function kartDrawFx() {
+  const zoom = race.camZoom || 1;
+  for (const e of fx) {
+    const a = Math.max(0, e.life / e.max);
+    const sp = kartToScreen(e.x, e.y);
+    if (e.kind === 'ring') {
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = e.color; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, e.r * zoom, 0, Math.PI * 2); ctx.stroke();
+    } else if (e.kind === 'dust') {
+      ctx.globalAlpha = a * 0.7;
+      ctx.fillStyle = e.color;
+      ctx.fillRect(sp.x, sp.y, e.size, e.size);
+    } else if (e.kind === 'text') {
+      ctx.globalAlpha = Math.min(1, a * 1.4);
+      ctx.fillStyle = e.color; ctx.font = `bold ${e.size}px monospace`; ctx.textAlign = 'center';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.strokeText(e.text, sp.x, sp.y);
+      ctx.fillText(e.text, sp.x, sp.y);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
 function drawKart(t) {
   if (!race) return;
+  const sx = race.camX, sy = race.camY;
+  if (shake > 0 && gs.fxShake !== false) {
+    const m = Math.min(8, shake * 55);
+    race.camX += (Math.random() * 2 - 1) * m;
+    race.camY += (Math.random() * 2 - 1) * m;
+  }
   drawKartTrack(race.track, t);
   const sorted = [...race.karts].sort((a, b) => a.rank - b.rank || 0);
   for (const k of sorted) drawKartEntity(k, race.track);
+  kartDrawParticles();
+  kartDrawFx();
+  race.camX = sx; race.camY = sy;
+  drawFlash();
   fillRR(8, 8, W - 16, 56, 14, 'rgba(8,12,20,0.85)');
   const me = race.karts[kartLocalIdx()];
   const laps = kartTrackLaps(race.track);
@@ -5366,6 +5418,7 @@ function kartInitRaceExtras(tr) {
 
 function kartUpdateObstacles(dt, tr) {
   if (!race?.obstacles) return;
+  for (const k of race.karts) { if (k._obHitCd > 0) k._obHitCd -= dt; }
   for (const ob of race.obstacles) {
     ob.phase += dt * (ob.kind === 'crab' ? 2.2 : 1.4);
     const tg = kartPathTangent(tr, ob.u);
@@ -5374,12 +5427,14 @@ function kartUpdateObstacles(dt, tr) {
     ob.y = kartPathSample(tr, ob.u).y + Math.sin(tg.angle + Math.PI / 2) * lane;
     ob.angle = tg.angle;
     for (const k of race.karts) {
-      if (k.finished || k.shieldTimer > 0 || k.starTimer > 0) continue;
+      if (k.finished || k.shieldTimer > 0 || k.starTimer > 0 || k._obHitCd > 0) continue;
       if (Math.hypot(k.x - ob.x, k.y - ob.y) < 28) {
         k.speed *= 0.35;
         k.stunTimer = Math.max(k.stunTimer || 0, 0.6);
+        k._obHitCd = 0.6;
         spawnParticles(k.x, k.y, '#888', 8, 180);
         sfx.hurt();
+        if (k.idx === kartLocalIdx()) addShake(0.16);
       }
     }
   }
@@ -5400,6 +5455,7 @@ function kartUpdateHazards(dt) {
         spawnParticles(h.x, h.y, '#ffe040', 10, 140);
         race.hazards.splice(i, 1);
         sfx.hurt();
+        if (k.idx === kartLocalIdx()) addShake(0.14);
         break;
       }
     }
@@ -5430,6 +5486,7 @@ function kartUpdateProjectiles(dt) {
         spawnParticles(p.x, p.y, '#40c878', 12, 200);
         spawnText(k.x, k.y - 18, 'GOLPE!', '#f44', 15);
         sfx.hurt();
+        if (k.idx === kartLocalIdx()) addShake(0.18);
         hit = true; break;
       }
     }
@@ -5478,6 +5535,7 @@ function kartUseItem(k, tr) {
         o.speed *= 0.2;
         o.stunTimer = Math.max(o.stunTimer || 0, 2.2);
         spawnRing(o.x, o.y, '#aaf', 70, 0.4);
+        if (o.idx === kartLocalIdx()) addShake(0.1);
       }
     }
     addFlash('#aaf', 0.12);
@@ -5532,7 +5590,7 @@ function kartUpdateBlueShells(dt) {
         target.speed *= 0.1;
         target.stunTimer = Math.max(target.stunTimer || 0, 2.5);
         spawnParticles(p.x, p.y, '#3080ff', 20, 250);
-        addShake(0.2);
+        if (target.idx === kartLocalIdx()) addShake(0.2);
         showBanner('GOLPE AZUL!', '#3080ff');
         sfx.hurt();
       }
@@ -6244,13 +6302,15 @@ function kartUpdateJump(k, dt) {
       spawnDust(k.x, k.y, 6);
       k.speed *= 0.98;
     }
+    if (hard && k.idx === kartLocalIdx()) addShake(0.1);
     k.z = 0;
     k.vz = 0;
   }
 }
 
-function kartResolveCollisions(k) {
+function kartResolveCollisions(k, dt) {
   if (!race || k.finished) return;
+  if (k._hitShakeCd > 0) k._hitShakeCd -= dt;
   const w = (k.stats?.weight || 1);
   for (const o of race.karts) {
     if (o === k || o.finished) continue;
@@ -6269,10 +6329,14 @@ function kartResolveCollisions(k) {
     if (dist < minD - 4 && Math.random() < 0.08) {
       spawnParticles((k.x + o.x) / 2, (k.y + o.y) / 2, '#ccc', 4, 120);
     }
+    if (k.idx === kartLocalIdx() && !(k._hitShakeCd > 0) && Math.abs(rel) > 30) {
+      addShake(Math.min(0.14, Math.abs(rel) / 500));
+      k._hitShakeCd = 0.25;
+    }
   }
 }
 
-function kartUpdateAntigrav(k, tr) {
+function kartUpdateAntigrav(k, tr, dt) {
   const surf = kartSurfaceType(tr, k.x, k.y);
   const was = k.antigrav;
   k.antigrav = surf === 'antigrav';
