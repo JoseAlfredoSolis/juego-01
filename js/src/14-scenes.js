@@ -173,13 +173,14 @@ function updateMenu(dt) {
 }
 
 function drawMenu(t) {
-  uiBgGrad('#0a2010','#1a5c1a'); uiSparkles(t);
+  if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a2010','#1a5c1a');
+  uiSparkles(t);
   const lay = mobMenuLayout(menuItems.length);
   const bob = Math.sin(t * 2) * (lay.mode !== 'desktop' ? 4 : 8);
 
   if (lay.mode !== 'desktop') {
     if (document.body.classList.contains('mob-menu-html')) {
-      uiBgGrad('#0a2010', '#1a5c1a');
+      if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a2010', '#1a5c1a');
       return;
     }
     const t1 = lay.mode === 'port' ? 48 : 68;
