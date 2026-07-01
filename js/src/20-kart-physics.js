@@ -21,7 +21,7 @@ function kartInitJumpState(k) {
 }
 
 function kartPathU(tr, x, y) {
-  return kartNearestPath(tr, x, y, tr.huge ? 100 : 56).u;
+  return kartNearestPath(tr, x, y, tr.mega ? 160 : tr.huge ? 100 : 56).u;
 }
 
 function kartCheckJumpRamps(k, tr) {

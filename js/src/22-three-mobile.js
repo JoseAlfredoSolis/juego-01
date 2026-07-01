@@ -608,10 +608,34 @@ function threeBuildKerbStrip(curve, divisions, roadHalf, kerbW, side, yOffset) {
   return geo;
 }
 
+function threeAddTrackObstacles(group, tr, curve) {
+  if (!tr.obstacleSpots?.length) return;
+  for (const spot of tr.obstacleSpots) {
+    const p = kartPathSample(tr, spot.u);
+    const w = threeGameToWorld(p.x, p.y, 0, tr);
+    const h = threeTrackHeightAt(tr, p.x, p.y, curve) + 0.8;
+    const isCrab = spot.kind === 'crab';
+    const mesh = isCrab
+      ? new THREE.Mesh(
+        new THREE.SphereGeometry(1.1, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0xff4040, emissive: 0x660000, emissiveIntensity: 0.35, roughness: 0.6 })
+      )
+      : new THREE.Mesh(
+        new THREE.DodecahedronGeometry(1.4, 0),
+        new THREE.MeshStandardMaterial({ color: 0x707880, emissive: 0x222830, emissiveIntensity: 0.2, roughness: 0.85, metalness: 0.15 })
+      );
+    mesh.position.set(w.x, h + (isCrab ? 0.6 : 1.0), w.z);
+    mesh.castShadow = true;
+    mesh.userData.obstacleU = spot.u;
+    mesh.userData.obstacleKind = spot.kind;
+    group.add(mesh);
+  }
+}
+
 function threeBuildTrackMesh(tr) {
   const group = new THREE.Group();
   const pts = [];
-  const segs = tr.huge ? 180 : 120;
+  const segs = tr.mega ? 280 : tr.huge ? 180 : 120;
   for (let i = 0; i <= segs; i++) {
     const u = i / segs;
     const p = kartPathSample(tr, u);
@@ -684,6 +708,7 @@ function threeBuildTrackMesh(tr) {
   threeAddSkyDome(group, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
 
   threeAddTrackDecor(group, tr, curve);
+  threeAddTrackObstacles(group, tr, curve);
 
   for (const box of tr.items || []) {
     if (box.taken) continue;
@@ -869,7 +894,7 @@ function threeBuildRaceScene(ctx, tr) {
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
   ctx.scene.background = new THREE.Color(threeHexColor(tr.bg?.[0] || 0x0a1420));
-  ctx.scene.fog = new THREE.Fog(threeHexColor(tr.bg?.[0] || 0x0a1420), 50, 240);
+  ctx.scene.fog = new THREE.Fog(threeHexColor(tr.bg?.[0] || 0x0a1420), 40, tr.mega ? 420 : tr.huge ? 300 : 240);
   ctx.trackGroup = threeBuildTrackMesh(tr);
   ctx.scene.add(ctx.trackGroup);
   ctx.menuVariant = null;

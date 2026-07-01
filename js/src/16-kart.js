@@ -10,6 +10,42 @@ const KART_DRIFT_SUPER = 320;
 
 function kartTrackLaps(tr) { return tr.laps || KART_LAPS; }
 
+const KART_TRACK_SCALE = 3;
+
+function kartScalePath(path, s) {
+  return path.map(p => ({ x: Math.round(p.x * s), y: Math.round(p.y * s) }));
+}
+function kartApplyTrackScale(tr) {
+  const s = tr.scale || 1;
+  if (s === 1) return;
+  tr.path = kartScalePath(tr.path, s);
+  if (tr.shortcuts) {
+    tr.shortcuts = tr.shortcuts.map(sc => ({
+      width: Math.round((sc.width || 76) * s),
+      path: kartScalePath(sc.path, s),
+    }));
+  }
+  delete tr.scale;
+}
+function kartTrackTier(tr) {
+  if (tr.mega) return 'mega';
+  if (tr.huge) return 'huge';
+  return 'normal';
+}
+function kartTrackSamples(tr) {
+  const tier = kartTrackTier(tr);
+  return tier === 'mega' ? 220 : tier === 'huge' ? 140 : 64;
+}
+function kartTrackSegs(tr, mini) {
+  if (mini) return kartTrackTier(tr) === 'mega' ? 64 : 48;
+  const tier = kartTrackTier(tr);
+  return tier === 'mega' ? 360 : tier === 'huge' ? 220 : 120;
+}
+function kartTrackSpeedMul(tr) {
+  const tier = kartTrackTier(tr);
+  return tier === 'mega' ? 1.18 : tier === 'huge' ? 1.1 : 1;
+}
+
 const KART_TRACKS = [
   {
     name: 'AUTOPISTA COSTA',
@@ -19,7 +55,8 @@ const KART_TRACKS = [
     kerb: ['#e03030', '#f0f0f0'],
     accent: '#5ee0ff',
     decor: 'palm',
-    roadWidth: 108,
+    scale: KART_TRACK_SCALE,
+    roadWidth: 168,
     surfaces: [{ uStart: 0.08, uEnd: 0.16, type: 'water' }, { uStart: 0.48, uEnd: 0.54, type: 'water' }],
     obstacleSpots: [{ u: 0.22, kind: 'rock' }, { u: 0.55, kind: 'crab' }, { u: 0.78, kind: 'rock' }],
     shortcuts: [{
@@ -42,7 +79,8 @@ const KART_TRACKS = [
     kerb: ['#ff8020', '#ffcc40'],
     accent: '#ffb060',
     decor: 'rock',
-    roadWidth: 96,
+    scale: KART_TRACK_SCALE,
+    roadWidth: 150,
     surfaces: [{ uStart: 0.72, uEnd: 0.82, type: 'offroad' }],
     obstacleSpots: [{ u: 0.3, kind: 'rock' }, { u: 0.65, kind: 'crab' }],
     path: [
@@ -59,7 +97,8 @@ const KART_TRACKS = [
     kerb: ['#3080ff', '#ffffff'],
     accent: '#80b0ff',
     decor: 'city',
-    roadWidth: 92,
+    scale: KART_TRACK_SCALE,
+    roadWidth: 145,
     obstacleSpots: [{ u: 0.4, kind: 'crab' }, { u: 0.7, kind: 'rock' }],
     path: [
       { x: 200, y: 600 }, { x: 440, y: 570 }, { x: 680, y: 510 }, { x: 920, y: 430 },
@@ -75,7 +114,8 @@ const KART_TRACKS = [
     kerb: ['#d01818', '#ececec'],
     accent: '#ff3838',
     decor: 'grandstand',
-    roadWidth: 126,
+    scale: 3.5,
+    roadWidth: 198,
     laps: 2,
     huge: true,
     path: [
@@ -99,7 +139,8 @@ const KART_TRACKS = [
     kerb: ['#c040ff', '#80e0ff'],
     accent: '#d080ff',
     decor: 'city',
-    roadWidth: 100,
+    scale: KART_TRACK_SCALE,
+    roadWidth: 158,
     surfaces: [
       { uStart: 0.22, uEnd: 0.40, type: 'antigrav' },
       { uStart: 0.62, uEnd: 0.78, type: 'antigrav' },
@@ -110,6 +151,49 @@ const KART_TRACKS = [
       { x: 180, y: 520 }, { x: 380, y: 440 }, { x: 600, y: 360 }, { x: 820, y: 300 },
       { x: 1020, y: 280 }, { x: 1100, y: 420 }, { x: 1000, y: 560 }, { x: 820, y: 620 },
       { x: 600, y: 580 }, { x: 400, y: 500 }, { x: 280, y: 400 }, { x: 200, y: 480 },
+    ],
+  },
+  {
+    name: 'MEGA ARENA OBSTÁCULOS',
+    bg: ['#180c08', '#503020'],
+    grass: ['#2a2010', '#403018'],
+    asphalt: ['#3c3830', '#504840'],
+    kerb: ['#ff5010', '#ffd020'],
+    accent: '#ff7020',
+    decor: 'rock',
+    roadWidth: 210,
+    laps: 1,
+    huge: true,
+    mega: true,
+    surfaces: [
+      { uStart: 0.10, uEnd: 0.16, type: 'water' },
+      { uStart: 0.34, uEnd: 0.40, type: 'offroad' },
+      { uStart: 0.58, uEnd: 0.64, type: 'water' },
+      { uStart: 0.78, uEnd: 0.84, type: 'offroad' },
+    ],
+    obstacleSpots: [
+      { u: 0.03, kind: 'rock' }, { u: 0.06, kind: 'crab' }, { u: 0.09, kind: 'rock' },
+      { u: 0.12, kind: 'crab' }, { u: 0.15, kind: 'rock' }, { u: 0.18, kind: 'crab' },
+      { u: 0.21, kind: 'rock' }, { u: 0.24, kind: 'crab' }, { u: 0.27, kind: 'rock' },
+      { u: 0.30, kind: 'crab' }, { u: 0.33, kind: 'rock' }, { u: 0.36, kind: 'crab' },
+      { u: 0.39, kind: 'rock' }, { u: 0.42, kind: 'crab' }, { u: 0.45, kind: 'rock' },
+      { u: 0.48, kind: 'crab' }, { u: 0.51, kind: 'rock' }, { u: 0.54, kind: 'crab' },
+      { u: 0.57, kind: 'rock' }, { u: 0.60, kind: 'crab' }, { u: 0.63, kind: 'rock' },
+      { u: 0.66, kind: 'crab' }, { u: 0.69, kind: 'rock' }, { u: 0.72, kind: 'crab' },
+      { u: 0.75, kind: 'rock' }, { u: 0.78, kind: 'crab' }, { u: 0.81, kind: 'rock' },
+      { u: 0.84, kind: 'crab' }, { u: 0.87, kind: 'rock' }, { u: 0.90, kind: 'crab' },
+      { u: 0.93, kind: 'rock' }, { u: 0.96, kind: 'crab' },
+    ],
+    path: [
+      { x: 1200, y: 6200 }, { x: 3000, y: 5700 }, { x: 5200, y: 5200 }, { x: 7400, y: 4700 },
+      { x: 9600, y: 4200 }, { x: 11400, y: 3600 }, { x: 12200, y: 2600 }, { x: 11800, y: 1500 },
+      { x: 10400, y: 700 }, { x: 8600, y: 500 }, { x: 6600, y: 800 }, { x: 4800, y: 1300 },
+      { x: 3200, y: 1900 }, { x: 2000, y: 2700 }, { x: 1200, y: 3700 }, { x: 900, y: 4800 },
+      { x: 1100, y: 5900 }, { x: 2000, y: 6800 }, { x: 3400, y: 7400 }, { x: 5200, y: 7800 },
+      { x: 7200, y: 7900 }, { x: 9200, y: 7600 }, { x: 10800, y: 6900 }, { x: 11800, y: 6000 },
+      { x: 12200, y: 5000 }, { x: 11800, y: 4100 }, { x: 10600, y: 3400 }, { x: 9000, y: 3000 },
+      { x: 7200, y: 2900 }, { x: 5400, y: 3200 }, { x: 3800, y: 3700 }, { x: 2400, y: 4400 },
+      { x: 1600, y: 5200 },
     ],
   },
 ].map(kartLayoutTrack);
@@ -146,7 +230,7 @@ function kartPathLength(tr, segs) {
   return len;
 }
 function kartNearestPath(tr, x, y, samples) {
-  samples = samples || (tr.huge ? 140 : 64);
+  samples = samples || kartTrackSamples(tr);
   let best = { dist: 1e9, u: 0, x: tr.cx, y: tr.cy, angle: 0 };
   for (let i = 0; i <= samples; i++) {
     const u = i / samples;
@@ -160,11 +244,12 @@ function kartNearestPath(tr, x, y, samples) {
   return best;
 }
 function kartLayoutTrack(tr) {
+  kartApplyTrackScale(tr);
   let cx = 0, cy = 0;
   for (const p of tr.path) { cx += p.x; cy += p.y; }
   tr.cx = cx / tr.path.length;
   tr.cy = cy / tr.path.length;
-  const cpCount = tr.huge ? 12 : 4;
+  const cpCount = tr.mega ? 20 : (tr.huge ? 12 : 4);
   tr.cpCount = cpCount;
   tr.checkpoints = [];
   for (let i = 0; i < cpCount; i++) {
@@ -173,30 +258,35 @@ function kartLayoutTrack(tr) {
     tr.checkpoints.push({ u: frac, x: tg.x, y: tg.y, angle: tg.angle });
   }
   const st = kartPathTangent(tr, 0.004);
+  const grid = tr.mega ? { cols: [-96, -32, 32, 96], rows: [-56, 56] } : { cols: [-78, -26, 26, 78], rows: [-44, 44] };
   const nx = -Math.sin(st.angle) * 26, ny = Math.cos(st.angle) * 26;
-  const cols = [-78, -26, 26, 78], rows = [-44, 44];
   tr.starts = [];
-  for (let r = 0; r < rows.length; r++) {
-    for (let c = 0; c < cols.length; c++) {
+  for (let r = 0; r < grid.rows.length; r++) {
+    for (let c = 0; c < grid.cols.length; c++) {
       tr.starts.push({
-        x: st.x + Math.cos(st.angle) * rows[r] + nx * (cols[c] / 26),
-        y: st.y + Math.sin(st.angle) * rows[r] + ny * (cols[c] / 26),
+        x: st.x + Math.cos(st.angle) * grid.rows[r] + nx * (grid.cols[c] / 26),
+        y: st.y + Math.sin(st.angle) * grid.rows[r] + ny * (grid.cols[c] / 26),
         a: st.angle,
       });
     }
   }
-  const itemUs = tr.huge
-    ? [0.07, 0.14, 0.22, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.86, 0.93]
-    : [0.14, 0.36, 0.58, 0.80];
+  const itemUs = tr.mega
+    ? [0.04, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, 0.32, 0.36, 0.40, 0.44, 0.48, 0.52, 0.56, 0.60, 0.64, 0.68, 0.72, 0.76, 0.80, 0.84, 0.88, 0.92, 0.96]
+    : tr.huge
+      ? [0.07, 0.14, 0.22, 0.30, 0.38, 0.46, 0.54, 0.62, 0.70, 0.78, 0.86, 0.93]
+      : [0.14, 0.36, 0.58, 0.80];
   tr.items = itemUs.map(u => {
     const p = kartPathSample(tr, u);
     return { x: p.x, y: p.y, taken: false };
   });
-  tr.length = kartPathLength(tr, tr.huge ? 160 : 80);
+  const lenSegs = tr.mega ? 320 : (tr.huge ? 160 : 80);
+  tr.length = kartPathLength(tr, lenSegs);
   return tr;
 }
 function kartCpRadius(tr) {
-  return Math.max(72, (tr.roadWidth || 100) * (tr.huge ? 0.85 : 0.75));
+  const tier = kartTrackTier(tr);
+  const mul = tier === 'mega' ? 0.9 : tier === 'huge' ? 0.85 : 0.75;
+  return Math.max(72, (tr.roadWidth || 100) * mul);
 }
 function kartTrackBounds(tr) {
   let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
@@ -204,7 +294,7 @@ function kartTrackBounds(tr) {
     minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
     maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
   }
-  const pad = tr.huge ? 200 : 80;
+  const pad = tr.mega ? 600 : (tr.huge ? 320 : 140);
   return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
 }
 
@@ -255,7 +345,7 @@ function kartAngleDiff(a, b) {
   return d;
 }
 function kartDrawRoadRibbon(tr, t, mini) {
-  const segs = mini ? 48 : (tr.huge ? 220 : 120);
+  const segs = kartTrackSegs(tr, mini);
   const hw = kartRoadHalf(tr, mini);
   const left = [], right = [];
   for (let i = 0; i <= segs; i++) {
@@ -296,9 +386,9 @@ function kartDrawRoadRibbon(tr, t, mini) {
   ctx.stroke();
   ctx.setLineDash([]);
   if (!mini) {
-    const chevN = tr.huge ? 36 : 20;
+    const chevN = tr.mega ? 48 : (tr.huge ? 36 : 20);
     for (let i = 0; i < chevN; i++) {
-      const u = ((i / chevN) + t * (tr.huge ? 0.25 : 0.4)) % 1;
+      const u = ((i / chevN) + t * (tr.mega ? 0.18 : tr.huge ? 0.25 : 0.4)) % 1;
       const p = kartPathSample(tr, u);
       const tg = kartPathTangent(tr, u);
       const sp = kartToScreen(p.x, p.y, mini);
@@ -335,14 +425,14 @@ function kartDrawRoadKerbs(left, right, tr, mini) {
   }
 }
 function kartDrawTrackDecor(tr, t, mini) {
-  const n = mini ? (tr.huge ? 16 : 12) : (tr.huge ? 56 : 28);
-  const hw = (tr.roadWidth || 100) * 0.5 + (mini ? 18 : 50);
+  const n = mini ? (tr.mega ? 20 : tr.huge ? 16 : 12) : (tr.mega ? 72 : tr.huge ? 56 : 28);
+  const hw = (tr.roadWidth || 100) * 0.5 + (mini ? 18 : (tr.mega ? 70 : tr.huge ? 50 : 50));
   for (let i = 0; i < n; i++) {
     const u = (i / n + t * 0.02) % 1;
     const p = kartPathSample(tr, u);
     const tg = kartPathTangent(tr, u);
     const side = (i % 2) ? 1 : -1;
-    const off = hw + (i % 4) * (mini ? 8 : (tr.huge ? 28 : 22));
+    const off = hw + (i % 4) * (mini ? 8 : (tr.mega ? 36 : tr.huge ? 28 : 22));
     const px = p.x + Math.cos(tg.angle + Math.PI / 2 * side) * off;
     const py = p.y + Math.sin(tg.angle + Math.PI / 2 * side) * off;
     const sp = kartToScreen(px, py, mini);
@@ -400,17 +490,17 @@ function kartDrawStartLine(tr, t) {
 function kartDrawCheckpoints(tr) {
   const cps = tr.checkpoints || [];
   for (let i = 0; i < cps.length; i++) {
-    if (tr.huge && i !== 0) continue;
+    if ((tr.huge || tr.mega) && i !== 0) continue;
     const cp = cps[i];
     const p = kartToScreen(cp.x, cp.y);
     const isFinish = i === 0;
-    if (!tr.huge) {
+    if (!tr.huge && !tr.mega) {
       ctx.fillStyle = isFinish ? 'rgba(255,215,0,0.25)' : 'rgba(255,255,255,0.12)';
       fillRR(p.x - 22, p.y - 14, 44, 28, 6, ctx.fillStyle);
       strokeRR(p.x - 22, p.y - 14, 44, 28, 6, isFinish ? UI.gold : 'rgba(255,255,255,0.35)', isFinish ? 2 : 1);
     }
     ctx.fillStyle = isFinish ? UI.gold : UI.bright;
-    ctx.font = 'bold ' + (tr.huge ? 16 : 13) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.font = 'bold ' + (tr.mega ? 18 : tr.huge ? 16 : 13) + 'px monospace'; ctx.textAlign = 'center';
     ctx.fillText(isFinish ? 'META' : 'S' + i, p.x, p.y + 5);
   }
 }
@@ -496,7 +586,7 @@ function kartInTrack(tr, x, y) {
   return near.dist <= half;
 }
 function kartPushToTrack(tr, k) {
-  const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.huge ? 140 : 80);
+  const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.mega ? 160 : tr.huge ? 140 : 80);
   k.x = near.x;
   k.y = near.y;
   k.speed *= 0.45;
@@ -606,7 +696,7 @@ function kartTryCheckpoint(k, tr) {
     k.lap++;
     spawnText(k.x, k.y - 20, 'VUELTA ' + k.lap, '#ffd700', 18);
     sfx.star();
-  } else if (tr.huge && want > 0) {
+  } else if ((tr.huge || tr.mega) && want > 0) {
     spawnText(k.x, k.y - 16, 'S' + want, tr.accent, 14);
   }
 }
@@ -687,8 +777,8 @@ function kartReadInput(k) {
   k.input.useItem = pressed('KeyJ') || pressed('ShiftLeft');
 }
 function kartAIInput(k, tr) {
-  const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.huge ? 120 : 72);
-  let lookU = near.u + (tr.huge ? 0.025 : 0.06);
+  const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.mega ? 180 : tr.huge ? 120 : 72);
+  let lookU = near.u + (tr.mega ? 0.015 : tr.huge ? 0.025 : 0.06);
   if (!near.onShortcut && tr.shortcuts && Math.random() < 0.012) {
     const sc = tr.shortcuts[0];
     if (sc?.path?.[0]) {
@@ -705,7 +795,7 @@ function kartAIInput(k, tr) {
   let diff = kartAngleDiff(want, k.angle);
   k.input.steer = clamp(diff * 2.8, -1, 1);
   const curve = Math.abs(diff);
-  const top = tr.huge ? KART_MAX_SPEED * 1.08 : KART_MAX_SPEED;
+  const top = KART_MAX_SPEED * kartTrackSpeedMul(tr);
   const rb = kartRubberBandAI(k, tr);
   k.input.accel = curve > 1.2 ? 0.5 : 1;
   k.input.brake = (curve > 0.85 && k.speed > 300) || k.speed > top * 0.92 ? 0.65 : 0;
@@ -752,7 +842,7 @@ function kartSimKart(k, dt, tr) {
   let target = 0;
   const aiMul = k._aiMul || 1;
   const coinMul = 1 + Math.min(0.14, (k.coins || 0) * 0.014);
-  const topSpd = (tr.huge ? KART_MAX_SPEED * 1.1 : KART_MAX_SPEED) * (st.topSpeed || 1) * aiMul * (surf.speedMul || 1) * coinMul;
+  const topSpd = KART_MAX_SPEED * kartTrackSpeedMul(tr) * (st.topSpeed || 1) * aiMul * (surf.speedMul || 1) * coinMul;
   const maxSpd = topSpd * (0.74 + grip * 0.26);
   if (inp.accel) target = maxSpd + k.boost;
   if (inp.brake) target = -140;
@@ -982,9 +1072,11 @@ function updateKart(dt) {
   if (race.phase === 'racing' || race.phase === 'countdown') {
     const me = race.karts[kartLocalIdx()];
     if (me) {
-      const look = me.speed > 80 ? me.angle : kartPathTangent(race.track, kartNearestPath(race.track, me.x, me.y).u).angle;
+      const tr = race.track;
+      const tierMul = tr.mega ? 2.4 : tr.huge ? 1.7 : 1;
+      const look = me.speed > 80 ? me.angle : kartPathTangent(tr, kartNearestPath(tr, me.x, me.y).u).angle;
       const speedFactor = Math.min(1, Math.abs(me.speed) / 380);
-      const lookAhead = 52 + speedFactor * 110;
+      const lookAhead = (52 + speedFactor * 110) * tierMul;
       const camLerp = 0.12 + speedFactor * 0.09;
       const orbitX = Math.sin(camOrbit.yaw) * 40;
       const orbitY = camOrbit.pitch * 28;
@@ -1004,7 +1096,7 @@ function updateKart(dt) {
   }
 }
 function drawKartTrack(tr, t) {
-  if (tr.huge) kartDrawHugeBg(tr);
+  if (tr.huge || tr.mega) kartDrawHugeBg(tr);
   else {
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, tr.bg[1]); grad.addColorStop(1, tr.bg[0]);
@@ -1106,7 +1198,7 @@ function drawKart(t) {
   const cpN = race.track.checkpoints.length;
   if (me) {
     hud('VUELTA ' + Math.min(me.lap + 1, laps) + '/' + laps, 24, 38, UI.gold, 20);
-    hud((race.track.huge ? 'SECTOR ' : 'CP ') + (me.cp + 1) + '/' + cpN, 24, 58, UI.dim, 14);
+    hud(((race.track.huge || race.track.mega) ? 'SECTOR ' : 'CP ') + (me.cp + 1) + '/' + cpN, 24, 58, UI.dim, 14);
     if (me.coins > 0) hud('🪙 ' + me.coins, 24, 78, UI.gold, 14);
     if (me.item) {
       const meta = KART_ITEMS[me.item];
@@ -1118,9 +1210,9 @@ function drawKart(t) {
   }
   hud(race.track.name, W / 2, 36, UI.bright, 22, 'center');
   if (race.cupTotal > 0) hud('COPA · Carrera ' + race.cupRace + '/' + race.cupTotal, W / 2, 58, UI.gold, 15, 'center');
-  else if (race.track.huge) hud('~' + Math.round(race.track.length || 0) + ' m por vuelta', W / 2, 58, UI.cyan, 14, 'center');
+  else if (race.track.huge || race.track.mega) hud('~' + Math.round(race.track.length || 0) + ' m por vuelta', W / 2, 58, UI.cyan, 14, 'center');
   else if (race.phase === 'racing') hud(race.timer.toFixed(1) + 's', W / 2, 58, UI.cyan, 16, 'center');
-  if (race.track.huge && race.phase === 'racing') hud(race.timer.toFixed(1) + 's', W / 2, 76, UI.dim, 13, 'center');
+  if ((race.track.huge || race.track.mega) && race.phase === 'racing') hud(race.timer.toFixed(1) + 's', W / 2, 76, UI.dim, 13, 'center');
   if (race.phase === 'countdown') kartDrawTrafficLights(t);
   const lbH = Math.min(200, 24 + race.karts.length * 16);
   fillRR(W - 208, 8, 200, lbH, 12, 'rgba(8,12,20,0.85)');
@@ -1334,11 +1426,12 @@ function drawKartLobby(t) {
   const cx = W / 2, cy = 330;
   const b = kartTrackBounds(tr);
   const span = Math.max(b.maxX - b.minX, b.maxY - b.minY);
-  const miniScale = tr.huge ? Math.min(0.2, 100 / span) : 0.38;
+  const miniScale = tr.mega ? Math.min(0.12, 80 / span) : tr.huge ? Math.min(0.2, 100 / span) : 0.38;
   const mini = { px: cx, py: cy, tx: tr.cx, ty: tr.cy, scale: miniScale };
   kartDrawTrackDecor(tr, t * 0.6, mini);
   kartDrawRoadRibbon(tr, t, mini);
-  const decor = tr.huge ? 'Pista enorme · ' + Math.round(tr.length || 0) + ' m · 2 vueltas'
+  const decor = tr.mega ? 'Mega arena · ' + Math.round(tr.length || 0) + ' m · Obstáculos · 1 vuelta'
+    : tr.huge ? 'Pista enorme · ' + Math.round(tr.length || 0) + ' m · ' + kartTrackLaps(tr) + ' vueltas'
     : tr.surfaces?.some(s => s.type === 'antigrav') ? 'Antigravedad · Saltos · Nebulosa'
     : tr.decor === 'palm' ? 'Costa · Rectas rapidas · Agua'
     : tr.decor === 'rock' ? 'Montaña · Curvas cerradas' : 'Urbano · Tecnica pura';

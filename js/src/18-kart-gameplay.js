@@ -62,13 +62,13 @@ function kartUpdateObstacles(dt, tr) {
   for (const ob of race.obstacles) {
     ob.phase += dt * (ob.kind === 'crab' ? 2.2 : 1.4);
     const tg = kartPathTangent(tr, ob.u);
-    const lane = Math.sin(ob.phase) * tr.roadWidth * 0.32;
+    const lane = Math.sin(ob.phase) * tr.roadWidth * (tr.mega ? 0.38 : 0.32);
     ob.x = kartPathSample(tr, ob.u).x + Math.cos(tg.angle + Math.PI / 2) * lane;
     ob.y = kartPathSample(tr, ob.u).y + Math.sin(tg.angle + Math.PI / 2) * lane;
     ob.angle = tg.angle;
     for (const k of race.karts) {
       if (k.finished || k.shieldTimer > 0 || k.starTimer > 0) continue;
-      if (Math.hypot(k.x - ob.x, k.y - ob.y) < 28) {
+      if (Math.hypot(k.x - ob.x, k.y - ob.y) < (tr.mega ? 34 : 28)) {
         k.speed *= 0.35;
         k.stunTimer = Math.max(k.stunTimer || 0, 0.6);
         spawnParticles(k.x, k.y, '#888', 8, 180);

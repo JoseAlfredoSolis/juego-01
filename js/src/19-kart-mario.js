@@ -31,7 +31,8 @@ const KART_CUPS = [
   { name: 'COPA MUSHROOM', tracks: [0, 1, 2], color: '#e04040', icon: '🍄' },
   { name: 'COPA FLOR',     tracks: [1, 2, 3], color: '#40c040', icon: '🌸' },
   { name: 'COPA ESTRELLA', tracks: [0, 2, 4], color: '#4080ff', icon: '⭐' },
-  { name: 'COPA NEBULA',   tracks: [3, 4, 1], color: '#a040ff', icon: '🌌' },
+  { name: 'COPA NEBULA',   tracks: [3, 4, 5], color: '#a040ff', icon: '🌌' },
+  { name: 'COPA OBSTÁCULOS', tracks: [5, 1, 3], color: '#ff6020', icon: '💥' },
 ];
 const KART_CPU_NAMES = ['PEACH', 'BOWSER', 'TOAD', 'LUIGI', 'YOSHI', 'WARIO', 'WALUIGI'];
 
@@ -159,7 +160,7 @@ function kartCupFinished() {
 
 function kartSurfaceType(tr, x, y) {
   if (!tr.surfaces) return 'road';
-  const near = kartNearestPath(tr, x, y, tr.huge ? 100 : 48);
+  const near = kartNearestPath(tr, x, y, tr.mega ? 160 : tr.huge ? 100 : 48);
   const u = near.u;
   for (const s of tr.surfaces) {
     const u0 = s.uStart, u1 = s.uEnd;
