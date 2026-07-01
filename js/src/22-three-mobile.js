@@ -120,6 +120,56 @@ function threeTexChecker() {
   }, [6, 6]);
 }
 
+function threeTexSky(top, bottom) {
+  const key = 'sky_' + top + '_' + bottom;
+  return threeProcTex(key, 4, 256, (g, w, h) => {
+    const grd = g.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, top);
+    grd.addColorStop(1, bottom);
+    g.fillStyle = grd;
+    g.fillRect(0, 0, w, h);
+  }, [1, 1]);
+}
+
+function threeEnhanceRenderer(renderer) {
+  if (renderer.toneMapping !== undefined) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+  }
+}
+
+function threeAddSkyDome(scene, topHex, bottomHex) {
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(260, 40, 24),
+    new THREE.MeshBasicMaterial({
+      map: threeTexSky('#' + threeHexColor(topHex).toString(16).padStart(6, '0'),
+        '#' + threeHexColor(bottomHex).toString(16).padStart(6, '0')),
+      side: THREE.BackSide,
+    })
+  );
+  scene.add(sky);
+  return sky;
+}
+
+function threeAddStarfield(scene, count, spread) {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = spread * (0.4 + Math.random() * 0.6);
+    const y = 8 + Math.random() * spread * 0.8;
+    pos[i * 3] = Math.cos(a) * r;
+    pos[i * 3 + 1] = y;
+    pos[i * 3 + 2] = Math.sin(a) * r;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0xffffff, size: 0.35, transparent: true, opacity: 0.75, depthWrite: false,
+  }));
+  scene.add(stars);
+  return stars;
+}
+
 function threeEnsure() {
   if (threeCtx) return threeCtx;
   const el = document.getElementById('three-c');
@@ -130,6 +180,7 @@ function threeEnsure() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   if (renderer.outputColorSpace !== undefined) renderer.outputColorSpace = THREE.SRGBColorSpace;
+  threeEnhanceRenderer(renderer);
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x0a1420, 40, 220);
   const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 500);
@@ -186,21 +237,27 @@ function threeClearScene(ctx) {
 }
 
 function threeAddLights(scene, warm) {
-  const amb = new THREE.AmbientLight(warm ? 0x608050 : 0x6070a0, 0.62);
-  const sun = new THREE.DirectionalLight(warm ? 0xfff0c8 : 0xfff4d0, 1.2);
+  const hemi = new THREE.HemisphereLight(
+    warm ? 0x88c8ff : 0x9ab8e8,
+    warm ? 0x3a6838 : 0x2a3048,
+    0.55
+  );
+  const amb = new THREE.AmbientLight(warm ? 0x608050 : 0x6070a0, 0.42);
+  const sun = new THREE.DirectionalLight(warm ? 0xfff0c8 : 0xfff4d0, 1.35);
   sun.position.set(40, 90, 35);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(1536, 1536);
   sun.shadow.camera.near = 5;
   sun.shadow.camera.far = 200;
-  sun.shadow.camera.left = -60;
-  sun.shadow.camera.right = 60;
-  sun.shadow.camera.top = 60;
-  sun.shadow.camera.bottom = -60;
-  const rim = new THREE.DirectionalLight(warm ? 0xa0d080 : 0x80b0ff, 0.38);
+  sun.shadow.camera.left = -70;
+  sun.shadow.camera.right = 70;
+  sun.shadow.camera.top = 70;
+  sun.shadow.camera.bottom = -70;
+  sun.shadow.bias = -0.0008;
+  const rim = new THREE.DirectionalLight(warm ? 0xa0d080 : 0x80b0ff, 0.45);
   rim.position.set(-35, 25, -45);
-  scene.add(amb, sun, rim);
-  return [amb, sun, rim];
+  scene.add(hemi, amb, sun, rim);
+  return [hemi, amb, sun, rim];
 }
 
 function threeMkWheel() {
@@ -268,9 +325,15 @@ function threeMkKartMesh(color, name) {
     wheelMeshes.push(w);
   }
   g.userData.wheels = wheelMeshes;
-  if (name) {
-    g.userData.name = name;
-  }
+  const exhaust = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.2, transparent: true, opacity: 0.7 })
+  );
+  exhaust.position.set(-2.5, 1.0, 0);
+  exhaust.visible = false;
+  g.add(exhaust);
+  g.userData.exhaust = exhaust;
+  if (name) g.userData.name = name;
   return g;
 }
 
@@ -283,13 +346,15 @@ function threeMkTree(x, z, scale) {
   trunk.position.y = 1.25 * scale;
   trunk.castShadow = true;
   g.add(trunk);
-  const leaves = new THREE.Mesh(
-    new THREE.ConeGeometry(1.8 * scale, 4 * scale, 8),
-    new THREE.MeshStandardMaterial({ color: 0x2a7830, roughness: 0.9 })
-  );
-  leaves.position.y = 3.8 * scale;
-  leaves.castShadow = true;
-  g.add(leaves);
+  for (let i = 0; i < 3; i++) {
+    const leaves = new THREE.Mesh(
+      new THREE.ConeGeometry((1.8 - i * 0.35) * scale, (2.6 - i * 0.3) * scale, 8),
+      new THREE.MeshStandardMaterial({ color: 0x1e6828 + i * 0x081008, roughness: 0.88 })
+    );
+    leaves.position.y = (3.2 + i * 1.5) * scale;
+    leaves.castShadow = true;
+    g.add(leaves);
+  }
   g.position.set(x, 0, z);
   return g;
 }
@@ -380,20 +445,43 @@ function threeBuildTrackMesh(tr) {
   const curve = new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.35);
   const roadW = Math.max(3.8, (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.55);
   const asphaltTex = threeTexAsphalt();
-  const roadGeo = new THREE.TubeGeometry(curve, segs, roadW * 0.5, 10, true);
+  const roadGeo = new THREE.TubeGeometry(curve, segs, roadW * 0.46, 12, true);
   const road = new THREE.Mesh(roadGeo, new THREE.MeshStandardMaterial({
-    map: asphaltTex, metalness: 0.2, roughness: 0.78, color: threeHexColor(tr.asphalt?.[1] || '#5a5e66'),
+    map: asphaltTex, metalness: 0.25, roughness: 0.72,
+    color: threeHexColor(tr.asphalt?.[1] || '#5a5e66'),
   }));
+  road.position.y = 0.06;
   road.receiveShadow = true;
   group.add(road);
 
-  const kerbGeo = new THREE.TubeGeometry(curve, segs, roadW * 0.6, 8, true);
+  const kerbGeo = new THREE.TubeGeometry(curve, segs, roadW * 0.54, 10, true);
   const kerb = new THREE.Mesh(kerbGeo, new THREE.MeshStandardMaterial({
     map: threeTexKerb(), metalness: 0.05, roughness: 0.9,
   }));
-  kerb.position.y = -0.03;
+  kerb.position.y = 0.02;
   kerb.receiveShadow = true;
   group.add(kerb);
+
+  const lineGeo = new THREE.TubeGeometry(curve, segs, 0.18, 4, true);
+  const lineMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.25,
+  });
+  const centerLine = new THREE.Mesh(lineGeo, lineMat);
+  centerLine.position.y = 0.14;
+  group.add(centerLine);
+
+  const st = tr.starts?.[0];
+  if (st) {
+    const sw = threeGameToWorld(st.x, st.y, 0, tr);
+    const arch = new THREE.Mesh(
+      new THREE.TorusGeometry(roadW * 0.55, 0.35, 8, 24, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xaaccff, emissiveIntensity: 0.35, metalness: 0.4 })
+    );
+    arch.position.set(sw.x, 2.8, sw.z);
+    arch.rotation.y = -st.a + Math.PI / 2;
+    arch.rotation.z = Math.PI / 2;
+    group.add(arch);
+  }
 
   const b = kartTrackBounds(tr);
   const sc = threeTrackScale(tr).sc;
@@ -411,11 +499,7 @@ function threeBuildTrackMesh(tr) {
   ground.receiveShadow = true;
   group.add(ground);
 
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(200, 32, 20),
-    new THREE.MeshBasicMaterial({ color: threeHexColor(tr.bg?.[0] || '#1a4080'), side: THREE.BackSide })
-  );
-  group.add(sky);
+  threeAddSkyDome(group, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
 
   threeAddTrackDecor(group, tr);
 
@@ -432,6 +516,9 @@ function threeBuildTrackMesh(tr) {
     item.position.set(w.x, 1.3, w.z);
     item.castShadow = true;
     group.add(item);
+    const glow = new THREE.PointLight(0xff66ff, 0.6, 8);
+    glow.position.set(w.x, 1.8, w.z);
+    group.add(glow);
   }
   return group;
 }
@@ -453,7 +540,9 @@ function threeBuildMainMenuScene(ctx) {
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, true);
   ctx.scene.background = new THREE.Color(0x1a4828);
-  ctx.scene.fog = new THREE.Fog(0x1a4828, 35, 180);
+  ctx.scene.fog = new THREE.FogExp2(0x1a4828, 0.012);
+  threeAddSkyDome(ctx.scene, '#5ab0e8', '#1a4828');
+  ctx.starfield = threeAddStarfield(ctx.scene, 120, 55);
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(120, 120),
@@ -526,8 +615,21 @@ function threeBuildKartMenuScene(ctx) {
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
   ctx.scene.background = new THREE.Color(0x0a1020);
-  ctx.scene.fog = new THREE.Fog(0x0a1020, 30, 160);
+  ctx.scene.fog = new THREE.FogExp2(0x0a1020, 0.014);
+  threeAddSkyDome(ctx.scene, '#283858', '#0a1020');
   threeAddMenuFloor(ctx, 42, 'metal');
+
+  const water = new THREE.Mesh(
+    new THREE.CircleGeometry(50, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0x1a3868, metalness: 0.85, roughness: 0.15,
+      emissive: 0x0a2040, emissiveIntensity: 0.2,
+    })
+  );
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = -0.02;
+  ctx.scene.add(water);
+  ctx.starfield = threeAddStarfield(ctx.scene, 80, 45);
 
   const ringPts = [];
   for (let i = 0; i <= 64; i++) {
@@ -609,6 +711,13 @@ function threeSyncRaceKarts(ctx, tr, t) {
       entry.mesh.traverse(obj => {
         if (obj.material?.emissive) obj.material.emissiveIntensity = 0.15 + Math.sin((t || 0) * 12) * 0.08;
       });
+      const ex = entry.mesh.userData.exhaust;
+      if (ex) {
+        ex.visible = true;
+        ex.material.emissiveIntensity = 0.5 + Math.sin((t || 0) * 18) * 0.3;
+      }
+    } else if (entry.mesh.userData.exhaust) {
+      entry.mesh.userData.exhaust.visible = false;
     }
   }
   if (local) {
@@ -618,8 +727,19 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const h = 7 + Math.min(6, (local.z || 0) * 0.04);
     const cx = w.x - Math.cos(ca) * dist;
     const cz = w.z - Math.sin(ca) * dist;
-    ctx.camera.position.lerp(new THREE.Vector3(cx, w.y + h, cz), 0.12);
-    ctx.camera.lookAt(w.x, w.y + 2.5, w.z);
+    ctx.camera.position.lerp(new THREE.Vector3(cx, w.y + h, cz), 0.14);
+    ctx.camera.lookAt(w.x, w.y + 2.8, w.z);
+    ctx.camera.fov = lerp(ctx.camera.fov, 62 + (local.speed || 0) * 0.008, 0.08);
+    ctx.camera.updateProjectionMatrix();
+  }
+  if (ctx.trackGroup) {
+    ctx.trackGroup.children.forEach(ch => {
+      if (ch.isPointLight) return;
+      if (ch.geometry?.type === 'BoxGeometry' && ch.material?.emissive) {
+        ch.rotation.y = (t || 0) * 2.5;
+        ch.position.y = 1.3 + Math.sin((t || 0) * 3 + ch.position.x) * 0.15;
+      }
+    });
   }
 }
 
@@ -627,7 +747,10 @@ function threeUpdateMainMenu(ctx, dt, t) {
   ctx.menuT += dt;
   if (ctx.menuGroup) {
     const bear = ctx.menuGroup.children[0];
-    if (bear) bear.position.y = 0.2 + Math.sin(t * 2) * 0.12;
+    if (bear) {
+      bear.position.y = 0.2 + Math.sin(t * 2) * 0.12;
+      bear.rotation.y = Math.sin(t * 0.4) * 0.15;
+    }
     ctx.menuGroup.children.forEach(ch => {
       if (ch.userData?.orbit !== undefined) {
         const a = ch.userData.orbit + t * 0.5;
@@ -636,6 +759,10 @@ function threeUpdateMainMenu(ctx, dt, t) {
         ch.rotation.y = t * 2;
       }
     });
+  }
+  if (ctx.starfield?.material) {
+    ctx.starfield.rotation.y = t * 0.025;
+    ctx.starfield.material.opacity = 0.62 + Math.sin(t * 1.8) * 0.12;
   }
   const orbit = t * 0.12;
   ctx.camera.position.set(Math.sin(orbit) * 32, 13 + Math.sin(t * 0.5) * 2, Math.cos(orbit) * 32);
@@ -648,6 +775,10 @@ function threeUpdateKartMenu(ctx, dt, t) {
     ctx.menuGroup.rotation.y += dt * 0.45;
     const kart = ctx.menuGroup.children[0];
     if (kart) kart.position.y = 0.2 + Math.sin(t * 2.2) * 0.15;
+  }
+  if (ctx.starfield?.material) {
+    ctx.starfield.rotation.y = -t * 0.03;
+    ctx.starfield.material.opacity = 0.58 + Math.sin(t * 2.2) * 0.14;
   }
   const orbit = t * 0.18;
   ctx.camera.position.set(Math.sin(orbit) * 30, 14 + Math.sin(t * 0.7) * 2, Math.cos(orbit) * 30);
@@ -670,12 +801,7 @@ function threeBuildGameplayScene(ctx, ld, world) {
   const bg = threeHexColor(ld.bg?.[0] || '#1a3a1a');
   ctx.scene.background = new THREE.Color(bg);
   ctx.scene.fog = new THREE.Fog(bg, 35, 220);
-
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(280, 32, 18),
-    new THREE.MeshBasicMaterial({ color: threeHexColor(ld.bg?.[1] || ld.bg?.[0] || '#2d5a1b'), side: THREE.BackSide })
-  );
-  ctx.scene.add(sky);
+  threeAddSkyDome(ctx.scene, ld.bg?.[1] || ld.bg?.[0] || '#2d5a1b', ld.bg?.[0] || '#1a3a1a');
 
   const [topCol, sideCol] = THREE_WORLD_COLS[world] || THREE_WORLD_COLS[0];
   const topMat = new THREE.MeshStandardMaterial({ color: threeHexColor(topCol), roughness: 0.88 });
@@ -689,6 +815,19 @@ function threeBuildGameplayScene(ctx, ld, world) {
   ground.position.set(ld.levelW * THREE_GP_SCALE * 0.5, 0.6, 0);
   ground.receiveShadow = true;
   ctx.gameGroup.add(ground);
+
+  for (let i = 0; i < 6; i++) {
+    const hx = (i + 0.5) * ld.levelW / 6;
+    const hill = new THREE.Mesh(
+      new THREE.ConeGeometry(8 + (i % 3) * 3, 14 + (i % 4) * 4, 6),
+      new THREE.MeshStandardMaterial({
+        color: threeHexColor(sideCol), roughness: 1, transparent: true, opacity: 0.35,
+      })
+    );
+    const hp = threeGpPos(hx, 520);
+    hill.position.set(hp.x, hp.y + 6, -10 - (i % 2) * 4);
+    ctx.gameGroup.add(hill);
+  }
 
   for (const [px, py, pw, ph] of ld.platforms) {
     const mesh = new THREE.Mesh(
@@ -741,9 +880,10 @@ function threeRebuildGameplayEntities(ctx) {
     ctx.entityGroup.add(goal);
     const flag = new THREE.Mesh(
       new THREE.BoxGeometry(0.15, 2.8, 1.8),
-      new THREE.MeshStandardMaterial({ color: 0x2a9d4a })
+      new THREE.MeshStandardMaterial({ color: 0x2a9d4a, emissive: 0x1a6030, emissiveIntensity: 0.2 })
     );
     flag.position.set(g.x + 1.2, g.y - 1.2, 1.6);
+    flag.userData.isFlag = true;
     ctx.entityGroup.add(flag);
   }
 
@@ -827,8 +967,13 @@ function threeSyncGameplay(ctx, t) {
   const camX = lookX + 14;
   const camY = lookY + 11;
   const camZ = 26;
-  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
+  ctx.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.1);
   ctx.camera.lookAt(lookX, lookY, 0);
+  if (ctx.entityGroup) {
+    ctx.entityGroup.children.forEach(ch => {
+      if (ch.userData?.isFlag) ch.rotation.z = Math.sin(t * 3) * 0.35;
+    });
+  }
 }
 
 function threeSceneKind(scene) {
