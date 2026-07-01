@@ -65,6 +65,14 @@ body.three-play canvas#c {
   image-rendering: auto;
   background: transparent;
 }
+body.three-play canvas#c {
+  pointer-events: none;
+}
+body.three-play #three-c {
+  pointer-events: auto;
+  z-index: 2;
+  touch-action: none;
+}
 body.three-menu.mob-menu-html #mobMenuHtml {
   background: linear-gradient(180deg, rgba(8,12,24,0.55) 0%, rgba(8,12,24,0.82) 100%);
 }

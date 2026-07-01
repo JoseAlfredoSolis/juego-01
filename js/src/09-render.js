@@ -35,10 +35,12 @@ function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
 
   const dx = Math.abs(tx - cam.x), dy = Math.abs(ty - cam.y);
   const fast = p && (p.dashTimer > 0 || Math.abs(p.vx || 0) > 200);
-  const lx = fast ? 0.38 : dx > 90 ? 0.3 : dx > 30 ? 0.24 : 0.19;
-  const ly = dy > 60 ? 0.28 : dy > 18 ? 0.22 : 0.17;
-  cam.x = lerp(cam.x, tx, lx);
-  cam.y = lerp(cam.y, ty, ly);
+  const off = typeof camOrbit2DOffset === 'function' ? camOrbit2DOffset() : { x: 0, y: 0 };
+  const orbiting = typeof camOrbitDragging === 'function' && camOrbitDragging();
+  const lx = orbiting ? 0.45 : (fast ? 0.38 : dx > 90 ? 0.3 : dx > 30 ? 0.24 : 0.19);
+  const ly = orbiting ? 0.45 : (dy > 60 ? 0.28 : dy > 18 ? 0.22 : 0.17);
+  cam.x = lerp(cam.x, tx + off.x, lx);
+  cam.y = lerp(cam.y, ty + off.y, ly);
 }
 
 // ── Drawing Helpers ────────────────────────────────────────────────────────

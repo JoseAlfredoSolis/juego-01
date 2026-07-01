@@ -2,11 +2,11 @@
 const ptrCtl = { active: false, id: null };
 
 function ptrGameActive() {
-  if (gs.scene === 'gameplay') return true;
-  return gs.scene === 'kart' && race && (race.phase === 'racing' || race.phase === 'countdown');
+  return typeof camOrbitPlayActive === 'function' && camOrbitPlayActive();
 }
 
 function ptrCanvasCoords(e) {
+  if (typeof camOrbitScreenCoords === 'function') return camOrbitScreenCoords(e);
   const rect = canvas.getBoundingClientRect();
   const scaleX = W / Math.max(1, rect.width);
   const scaleY = H / Math.max(1, rect.height);
@@ -40,45 +40,40 @@ function ptrApplyAxes(cx, cy) {
   }
 }
 
+function ptrCtlOnDown(e, p) {
+  ptrCtl.active = true;
+  ptrCtl.id = e.pointerId;
+  canvas.setPointerCapture?.(e.pointerId);
+  ptrApplyAxes(p.x, p.y);
+  audioInit();
+  e.preventDefault();
+}
+
+function ptrCtlOnMove(e) {
+  if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
+  const p = ptrCanvasCoords(e);
+  ptrApplyAxes(p.x, p.y);
+  e.preventDefault();
+}
+
+function ptrCtlOnEnd(e) {
+  if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
+  ptrCtl.active = false;
+  ptrCtl.id = null;
+  ptrReleaseAll();
+  canvas.releasePointerCapture?.(e.pointerId);
+  e.preventDefault();
+}
+
 function ptrCtlFrameSync() {
   if (!ptrGameActive() && ptrCtl.active) {
     ptrCtl.active = false;
     ptrCtl.id = null;
     ptrReleaseAll();
   }
+  if (typeof camOrbitFrameSync === 'function') camOrbitFrameSync();
 }
 
 function setupPointerControls() {
-  const onDown = e => {
-    if (!ptrGameActive()) return;
-    if (e.target.closest('#touch .tbtn, #mobNav, #mobMenuHtml, #mpJoinBar')) return;
-    ptrCtl.active = true;
-    ptrCtl.id = e.pointerId;
-    canvas.setPointerCapture?.(e.pointerId);
-    const p = ptrCanvasCoords(e);
-    ptrApplyAxes(p.x, p.y);
-    audioInit();
-    e.preventDefault();
-  };
-
-  const onMove = e => {
-    if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
-    const p = ptrCanvasCoords(e);
-    ptrApplyAxes(p.x, p.y);
-    e.preventDefault();
-  };
-
-  const onEnd = e => {
-    if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
-    ptrCtl.active = false;
-    ptrCtl.id = null;
-    ptrReleaseAll();
-    canvas.releasePointerCapture?.(e.pointerId);
-    e.preventDefault();
-  };
-
-  canvas.addEventListener('pointerdown', onDown);
-  canvas.addEventListener('pointermove', onMove);
-  canvas.addEventListener('pointerup', onEnd);
-  canvas.addEventListener('pointercancel', onEnd);
+  setupCameraOrbit();
 }

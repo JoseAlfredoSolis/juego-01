@@ -913,10 +913,10 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const w = threeGameToWorld(local.x, local.y, local.z, tr);
     const curve = ctx.trackGroup?.userData?.raceCurve;
     const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
-    const ca = race.camAngle || local.angle || 0;
+    const ca = (race.camAngle || local.angle || 0) + camOrbit.yaw * 0.35;
     const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 380);
-    const dist = 16 + (race.camZoom || 1) * 4 + speedFactor * 8;
-    const h = 8.5 + Math.min(7, (local.z || 0) * 0.045) + speedFactor * 2;
+    const dist = 16 + (race.camZoom || 1) * 4 + speedFactor * 8 + camOrbit.dist * 0.35;
+    const h = 8.5 + Math.min(7, (local.z || 0) * 0.045) + speedFactor * 2 + camOrbit.pitch * 12;
     const cx = w.x - Math.cos(ca) * dist;
     const cz = w.z - Math.sin(ca) * dist;
     const lookH = 2.2 + Math.min(2, (local.speed || 0) * 0.003);
@@ -1162,22 +1162,24 @@ function threeSyncGameplay(ctx, t) {
 
   const velX = player.vx || 0;
   const velY = player.vy || 0;
-  const moveDir = Math.abs(velX) > 20 ? Math.sign(velX) : player.facing;
-  const lookX = pp.x + moveDir * 1.2;
+  const lookX = pp.x;
   const lookY = pp.y + 1.6;
-  let camZ = player.onGround ? 30 : (velY < -120 ? 26 : velY > 140 ? 34 : 29);
-  camZ += Math.min(4, Math.abs(velX) * 0.008);
-  let camY = pp.y + (player.onGround ? 8.5 : (velY < -120 ? 6 : velY > 140 ? 10.5 : 8));
-  const camX = lookX + moveDir * 3.5;
+  const lookZ = 0;
+  let baseDist = player.onGround ? 30 : (velY < -120 ? 26 : velY > 140 ? 34 : 29);
+  baseDist += Math.min(4, Math.abs(velX) * 0.008);
+  const baseH = player.onGround ? 8.5 : (velY < -120 ? 6 : velY > 140 ? 10.5 : 8);
+  const orbitPos = camOrbit3DPosition(lookX, lookY, lookZ, baseDist, baseH);
 
-  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: camX, y: camY, z: camZ };
-  const lx = Math.abs(velX) > 100 ? 0.28 : 0.22;
-  const ly = player.onGround ? 0.2 : 0.26;
-  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, camX, lx);
-  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, camY, ly);
-  ctx.gpCamFocus.z = lerp(ctx.gpCamFocus.z, camZ, 0.18);
+  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: orbitPos.x, y: orbitPos.y, z: orbitPos.z };
+  const orbiting = typeof camOrbitDragging === 'function' && camOrbitDragging();
+  const lx = orbiting ? 0.55 : (Math.abs(velX) > 100 ? 0.28 : 0.22);
+  const ly = orbiting ? 0.55 : (player.onGround ? 0.2 : 0.26);
+  const lz = orbiting ? 0.5 : 0.18;
+  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, orbitPos.x, lx);
+  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, orbitPos.y, ly);
+  ctx.gpCamFocus.z = lerp(ctx.gpCamFocus.z, orbitPos.z, lz);
   ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, ctx.gpCamFocus.z);
-  ctx.camera.lookAt(lookX, lookY, 0);
+  ctx.camera.lookAt(lookX, lookY, lookZ);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {
       if (ch.userData?.isFlag) ch.rotation.z = Math.sin(t * 3) * 0.35;

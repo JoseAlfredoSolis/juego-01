@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v57';
+const GAME_VERSION = 'v59';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -1125,10 +1125,12 @@ function camUpdate(px, py, levelW, snap=false, p=null, levelH=720) {
 
   const dx = Math.abs(tx - cam.x), dy = Math.abs(ty - cam.y);
   const fast = p && (p.dashTimer > 0 || Math.abs(p.vx || 0) > 200);
-  const lx = fast ? 0.38 : dx > 90 ? 0.3 : dx > 30 ? 0.24 : 0.19;
-  const ly = dy > 60 ? 0.28 : dy > 18 ? 0.22 : 0.17;
-  cam.x = lerp(cam.x, tx, lx);
-  cam.y = lerp(cam.y, ty, ly);
+  const off = typeof camOrbit2DOffset === 'function' ? camOrbit2DOffset() : { x: 0, y: 0 };
+  const orbiting = typeof camOrbitDragging === 'function' && camOrbitDragging();
+  const lx = orbiting ? 0.45 : (fast ? 0.38 : dx > 90 ? 0.3 : dx > 30 ? 0.24 : 0.19);
+  const ly = orbiting ? 0.45 : (dy > 60 ? 0.28 : dy > 18 ? 0.22 : 0.17);
+  cam.x = lerp(cam.x, tx + off.x, lx);
+  cam.y = lerp(cam.y, ty + off.y, ly);
 }
 
 // ── Drawing Helpers ────────────────────────────────────────────────────────
@@ -2508,6 +2510,7 @@ function startLevel() {
   levelCoins = 0; levelStars = 0; runNoHit = true;
   particles = [];
   fx = []; shake = 0; flash = null; banner = null;
+  if (typeof camOrbitReset === 'function') camOrbitReset();
   camUpdate(player.x, player.y, levelData.levelW, true, player);
 }
 
@@ -3576,6 +3579,7 @@ function loop(ts) {
   mpCodeInputSync();
   mobUiSync();
   if (typeof ptrCtlFrameSync === 'function') ptrCtlFrameSync();
+  if (typeof camOrbitUpdateKeys === 'function') camOrbitUpdateKeys(dt);
   if (typeof threeMobileSync === 'function') threeMobileSync(gs.scene, dt, t);
   ctx.clearRect(0, 0, W, H);
 
@@ -4634,8 +4638,10 @@ function updateKart(dt) {
       const speedFactor = Math.min(1, Math.abs(me.speed) / 380);
       const lookAhead = 52 + speedFactor * 110;
       const camLerp = 0.12 + speedFactor * 0.09;
-      race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead, camLerp);
-      race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead, camLerp);
+      const orbitX = Math.sin(camOrbit.yaw) * 40;
+      const orbitY = camOrbit.pitch * 28;
+      race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead + orbitX, camLerp);
+      race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead + orbitY, camLerp);
       let targetA = look - Math.PI / 2;
       const agTilt = kartAntigravCamTilt(me, race.track);
       targetA += agTilt;
@@ -7477,10 +7483,10 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const w = threeGameToWorld(local.x, local.y, local.z, tr);
     const curve = ctx.trackGroup?.userData?.raceCurve;
     const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
-    const ca = race.camAngle || local.angle || 0;
+    const ca = (race.camAngle || local.angle || 0) + camOrbit.yaw * 0.35;
     const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 380);
-    const dist = 16 + (race.camZoom || 1) * 4 + speedFactor * 8;
-    const h = 8.5 + Math.min(7, (local.z || 0) * 0.045) + speedFactor * 2;
+    const dist = 16 + (race.camZoom || 1) * 4 + speedFactor * 8 + camOrbit.dist * 0.35;
+    const h = 8.5 + Math.min(7, (local.z || 0) * 0.045) + speedFactor * 2 + camOrbit.pitch * 12;
     const cx = w.x - Math.cos(ca) * dist;
     const cz = w.z - Math.sin(ca) * dist;
     const lookH = 2.2 + Math.min(2, (local.speed || 0) * 0.003);
@@ -7726,22 +7732,24 @@ function threeSyncGameplay(ctx, t) {
 
   const velX = player.vx || 0;
   const velY = player.vy || 0;
-  const moveDir = Math.abs(velX) > 20 ? Math.sign(velX) : player.facing;
-  const lookX = pp.x + moveDir * 1.2;
+  const lookX = pp.x;
   const lookY = pp.y + 1.6;
-  let camZ = player.onGround ? 30 : (velY < -120 ? 26 : velY > 140 ? 34 : 29);
-  camZ += Math.min(4, Math.abs(velX) * 0.008);
-  let camY = pp.y + (player.onGround ? 8.5 : (velY < -120 ? 6 : velY > 140 ? 10.5 : 8));
-  const camX = lookX + moveDir * 3.5;
+  const lookZ = 0;
+  let baseDist = player.onGround ? 30 : (velY < -120 ? 26 : velY > 140 ? 34 : 29);
+  baseDist += Math.min(4, Math.abs(velX) * 0.008);
+  const baseH = player.onGround ? 8.5 : (velY < -120 ? 6 : velY > 140 ? 10.5 : 8);
+  const orbitPos = camOrbit3DPosition(lookX, lookY, lookZ, baseDist, baseH);
 
-  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: camX, y: camY, z: camZ };
-  const lx = Math.abs(velX) > 100 ? 0.28 : 0.22;
-  const ly = player.onGround ? 0.2 : 0.26;
-  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, camX, lx);
-  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, camY, ly);
-  ctx.gpCamFocus.z = lerp(ctx.gpCamFocus.z, camZ, 0.18);
+  if (!ctx.gpCamFocus) ctx.gpCamFocus = { x: orbitPos.x, y: orbitPos.y, z: orbitPos.z };
+  const orbiting = typeof camOrbitDragging === 'function' && camOrbitDragging();
+  const lx = orbiting ? 0.55 : (Math.abs(velX) > 100 ? 0.28 : 0.22);
+  const ly = orbiting ? 0.55 : (player.onGround ? 0.2 : 0.26);
+  const lz = orbiting ? 0.5 : 0.18;
+  ctx.gpCamFocus.x = lerp(ctx.gpCamFocus.x, orbitPos.x, lx);
+  ctx.gpCamFocus.y = lerp(ctx.gpCamFocus.y, orbitPos.y, ly);
+  ctx.gpCamFocus.z = lerp(ctx.gpCamFocus.z, orbitPos.z, lz);
   ctx.camera.position.set(ctx.gpCamFocus.x, ctx.gpCamFocus.y, ctx.gpCamFocus.z);
-  ctx.camera.lookAt(lookX, lookY, 0);
+  ctx.camera.lookAt(lookX, lookY, lookZ);
   if (ctx.entityGroup) {
     ctx.entityGroup.children.forEach(ch => {
       if (ch.userData?.isFlag) ch.rotation.z = Math.sin(t * 3) * 0.35;
@@ -7828,11 +7836,11 @@ function threeMobileHudOnly() {
 const ptrCtl = { active: false, id: null };
 
 function ptrGameActive() {
-  if (gs.scene === 'gameplay') return true;
-  return gs.scene === 'kart' && race && (race.phase === 'racing' || race.phase === 'countdown');
+  return typeof camOrbitPlayActive === 'function' && camOrbitPlayActive();
 }
 
 function ptrCanvasCoords(e) {
+  if (typeof camOrbitScreenCoords === 'function') return camOrbitScreenCoords(e);
   const rect = canvas.getBoundingClientRect();
   const scaleX = W / Math.max(1, rect.width);
   const scaleY = H / Math.max(1, rect.height);
@@ -7866,45 +7874,257 @@ function ptrApplyAxes(cx, cy) {
   }
 }
 
+function ptrCtlOnDown(e, p) {
+  ptrCtl.active = true;
+  ptrCtl.id = e.pointerId;
+  canvas.setPointerCapture?.(e.pointerId);
+  ptrApplyAxes(p.x, p.y);
+  audioInit();
+  e.preventDefault();
+}
+
+function ptrCtlOnMove(e) {
+  if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
+  const p = ptrCanvasCoords(e);
+  ptrApplyAxes(p.x, p.y);
+  e.preventDefault();
+}
+
+function ptrCtlOnEnd(e) {
+  if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
+  ptrCtl.active = false;
+  ptrCtl.id = null;
+  ptrReleaseAll();
+  canvas.releasePointerCapture?.(e.pointerId);
+  e.preventDefault();
+}
+
 function ptrCtlFrameSync() {
   if (!ptrGameActive() && ptrCtl.active) {
     ptrCtl.active = false;
     ptrCtl.id = null;
     ptrReleaseAll();
   }
+  if (typeof camOrbitFrameSync === 'function') camOrbitFrameSync();
 }
 
 function setupPointerControls() {
+  setupCameraOrbit();
+}
+
+
+// ── Camera orbit / perspective drag (mouse + touch + keyboard) ───────────────
+const camOrbit = {
+  yaw: 0,
+  pitch: 0,
+  dist: 0,
+  mode: null,
+  dragId: null,
+  lastX: 0,
+  lastY: 0,
+  pointers: new Map(),
+  keys: { yawL: false, yawR: false, pitchU: false, pitchD: false, zoomIn: false, zoomOut: false },
+};
+
+function camOrbitPlayActive() {
+  if (gs.scene === 'gameplay') return true;
+  return gs.scene === 'kart' && race && (race.phase === 'racing' || race.phase === 'countdown');
+}
+
+function camOrbitDragging() {
+  return camOrbit.mode === 'camera' && camOrbit.dragId != null;
+}
+
+function camOrbitReset() {
+  camOrbit.yaw = 0;
+  camOrbit.pitch = 0;
+  camOrbit.dist = 0;
+}
+
+function camOrbitOnDrag(dx, dy) {
+  camOrbit.yaw -= dx * 0.009;
+  camOrbit.pitch = clamp(camOrbit.pitch - dy * 0.006, -0.55, 1.05);
+}
+
+function camOrbitOnZoom(delta) {
+  camOrbit.dist = clamp(camOrbit.dist + delta, -12, 28);
+}
+
+function camOrbit2DOffset() {
+  return { x: camOrbit.yaw * 72, y: camOrbit.pitch * 52 };
+}
+
+function camOrbit3DPosition(tx, ty, tz, baseDist, baseHeight) {
+  const pitch = clamp(0.32 + camOrbit.pitch, 0.08, 1.25);
+  const dist = Math.max(10, baseDist + camOrbit.dist);
+  const yaw = camOrbit.yaw;
+  return {
+    x: tx + Math.sin(yaw) * Math.cos(pitch) * dist,
+    y: ty + baseHeight + Math.sin(pitch) * dist,
+    z: tz + Math.cos(yaw) * Math.cos(pitch) * dist,
+  };
+}
+
+function camOrbitScreenCoords(e) {
+  const el = (e.currentTarget && e.currentTarget !== document)
+    ? e.currentTarget
+    : (document.getElementById('three-c') || canvas);
+  const rect = el.getBoundingClientRect();
+  const scaleX = W / Math.max(1, rect.width);
+  const scaleY = H / Math.max(1, rect.height);
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY,
+  };
+}
+
+function camOrbitPointerMode(e, cx) {
+  if (e.button === 2 || e.button === 1 || (e.buttons & 2) || (e.buttons & 4)) return 'camera';
+  if (e.shiftKey || e.altKey) return 'camera';
+  if (camOrbit.pointers.size >= 2) return 'camera';
+  if (cx < W * 0.34) return 'move';
+  return 'camera';
+}
+
+function camOrbitUpdateKeys(dt) {
+  if (!camOrbitPlayActive()) return;
+  const k = camOrbit.keys;
+  if (k.yawL) camOrbit.yaw += dt * 1.8;
+  if (k.yawR) camOrbit.yaw -= dt * 1.8;
+  if (k.pitchU) camOrbit.pitch = clamp(camOrbit.pitch + dt * 1.1, -0.55, 1.05);
+  if (k.pitchD) camOrbit.pitch = clamp(camOrbit.pitch - dt * 1.1, -0.55, 1.05);
+  if (k.zoomIn) camOrbitOnZoom(-dt * 14);
+  if (k.zoomOut) camOrbitOnZoom(dt * 14);
+}
+
+function camOrbitFrameSync() {
+  if (!camOrbitPlayActive()) {
+    camOrbit.mode = null;
+    camOrbit.dragId = null;
+    camOrbit.pointers.clear();
+    for (const k of Object.keys(camOrbit.keys)) camOrbit.keys[k] = false;
+  }
+}
+
+function camOrbitBlockedTarget(t) {
+  return t && t.closest && t.closest('#touch .tbtn, #mobNav, #mobMenuHtml, #mpJoinBar, #mpCodeInput, #mpJoinBtn');
+}
+
+function camOrbitAttach(el) {
+  if (!el || el._camOrbitBound) return;
+  el._camOrbitBound = true;
+  el.style.touchAction = 'none';
+
   const onDown = e => {
-    if (!ptrGameActive()) return;
-    if (e.target.closest('#touch .tbtn, #mobNav, #mobMenuHtml, #mpJoinBar')) return;
-    ptrCtl.active = true;
-    ptrCtl.id = e.pointerId;
-    canvas.setPointerCapture?.(e.pointerId);
-    const p = ptrCanvasCoords(e);
-    ptrApplyAxes(p.x, p.y);
-    audioInit();
-    e.preventDefault();
+    if (!camOrbitPlayActive()) return;
+    if (camOrbitBlockedTarget(e.target)) return;
+    camOrbit.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = camOrbitScreenCoords(e);
+    const mode = camOrbitPointerMode(e, p.x);
+    if (!mode) return;
+
+    if (mode === 'camera') {
+      camOrbit.mode = 'camera';
+      camOrbit.dragId = e.pointerId;
+      camOrbit.lastX = e.clientX;
+      camOrbit.lastY = e.clientY;
+      el.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+
+    if (mode === 'move' && typeof ptrCtlOnDown === 'function') {
+      ptrCtlOnDown(e, p);
+    }
   };
 
   const onMove = e => {
-    if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
-    const p = ptrCanvasCoords(e);
-    ptrApplyAxes(p.x, p.y);
-    e.preventDefault();
+    if (camOrbit.pointers.has(e.pointerId)) {
+      camOrbit.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (camOrbit.pointers.size >= 2) {
+      camOrbit.mode = 'camera';
+      const pts = [...camOrbit.pointers.values()];
+      const mx = (pts[0].x + pts[1].x) / 2;
+      const my = (pts[0].y + pts[1].y) / 2;
+      if (camOrbit.dragId == null) {
+        camOrbit.dragId = -1;
+        camOrbit.lastX = mx;
+        camOrbit.lastY = my;
+      } else if (camOrbit.dragId === -1) {
+        camOrbitOnDrag(mx - camOrbit.lastX, my - camOrbit.lastY);
+        camOrbit.lastX = mx;
+        camOrbit.lastY = my;
+      }
+      e.preventDefault();
+      return;
+    }
+
+    if (camOrbit.mode === 'camera' && camOrbit.dragId === e.pointerId) {
+      camOrbitOnDrag(e.clientX - camOrbit.lastX, e.clientY - camOrbit.lastY);
+      camOrbit.lastX = e.clientX;
+      camOrbit.lastY = e.clientY;
+      e.preventDefault();
+      return;
+    }
+
+    if (typeof ptrCtlOnMove === 'function') ptrCtlOnMove(e);
   };
 
   const onEnd = e => {
-    if (!ptrCtl.active || ptrCtl.id !== e.pointerId) return;
-    ptrCtl.active = false;
-    ptrCtl.id = null;
-    ptrReleaseAll();
-    canvas.releasePointerCapture?.(e.pointerId);
-    e.preventDefault();
+    camOrbit.pointers.delete(e.pointerId);
+    if (ptrCtl.active && ptrCtl.id === e.pointerId && typeof ptrCtlOnEnd === 'function') ptrCtlOnEnd(e);
+    if (camOrbit.dragId === e.pointerId) {
+      camOrbit.dragId = null;
+      camOrbit.mode = null;
+    }
+    if (camOrbit.pointers.size < 2 && camOrbit.dragId === -1) {
+      camOrbit.dragId = null;
+      if (!camOrbit.pointers.size) camOrbit.mode = null;
+    }
+    el.releasePointerCapture?.(e.pointerId);
   };
 
-  canvas.addEventListener('pointerdown', onDown);
-  canvas.addEventListener('pointermove', onMove);
-  canvas.addEventListener('pointerup', onEnd);
-  canvas.addEventListener('pointercancel', onEnd);
+  el.addEventListener('pointerdown', onDown);
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onEnd);
+  el.addEventListener('pointercancel', onEnd);
+  el.addEventListener('contextmenu', e => {
+    if (camOrbitPlayActive()) e.preventDefault();
+  });
+  el.addEventListener('wheel', e => {
+    if (!camOrbitPlayActive()) return;
+    if (camOrbitBlockedTarget(e.target)) return;
+    camOrbitOnZoom(e.deltaY * 0.018);
+    e.preventDefault();
+  }, { passive: false });
+}
+
+function camOrbitBindKeys() {
+  if (camOrbit._keysBound) return;
+  camOrbit._keysBound = true;
+  const map = {
+    KeyQ: 'yawL', KeyE: 'yawR',
+    KeyR: 'pitchU', KeyF: 'pitchD',
+    Minus: 'zoomOut', Equal: 'zoomIn',
+    NumpadSubtract: 'zoomOut', NumpadAdd: 'zoomIn',
+  };
+  window.addEventListener('keydown', e => {
+    if (!camOrbitPlayActive()) return;
+    const k = map[e.code];
+    if (!k) return;
+    if (e.target.closest('input, textarea')) return;
+    camOrbit.keys[k] = true;
+    e.preventDefault();
+  });
+  window.addEventListener('keyup', e => {
+    const k = map[e.code];
+    if (k) camOrbit.keys[k] = false;
+  });
+}
+
+function setupCameraOrbit() {
+  camOrbitAttach(canvas);
+  camOrbitAttach(document.getElementById('three-c'));
+  camOrbitBindKeys();
 }

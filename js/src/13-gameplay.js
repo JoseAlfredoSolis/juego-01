@@ -97,6 +97,7 @@ function startLevel() {
   levelCoins = 0; levelStars = 0; runNoHit = true;
   particles = [];
   fx = []; shake = 0; flash = null; banner = null;
+  if (typeof camOrbitReset === 'function') camOrbitReset();
   camUpdate(player.x, player.y, levelData.levelW, true, player);
 }
 

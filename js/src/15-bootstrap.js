@@ -169,6 +169,7 @@ function loop(ts) {
   mpCodeInputSync();
   mobUiSync();
   if (typeof ptrCtlFrameSync === 'function') ptrCtlFrameSync();
+  if (typeof camOrbitUpdateKeys === 'function') camOrbitUpdateKeys(dt);
   if (typeof threeMobileSync === 'function') threeMobileSync(gs.scene, dt, t);
   ctx.clearRect(0, 0, W, H);
 
