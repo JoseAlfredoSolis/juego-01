@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
-<title>Super Bear Adventure — Móvil</title>
+<title>Super Bear Adventure</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { width: 100%; height: 100%; }
@@ -31,6 +31,10 @@ body.touch {
 }
 canvas {
   display: block; image-rendering: pixelated;
+  border-radius: 8px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,215,0,0.08);
+}
+body.touch canvas {
   border-radius: 0;
   box-shadow: none;
   max-width: 100%;
@@ -61,13 +65,6 @@ body.three-menu.mob-menu-html #mobMenuHtml {
 }
 body.three-main-menu.mob-menu-html #mobMenuHtml {
   background: linear-gradient(180deg, rgba(10,32,16,0.5) 0%, rgba(10,40,18,0.85) 100%);
-}
-body.touch canvas {
-  border-radius: 0;
-  box-shadow: none;
-  max-width: 100%;
-  max-height: 100%;
-  flex-shrink: 0;
 }
 body.touch.mob-menu {
   align-items: center;
@@ -438,7 +435,7 @@ body.touch.mob-join #mobNav { display: none !important; }
 }
 </style>
 </head>
-<body class="touch mobile-only">
+<body>
 <canvas id="three-c"></canvas>
 <canvas id="c"></canvas>
 

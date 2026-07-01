@@ -1,7 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v45';
-const MOBILE_ONLY = true;
+const GAME_VERSION = 'v46';
 const W = 1280, H = 720;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
 const LAST_WORLD = WORLD_COUNT-1;
@@ -39,21 +38,13 @@ function rectOverlap(ax,ay,aw,ah, bx,by,bw,bh) {
   return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
 }
 
-/** App solo móvil (HTML táctil). */
-function isMobileApp() {
-  return typeof MOBILE_ONLY !== 'undefined' && MOBILE_ONLY;
-}
-
-/** Pantalla táctil real, o forzada en modo solo móvil. */
+/** Pantalla táctil real (evita falsos positivos de ontouchstart en PC). */
 function isTouchDevice() {
-  if (isMobileApp()) return true;
-  if (navigator.maxTouchPoints > 0) return true;
   const coarse = window.matchMedia('(pointer: coarse)').matches;
   const fine = window.matchMedia('(pointer: fine)').matches;
   const noHover = window.matchMedia('(hover: none)').matches;
   return coarse && (noHover || !fine);
 }
-
 
 
 // === 04-levels.js (from index.html lines 27-516) ===
@@ -3421,8 +3412,7 @@ function touchPress(code)   { if (!keys[code]) keyDown[code] = true; keys[code] 
 function touchRelease(code) { keys[code] = false; keyUp[code] = true; }
 
 function setupTouch() {
-  document.body.classList.add('touch');
-  if (isMobileApp()) document.body.classList.add('mobile-only');
+  if (isTouchDevice()) document.body.classList.add('touch');
 
   document.querySelectorAll('#touch .tbtn').forEach(btn => {
     const code = btn.dataset.code;
@@ -5090,7 +5080,6 @@ function mobTouchPortrait() {
 
 /** Layout compacto para menus en movil (vertical u horizontal). */
 function mobUseDesktopMenu() {
-  if (isMobileApp()) return false;
   if (!document.body.classList.contains('touch')) return true;
   return Math.max(window.innerWidth, window.innerHeight) >= 900;
 }

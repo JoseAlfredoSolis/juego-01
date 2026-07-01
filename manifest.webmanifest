@@ -1,7 +1,7 @@
 {
   "name": "Super Bear Adventure",
   "short_name": "Super Bear",
-  "description": "Juego móvil HTML5 — plataformas y carreras kart. Solo celular.",
+  "description": "Juego de plataformas y carreras kart — móvil y PC.",
   "lang": "es",
   "start_url": "./index.html",
   "scope": "./",

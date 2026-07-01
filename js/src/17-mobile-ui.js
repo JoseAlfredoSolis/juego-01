@@ -162,7 +162,6 @@ function mobTouchPortrait() {
 
 /** Layout compacto para menus en movil (vertical u horizontal). */
 function mobUseDesktopMenu() {
-  if (isMobileApp()) return false;
   if (!document.body.classList.contains('touch')) return true;
   return Math.max(window.innerWidth, window.innerHeight) >= 900;
 }
