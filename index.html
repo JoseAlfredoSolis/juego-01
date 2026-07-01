@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a5c1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Super Bear">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Super Bear Adventure</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 30%, #1a3a1a 0%, #050a08 70%);
+  display: flex; justify-content: center; align-items: center;
+  height: 100vh; height: 100dvh; overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+body.touch {
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+canvas {
+  display: block; image-rendering: pixelated;
+  border-radius: 8px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,215,0,0.08);
+}
+body.touch canvas {
+  border-radius: 0;
+  box-shadow: none;
+  max-width: 100%;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+#three-c {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: none;
+  pointer-events: none;
+}
+body.three-on #three-c { display: block; }
+body.three-on canvas#c {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+body.three-race canvas#c {
+  image-rendering: auto;
+}
+body.three-gameplay canvas#c,
+body.three-play canvas#c {
+  image-rendering: auto;
+  background: transparent;
+}
+body.three-play canvas#c {
+  pointer-events: none;
+}
+body.three-play #three-c {
+  pointer-events: auto;
+  z-index: 2;
+  touch-action: none;
+}
+body.three-menu.mob-menu-html #mobMenuHtml {
+  background: linear-gradient(180deg, rgba(8,12,24,0.55) 0%, rgba(8,12,24,0.82) 100%);
+}
+body.three-main-menu.mob-menu-html #mobMenuHtml {
+  background: linear-gradient(180deg, rgba(10,32,16,0.5) 0%, rgba(10,40,18,0.85) 100%);
+}
+body.touch.mob-menu {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: max(4px, env(safe-area-inset-top));
+  padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+}
+body.touch.mob-join {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: max(4px, env(safe-area-inset-top));
+}
+
+/* ── On-screen touch controls (solo al jugar) ── */
+#touch { display: none; pointer-events: none; }
+body.touch.playing #touch { display: block; pointer-events: auto; }
+
+#touch .pad, #touch .btns { position: fixed; bottom: 28px; z-index: 10; }
+#touch .pad  { left: 20px; }
+#touch .btns { right: 20px; display: flex; align-items: flex-end; gap: 16px; }
+
+.tbtn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 26px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.06));
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 18px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  touch-action: none;
+  transition: transform 0.08s, background 0.08s, box-shadow 0.08s;
+}
+.tbtn.active {
+  transform: scale(0.94);
+  background: linear-gradient(145deg, rgba(255,215,0,0.55), rgba(255,180,0,0.25));
+  border-color: #ffd700;
+  box-shadow: 0 2px 12px rgba(255,215,0,0.35), inset 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* D-pad layout (cross) */
+.pad { display: grid; grid-template-columns: repeat(3, 68px); grid-template-rows: repeat(3, 68px); gap: 5px; }
+#bUp    { grid-column: 2; grid-row: 1; }
+#bLeft  { grid-column: 1; grid-row: 2; }
+#bDown  { grid-column: 2; grid-row: 3; }
+#bRight { grid-column: 3; grid-row: 2; }
+
+/* Action buttons */
+#bJump  {
+  width: 100px; height: 100px; border-radius: 50%; font-size: 15px; letter-spacing: 0.5px;
+  background: linear-gradient(145deg, rgba(80,220,100,0.45), rgba(40,140,60,0.35));
+  border-color: rgba(120,255,140,0.75);
+  box-shadow: 0 4px 20px rgba(60,200,80,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+#bSp    {
+  width: 78px; height: 78px; border-radius: 50%; font-size: 18px;
+  background: linear-gradient(145deg, rgba(255,210,77,0.45), rgba(200,150,30,0.35));
+  border-color: rgba(255,210,77,0.85);
+  box-shadow: 0 4px 18px rgba(255,200,50,0.2), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+#bPause {
+  position: fixed; top: 18px; right: 18px; width: 52px; height: 52px;
+  font-size: 18px; border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+}
+
+/* Celular: controles mas compactos para no tapar el juego */
+body.touch.playing #touch .pad,
+body.touch.playing #touch .btns { bottom: max(8px, env(safe-area-inset-bottom)); }
+body.touch.playing #touch .pad { left: max(8px, env(safe-area-inset-left)); }
+body.touch.playing #touch .btns { right: max(8px, env(safe-area-inset-right)); gap: 8px; }
+body.touch .pad {
+  grid-template-columns: repeat(3, 50px);
+  grid-template-rows: repeat(3, 50px);
+  gap: 3px;
+}
+body.touch .tbtn {
+  font-size: 18px;
+  border-radius: 12px;
+  border-width: 1.5px;
+}
+body.touch #bJump {
+  width: 68px; height: 68px;
+  font-size: 11px;
+}
+body.touch #bSp {
+  width: 54px; height: 54px;
+  font-size: 11px;
+}
+body.touch #bPause {
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  width: 40px; height: 40px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+body.touch.kart-race #bJump,
+body.touch.kart-race #bSp { font-size: 9px; }
+
+@media (orientation: portrait) {
+  body.touch.playing #touch .pad,
+  body.touch.playing #touch .btns { bottom: max(14px, env(safe-area-inset-bottom)); }
+  body.touch .pad {
+    grid-template-columns: repeat(3, 46px);
+    grid-template-rows: repeat(3, 46px);
+  }
+  body.touch #bJump { width: 62px; height: 62px; }
+  body.touch #bSp { width: 50px; height: 50px; }
+}
+
+/* Barra de navegacion tactil en menus — ancho completo, siempre visible */
+#mobNav {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(0deg, rgba(0,0,0,0.97) 0%, rgba(16,20,32,0.92) 100%);
+  border-top: 3px solid rgba(255, 215, 0, 0.35);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+body.touch.mob-menu #mobNav { display: flex; }
+body.touch.mob-menu { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+.mnav {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 0;
+  max-width: 84px;
+  min-height: 56px;
+  padding: 0 8px;
+  font: bold 22px monospace;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  touch-action: manipulation;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+}
+.mnav:active, .mnav.active {
+  background: rgba(255, 215, 0, 0.35);
+  border-color: #ffd700;
+  color: #fff;
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+}
+#mobOk {
+  flex: 1.4;
+  max-width: 110px;
+  background: linear-gradient(180deg, #4ade80, #16a34a);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+  font-size: 17px;
+  font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+#mobLeft, #mobRight { display: none; }
+body.touch.mob-nav-wide #mobLeft,
+body.touch.mob-nav-wide #mobRight { display: flex; }
+
+@media (max-width: 480px) {
+  .mnav { min-height: 52px; font-size: 20px; }
+  #mobOk { font-size: 16px; }
+  body.touch.mob-menu { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #mobNav { padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  .mnav { min-height: 46px; font-size: 18px; }
+  body.touch.mob-menu { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Menu HTML nativo en celular vertical (legible, tactil) */
+#mobMenuHtml {
+  display: none;
+  position: fixed;
+  inset: 0 0 calc(78px + env(safe-area-inset-bottom, 0px)) 0;
+  z-index: 150;
+  flex-direction: column;
+  align-items: stretch;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    12px
+    max(12px, env(safe-area-inset-left));
+  background: linear-gradient(180deg, #0a2010 0%, #1a5c1a 55%, #0d3010 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+body.touch.mob-menu-html #mobMenuHtml { display: flex; }
+body.touch.mob-menu-html canvas { visibility: hidden; pointer-events: none; }
+#mobMenuHtml.theme-purple {
+  background: linear-gradient(180deg, #1a0830 0%, #301858 55%, #180828 100%);
+}
+#mobMenuHtml.theme-blue {
+  background: linear-gradient(180deg, #0a1428 0%, #1a2848 55%, #0a1830 100%);
+}
+body.touch.landscape.mob-menu-html #mobMenuHtml {
+  inset: 0 0 calc(62px + env(safe-area-inset-bottom, 0px)) 0;
+  padding-top: max(8px, env(safe-area-inset-top));
+}
+body.touch.landscape.mob-menu-html #mobMenuHtmlList {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  align-content: start;
+}
+body.touch.landscape.mob-menu-html .mmh-item {
+  min-height: 48px;
+  font-size: 15px;
+}
+body.touch.landscape.mob-menu-html .mmh-title { font-size: 22px; }
+body.touch.landscape.mob-menu-html .mmh-sub { font-size: 15px; margin-bottom: 8px; }
+#mmhDetail {
+  text-align: center;
+  font: 600 14px system-ui, sans-serif;
+  color: #bdf;
+  margin-bottom: 12px;
+}
+.mmh-start {
+  background: linear-gradient(180deg, #4ade80, #16a34a) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.35) !important;
+  font-size: 20px !important;
+  min-height: 58px !important;
+}
+.mmh-wait {
+  text-align: center;
+  color: #bdf;
+  font: 600 16px system-ui, sans-serif;
+  padding: 24px 12px;
+}
+body.touch.portrait.playing canvas { visibility: hidden; pointer-events: none; }
+body.touch.portrait.playing.three-race canvas#c { visibility: visible; pointer-events: none; }
+body.touch.portrait.playing.three-race #three-c { display: none; }
+body.touch.portrait.playing #touch { z-index: 50; }
+.mmh-title {
+  font: 900 28px system-ui, sans-serif;
+  color: #ffd700;
+  text-align: center;
+  letter-spacing: 2px;
+  margin-bottom: 2px;
+}
+.mmh-sub {
+  font: 700 18px system-ui, sans-serif;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 14px;
+}
+#mmhMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 14px;
+  font: 600 13px monospace;
+  color: #8cf;
+}
+#mmhMeta span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+#mobMenuHtmlList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.mmh-item {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 16px;
+  font: bold 18px system-ui, sans-serif;
+  color: #dce8f0;
+  text-align: center;
+  border: 2px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.07);
+  touch-action: manipulation;
+}
+.mmh-item.sel {
+  color: #ffd700;
+  border-color: #ffd700;
+  background: rgba(255,215,0,0.18);
+  box-shadow: 0 0 20px rgba(255,215,0,0.15);
+}
+.mmh-item:active { transform: scale(0.98); }
+#mmhVer {
+  margin-top: 10px;
+  text-align: center;
+  font: 12px monospace;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Aviso rotar pantalla en vertical (menus y juego) */
+#rotateHint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(4, 8, 16, 0.96);
+  color: #ffd700;
+  font: bold 18px system-ui, sans-serif;
+  text-align: center;
+  pointer-events: none;
+}
+body.touch.portrait.playing #rotateHint { display: flex; }
+#rotateHint .rh-icon { font-size: 56px; line-height: 1; }
+#rotateHint .rh-sub { font-size: 14px; color: rgba(255,255,255,0.75); font-weight: 600; max-width: 280px; }
+@media (orientation: landscape) {
+  body.touch #rotateHint { display: none !important; }
+}
+
+/* Campo de codigo multijugador (movil) */
+#mpJoinUi {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 20;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(92vw, 380px);
+}
+body.touch.mob-join #mpJoinUi { display: flex; }
+body.touch.mob-join #touch,
+body.touch.mob-join #mobNav { display: none !important; }
+#mpCodeInput {
+  width: 100%;
+  padding: 16px 20px;
+  font: bold 32px monospace;
+  text-align: center;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  border: 2px solid rgba(255,215,0,0.65);
+  border-radius: 14px;
+  background: rgba(8,12,24,0.96);
+  color: #ffd700;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+#mpCodeInput::placeholder { color: rgba(255,215,0,0.35); letter-spacing: 0.2em; }
+#mpJoinBtn {
+  width: 100%;
+  padding: 14px;
+  font: bold 22px monospace;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffd700, #c9a000);
+  color: #111;
+}
+</style>
+</head>
+<body>
+<canvas id="three-c"></canvas>
+<canvas id="c"></canvas>
+
+<!-- Touch controls overlay -->
+<div id="touch">
+  <div class="pad">
+    <div class="tbtn" id="bUp"    data-code="ArrowUp">▲</div>
+    <div class="tbtn" id="bLeft"  data-code="ArrowLeft">◀</div>
+    <div class="tbtn" id="bDown"  data-code="ArrowDown">▼</div>
+    <div class="tbtn" id="bRight" data-code="ArrowRight">▶</div>
+  </div>
+  <div class="btns">
+    <div class="tbtn" id="bSp"   data-code="KeyJ">SP</div>
+    <div class="tbtn" id="bJump" data-code="Space">JUMP</div>
+  </div>
+  <div class="tbtn" id="bPause" data-code="Escape">II</div>
+</div>
+
+<div id="mobMenuHtml">
+  <div class="mmh-title">SUPER BEAR</div>
+  <div class="mmh-sub">ADVENTURE</div>
+  <div id="mmhMeta"></div>
+  <div id="mmhDetail"></div>
+  <div id="mobMenuHtmlList"></div>
+  <div id="mmhVer"></div>
+</div>
+
+<div id="mobNav">
+  <button type="button" id="mobBack" class="mnav">←</button>
+  <button type="button" id="mobLeft" class="mnav">◀</button>
+  <button type="button" id="mobUp" class="mnav">▲</button>
+  <button type="button" id="mobDown" class="mnav">▼</button>
+  <button type="button" id="mobRight" class="mnav">▶</button>
+  <button type="button" id="mobOk" class="mnav">OK</button>
+</div>
+
+<div id="rotateHint">
+  <div class="rh-icon">📱↔</div>
+  <div>Gira el celular en horizontal</div>
+  <div class="rh-sub">Mejor experiencia en horizontal al jugar. En menus usa los botones de abajo.</div>
+</div>
+
+<div id="mpJoinUi">
+  <input id="mpCodeInput" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" inputmode="text" placeholder="CODIGO">
+  <button id="mpJoinBtn" type="button">UNIRSE</button>
+</div>
+
+<script src="vendor/peer.min.js"></script>
+<script>
+if (typeof Peer === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');
+}
+</script>
+<script src="vendor/three.min.js"></script>
+<script>
+if (typeof THREE === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
+}
+</script>
+<script src="js/game.js"></script>
+</body>
+</html>
