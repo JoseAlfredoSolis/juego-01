@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v61';
+const GAME_VERSION = 'v62';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -861,7 +861,7 @@ const gs = {
   fxShake: true,        // screen shake
   fxParticles: true,    // particle effects
   vibration: true,      // haptic feedback on mobile
-  viewMode: '3d',       // '2d' | '3d' — vista del juego
+  viewMode: '2d',       // '2d' | '3d' — vista del juego (2d más estable en móvil)
 };
 
 // ── Difficulty ──────────────────────────────────────────────────────────────
@@ -954,6 +954,7 @@ function loadSave(){
     if(typeof s.vibration==='boolean') gs.vibration=s.vibration;
     if(s.viewMode==='2d' || s.viewMode==='3d') gs.viewMode=s.viewMode;
     else if(typeof s.view3d==='boolean') gs.viewMode=s.view3d?'3d':'2d';
+    else if(typeof isTouchDevice==='function' && isTouchDevice()) gs.viewMode='2d';
     // Guard against out-of-range or still-locked saved characters
     if(gs.character<0 || gs.character>=CHARACTERS.length || !isCharUnlocked(gs.character)) gs.character=0;
   }catch(e){}
@@ -2512,6 +2513,13 @@ function startLevel() {
   fx = []; shake = 0; flash = null; banner = null;
   if (typeof camOrbitReset === 'function') camOrbitReset();
   camUpdate(player.x, player.y, levelData.levelW, true, player);
+  if (!gs._hintGp) {
+    gs._hintGp = true;
+    const hint = document.body.classList.contains('touch')
+      ? 'D-pad = mover · Arrastra derecha = cámara'
+      : 'Flechas mover · Q/E cámara · Espacio saltar';
+    showBanner(hint, '#5dd4ff');
+  }
 }
 
 function updateGameplay(dt) {
@@ -2675,7 +2683,7 @@ function updateGameplay(dt) {
     gs.levelDone[gs.world][gs.level] = true;
     if (gs.level===2 && gs.world<LAST_WORLD) gs.worldUnlocked[gs.world+1]=true;
     if (runNoHit) unlockAch('nohit');
-    if (gameTimer < 20) unlockAch('speed');
+    if (gameTimer < 25) unlockAch('speed');
     checkCollectAch();
     saveGame();
     lcStats = { world:gs.world, level:gs.level, time:gameTimer, bonus:timeBonus, base:base, coins:levelCoins, stars:levelStars };
@@ -2717,31 +2725,35 @@ function advanceLevel() {
 
 function drawGameplay(t) {
   const ld = levelData;
-  const sx=cam.x, sy=cam.y;
-  if (shake>0 && gs.fxShake!==false) { const m=Math.min(8, shake*55); cam.x+=(Math.random()*2-1)*m; cam.y+=(Math.random()*2-1)*m; }
+  const sx = cam.x, sy = cam.y;
+  if (shake > 0 && gs.fxShake !== false) {
+    const m = Math.min(8, shake * 55);
+    cam.x += (Math.random() * 2 - 1) * m;
+    cam.y += (Math.random() * 2 - 1) * m;
+  }
   const use3d = typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly();
   if (!use3d) {
     drawBg(ld.bg, ld.levelW);
     drawPlatforms(ld.platforms, gs.world);
-    drawCheckpoints();
-    drawHazards();
-    drawProjectiles();
     for (const it of items) drawCollectible(it, t);
-    drawGoal(...goalPos, t);
     for (const e of enemies) drawEnemy(e);
-    drawFx();
-    drawParticles();
   }
-
-
-// === 14-scenes.js (from index.html lines 1981-2540) ===
+  drawCheckpoints();
+  drawHazards();
+  drawProjectiles();
+  if (!use3d) drawGoal(...goalPos, t);
+  drawFx();
+  drawParticles();
   if (!(typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly())) drawPlayer(player);
   drawRemotePlayer();
-  cam.x=sx; cam.y=sy;
+  cam.x = sx; cam.y = sy;
   drawFlash();
   drawBanner();
   drawHUD(t);
 }
+
+
+// === 14-scenes.js (from index.html lines 1981-2540) ===
 
 function drawHUD(t) {
   // Top bar with rounded bottom edge
@@ -3037,6 +3049,40 @@ function drawWorldMap(t) {
   uiBgGrad('#080c14','#141e2e'); uiSparkles(t*0.5, 24);
   uiTitle('MAPA DE MUNDOS', 48, 38);
 
+  const touchList = document.body.classList.contains('touch') && !mobUseDesktopMenu();
+
+  if (touchList) {
+    const cardW = W - 48, cardH = 64, gap = 8, startY = 88;
+    for (let wi = 0; wi < WORLD_COUNT; wi++) {
+      const cy = startY + wi * (cardH + gap);
+      const locked = !gs.worldUnlocked[wi], sel = wi === wmSel;
+      const [c1, c2] = worldColors[wi];
+      const bx = 24, by = cy;
+      fillRR(bx, by, cardW, cardH, 12, locked ? '#222830' : c2);
+      if (!locked) {
+        const cg = ctx.createLinearGradient(bx, by, bx + cardW, by);
+        cg.addColorStop(0, c1); cg.addColorStop(1, c2);
+        fillRR(bx, by, cardW, cardH, 12, cg);
+      }
+      strokeRR(bx, by, cardW, cardH, 12, sel ? UI.gold : 'rgba(255,255,255,0.12)', sel ? 3 : 1);
+      if (!locked) mobRegisterWorldCard(wi, bx, by, cardW, cardH);
+      ctx.fillStyle = locked ? '#666' : UI.bright;
+      ctx.font = 'bold 18px monospace'; ctx.textAlign = 'left';
+      ctx.fillText(worldNames[wi], bx + 14, by + 28);
+      if (locked) {
+        ctx.fillStyle = UI.dim; ctx.font = '13px monospace';
+        ctx.fillText('Bloqueado', bx + 14, by + 48);
+      } else if (sel) {
+        for (let lv = 0; lv < 3; lv++) {
+          const lx = bx + cardW - 100 + lv * 32, ly = by + cardH / 2;
+          const done = gs.levelDone[wi][lv], lvsel = lv === wmLvl;
+          fillRR(lx - 12, ly - 12, 24, 24, 6, done ? UI.gold : lvsel ? UI.green : 'rgba(255,255,255,0.85)');
+          ctx.fillStyle = '#111'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+          ctx.fillText(String(lv + 1), lx, ly + 4);
+        }
+      }
+    }
+  } else {
   const cardW=WORLD_COUNT>5?178:210, gap=WORLD_COUNT>5?10:18, rowGap=18;
   const rows=Math.ceil(WORLD_COUNT/WORLDS_PER_ROW);
   const cardH=250, baseY=H/2-60-(rows>1?70:0);
@@ -3075,6 +3121,7 @@ function drawWorldMap(t) {
       }
       if(sel){ ctx.fillStyle=UI.dim; ctx.font='13px monospace'; ctx.fillText('W'+(wi+1)+'-'+(wmLvl+1),cx,cy+78); }
     }
+  }
   }
 
   fillRR(0,H-68,W,68,0,'rgba(0,0,0,0.65)');
@@ -3988,7 +4035,7 @@ function kartGrip(tr, x, y, angle) {
   if (lane < half * 0.35) return 1;
   if (lane < half * 0.7) return 0.9;
   if (lane < half) return 0.75;
-  return 0.48;
+  return 0.62;
 }
 function kartAngleDiff(a, b) {
   let d = a - b;
@@ -4238,10 +4285,12 @@ function kartInTrack(tr, x, y) {
   return near.dist <= half;
 }
 function kartPushToTrack(tr, k) {
+  if (k._offTrackGrace > 0) return;
   const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.mega ? 160 : tr.huge ? 140 : 80);
   k.x = near.x;
   k.y = near.y;
-  k.speed *= 0.45;
+  k.speed *= 0.72;
+  if (!k._offTrackGrace) k._offTrackGrace = 0.35;
   spawnParticles(k.x, k.y, '#ccc', 8, 220);
 }
 function mkKart(idx, tr, cfg) {
@@ -4261,7 +4310,7 @@ function mkKart(idx, tr, cfg) {
     startBoostAttempt: false, pendingStartBoost: 0,
     chassis: cfg.chassis || 0, wheels: cfg.wheels || 0, glider: cfg.glider || 0,
     input: { steer: 0, accel: 0, brake: 0, drift: false, useItem: false },
-    _stuckT: 0, _stuckCp: 0, _stuckLap: 0,
+    _stuckT: 0, _stuckCp: 0, _stuckLap: 0, _offTrackGrace: 0,
   };
   kartInitJumpState(k);
   return k;
@@ -4334,6 +4383,12 @@ function startKartRace(solo) {
   };
   for (let i = 0; i < roster.length; i++) race.karts.push(mkKart(i, tr, roster[i]));
   kartInitRaceExtras(tr);
+  if (!gs._hintKart) {
+    gs._hintKart = true;
+    showBanner(document.body.classList.contains('touch')
+      ? 'D-pad conducir · Deriva=Space · Arrastra derecha=cámara'
+      : 'WASD/Flechas · Espacio deriva · Q/E cámara', '#ff8020');
+  }
   kartResultsT = 0;
   sfx.select();
 }
@@ -4467,12 +4522,14 @@ function kartSimKart(k, dt, tr) {
   kartUpdateSlipstream(k, dt);
   if (k.stunTimer > 0) {
     k.stunTimer -= dt;
+    if (k._offTrackGrace > 0) k._offTrackGrace -= dt;
     k.speed *= 0.92;
     k.x += Math.cos(k.angle) * k.speed * dt;
     k.y += Math.sin(k.angle) * k.speed * dt;
     return;
   }
   if (k.shieldTimer > 0) k.shieldTimer -= dt;
+  if (k._offTrackGrace > 0) k._offTrackGrace -= dt;
   if (k.starTimer > 0) {
     k.starTimer -= dt;
     k.boost = Math.max(k.boost, 160);
@@ -4516,11 +4573,13 @@ function kartSimKart(k, dt, tr) {
         spawnText(k.x, k.y - 24, 'SUPER DRIFT!', '#f0f', 16);
         spawnRing(k.x, k.y, '#f0f', 70, 0.4);
         sfx.power();
+        maybeVibrate(45);
       } else if (charge > 0.75) {
         k.boost = KART_DRIFT_BOOST * charge * 1.2;
         spawnText(k.x, k.y - 20, 'MINI-TURBO!', '#f80', 14);
         spawnRing(k.x, k.y, '#ff8800', 55, 0.3);
         sfx.djump();
+        maybeVibrate(28);
       } else {
         k.boost = KART_DRIFT_BOOST * charge;
         spawnRing(k.x, k.y, '#ff0', 50, 0.25);
@@ -5420,6 +5479,67 @@ function mobGetHtmlMenuConfig() {
     const tr = KART_TRACKS[kartTrackSel];
     return { type: 'kartlobby', theme: 'purple', title: 'PISTA DE CARRERA', subtitle: tr.name, track: tr };
   }
+  if (gs.scene === 'worldmap' && typeof worldNames !== 'undefined') {
+    return {
+      type: 'worldmap', theme: 'blue', title: 'MAPA DE MUNDOS',
+      subtitle: worldNames[wmSel] + ' · Nivel ' + (wmLvl + 1),
+      items: worldNames.map((n, i) => gs.worldUnlocked[i] ? n : n + ' 🔒'),
+      getSel: () => wmSel,
+      setSel: v => { wmSel = v; },
+      onPick: idx => {
+        if (!gs.worldUnlocked[idx]) { sfx.hurt(); return; }
+        wmSel = idx;
+        mobMenuHtmlScene = '';
+        mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'pause') {
+    return {
+      type: 'list', theme: 'blue', title: 'PAUSA',
+      subtitle: 'W' + (gs.world + 1) + '-' + (gs.level + 1),
+      items: ['CONTINUAR', 'REINICIAR NIVEL', 'MENU PRINCIPAL'],
+      getSel: () => pauseSel,
+      setSel: v => { pauseSel = v; },
+      onPick: idx => {
+        if (idx === 0) { gs.scene = 'gameplay'; sfx.select(); }
+        else if (idx === 1) { startLevel(); gs.scene = 'gameplay'; sfx.select(); }
+        else { gs.lives = startLives(); gs.score = 0; gs.coins = 0; changeScene('menu'); menuSel = 0; }
+      },
+    };
+  }
+  if (gs.scene === 'settings') {
+    const viewLbl = typeof threeCanUse === 'function' && threeCanUse()
+      ? (gs.viewMode === '3d' ? '3D' : '2D') : '2D';
+    return {
+      type: 'settings', theme: 'blue', title: 'AJUSTES', subtitle: 'Toca para cambiar',
+      items: [
+        'Sonido: ' + (audio.sound ? 'ON' : 'OFF'),
+        'Música: ' + (audio.music ? 'ON' : 'OFF'),
+        'Dificultad: ' + diff().name,
+        'Vista: ' + viewLbl,
+        'Sacudida: ' + (gs.fxShake ? 'ON' : 'OFF'),
+        'Partículas: ' + (gs.fxParticles ? 'ON' : 'OFF'),
+        'Vibración: ' + (gs.vibration ? 'ON' : 'OFF'),
+        '← VOLVER AL MENÚ',
+      ],
+      onPick: idx => {
+        if (idx === 0) { audio.sound = !audio.sound; }
+        else if (idx === 1) { audio.music = !audio.music; if (audio.music) musicStart(); else musicStop(); }
+        else if (idx === 2) { gs.difficulty = (gs.difficulty + 1) % DIFFICULTIES.length; }
+        else if (idx === 3 && threeCanUse()) {
+          gs.viewMode = gs.viewMode === '3d' ? '2d' : '3d';
+          if (gs.viewMode === '2d') threeDisable();
+        }
+        else if (idx === 4) { gs.fxShake = !gs.fxShake; }
+        else if (idx === 5) { gs.fxParticles = !gs.fxParticles; }
+        else if (idx === 6) { gs.vibration = !gs.vibration; }
+        else if (idx === 7) { saveGame(); changeScene('menu'); return; }
+        sfx.select(); saveGame();
+        mobMenuHtmlScene = ''; mobMenuHtmlSync();
+      },
+    };
+  }
   return null;
 }
 
@@ -5516,6 +5636,37 @@ function mobMenuHtmlSync() {
       list.appendChild(prev);
       list.appendChild(next);
       list.appendChild(start);
+      }
+    } else if (cfg.type === 'worldmap') {
+      cfg.items.forEach((label, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'mmh-item';
+        btn.textContent = label;
+        if (idx === wmSel) btn.classList.add('sel');
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          if (cfg.onPick) cfg.onPick(idx);
+        });
+        list.appendChild(btn);
+      });
+      const sep = document.createElement('p');
+      sep.className = 'mmh-sub';
+      sep.style.marginTop = '10px';
+      sep.textContent = 'Elegir nivel';
+      list.appendChild(sep);
+      for (let lv = 0; lv < 3; lv++) {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'mmh-item';
+        const done = gs.levelDone[wmSel]?.[lv];
+        btn.textContent = (done ? '★ ' : '') + 'NIVEL ' + (lv + 1);
+        if (lv === wmLvl) btn.classList.add('sel');
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          if (!gs.worldUnlocked[wmSel]) return;
+          wmLvl = lv; gs.world = wmSel; gs.level = lv;
+          sfx.select(); mobQueueAction('ok');
+        });
+        list.appendChild(btn);
       }
     } else if (cfg.items) {
       cfg.items.forEach((label, idx) => {
@@ -7785,6 +7936,63 @@ function threeRebuildGameplayEntities(ctx) {
       ctx.enemyMeshes.push({ e, mesh });
     }
   }
+
+  ctx.hazardMeshes = [];
+  if (typeof checkpoints !== 'undefined') {
+    for (const c of checkpoints) {
+      const cp = threeGpPos(c.x, c.y);
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 2.8, 6),
+        new THREE.MeshStandardMaterial({ color: 0x6a5640, roughness: 0.9 })
+      );
+      pole.position.set(cp.x, cp.y + 1.4, 0.6);
+      ctx.entityGroup.add(pole);
+      const flag = new THREE.Mesh(
+        new THREE.BoxGeometry(1.4, 0.9, 0.08),
+        new THREE.MeshStandardMaterial({
+          color: c.reached ? 0x39d353 : 0x888888,
+          emissive: c.reached ? 0x1a8030 : 0x222222,
+          emissiveIntensity: c.reached ? 0.4 : 0.1,
+        })
+      );
+      flag.position.set(cp.x + 0.8, cp.y + 2.2, 0.9);
+      flag.userData.isCpFlag = true;
+      ctx.entityGroup.add(flag);
+      ctx.hazardMeshes.push({ kind: 'cp', c, mesh: flag });
+    }
+  }
+  if (typeof hazards !== 'undefined') {
+    for (const h of hazards) {
+      let mesh;
+      if (h.type === 'saw') {
+        mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.9, 0.9, 0.25, 10),
+          new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.5, roughness: 0.4 })
+        );
+        mesh.rotation.x = Math.PI / 2;
+      } else if (h.type === 'beam') {
+        mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(h.w * THREE_GP_SCALE, 0.35, 0.5),
+          new THREE.MeshStandardMaterial({ color: 0xff66ff, emissive: 0xaa22aa, emissiveIntensity: 0.6 })
+        );
+      } else if (h.type === 'spikes' || h.type === 'coral') {
+        mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(h.w * THREE_GP_SCALE, 0.5, 1.2),
+          new THREE.MeshStandardMaterial({ color: h.type === 'coral' ? 0xff6b8a : 0xaab3bd, roughness: 0.85 })
+        );
+      } else {
+        mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(0.7, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0x6a5040, roughness: 0.8 })
+        );
+      }
+      const hp = threeGpPos(h.x + (h.w || 0) / 2, h.y + (h.h || 0) / 2);
+      mesh.position.set(hp.x, hp.y, 0.5);
+      mesh.castShadow = true;
+      ctx.entityGroup.add(mesh);
+      ctx.hazardMeshes.push({ kind: 'haz', h, mesh });
+    }
+  }
 }
 
 function threeSyncGameplay(ctx, t) {
@@ -7792,9 +8000,10 @@ function threeSyncGameplay(ctx, t) {
   const ld = levelData;
   const key = gs.world + '-' + gs.level;
   if (ctx.gameLevelKey !== key) threeBuildGameplayScene(ctx, ld, gs.world);
-  if (ctx._itemsRef !== items || ctx._enemiesRef !== enemies) {
+  if (ctx._itemsRef !== items || ctx._enemiesRef !== enemies || ctx._hazardsRef !== hazards) {
     ctx._itemsRef = items;
     ctx._enemiesRef = enemies;
+    ctx._hazardsRef = hazards;
     threeRebuildGameplayEntities(ctx);
   }
 
@@ -7821,6 +8030,18 @@ function threeSyncGameplay(ctx, t) {
     if (e.active !== false) {
       const p = threeGpPos(e.x + e.w / 2, e.y + e.h / 2);
       mesh.position.set(p.x, p.y, 0.5);
+    }
+  }
+
+  for (const entry of ctx.hazardMeshes || []) {
+    if (entry.kind === 'haz') {
+      const h = entry.h, mesh = entry.mesh;
+      const hp = threeGpPos(h.x + (h.w || 0) / 2, h.y + (h.h || 0) / 2);
+      mesh.position.set(hp.x, hp.y, 0.5);
+      if (h.type === 'saw' || h.type === 'meteor') mesh.rotation.z = h.rot || 0;
+    } else if (entry.kind === 'cp' && entry.mesh?.material) {
+      entry.mesh.material.color.setHex(entry.c.reached ? 0x39d353 : 0x888888);
+      entry.mesh.material.emissiveIntensity = entry.c.reached ? 0.4 : 0.1;
     }
   }
 
@@ -8077,6 +8298,7 @@ function camOrbitPointerMode(e, cx) {
   if (e.shiftKey || e.altKey) return 'camera';
   if (camOrbit.pointers.size >= 2) return 'camera';
   if (cx < W * 0.34) return 'move';
+  if (document.body.classList.contains('touch') && document.body.classList.contains('playing')) return 'camera';
   return 'camera';
 }
 

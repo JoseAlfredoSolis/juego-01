@@ -99,6 +99,13 @@ function startLevel() {
   fx = []; shake = 0; flash = null; banner = null;
   if (typeof camOrbitReset === 'function') camOrbitReset();
   camUpdate(player.x, player.y, levelData.levelW, true, player);
+  if (!gs._hintGp) {
+    gs._hintGp = true;
+    const hint = document.body.classList.contains('touch')
+      ? 'D-pad = mover · Arrastra derecha = cámara'
+      : 'Flechas mover · Q/E cámara · Espacio saltar';
+    showBanner(hint, '#5dd4ff');
+  }
 }
 
 function updateGameplay(dt) {
@@ -262,7 +269,7 @@ function updateGameplay(dt) {
     gs.levelDone[gs.world][gs.level] = true;
     if (gs.level===2 && gs.world<LAST_WORLD) gs.worldUnlocked[gs.world+1]=true;
     if (runNoHit) unlockAch('nohit');
-    if (gameTimer < 20) unlockAch('speed');
+    if (gameTimer < 25) unlockAch('speed');
     checkCollectAch();
     saveGame();
     lcStats = { world:gs.world, level:gs.level, time:gameTimer, bonus:timeBonus, base:base, coins:levelCoins, stars:levelStars };
@@ -304,18 +311,29 @@ function advanceLevel() {
 
 function drawGameplay(t) {
   const ld = levelData;
-  const sx=cam.x, sy=cam.y;
-  if (shake>0 && gs.fxShake!==false) { const m=Math.min(8, shake*55); cam.x+=(Math.random()*2-1)*m; cam.y+=(Math.random()*2-1)*m; }
+  const sx = cam.x, sy = cam.y;
+  if (shake > 0 && gs.fxShake !== false) {
+    const m = Math.min(8, shake * 55);
+    cam.x += (Math.random() * 2 - 1) * m;
+    cam.y += (Math.random() * 2 - 1) * m;
+  }
   const use3d = typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly();
   if (!use3d) {
     drawBg(ld.bg, ld.levelW);
     drawPlatforms(ld.platforms, gs.world);
-    drawCheckpoints();
-    drawHazards();
-    drawProjectiles();
     for (const it of items) drawCollectible(it, t);
-    drawGoal(...goalPos, t);
     for (const e of enemies) drawEnemy(e);
-    drawFx();
-    drawParticles();
   }
+  drawCheckpoints();
+  drawHazards();
+  drawProjectiles();
+  if (!use3d) drawGoal(...goalPos, t);
+  drawFx();
+  drawParticles();
+  if (!(typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly())) drawPlayer(player);
+  drawRemotePlayer();
+  cam.x = sx; cam.y = sy;
+  drawFlash();
+  drawBanner();
+  drawHUD(t);
+}

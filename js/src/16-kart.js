@@ -336,7 +336,7 @@ function kartGrip(tr, x, y, angle) {
   if (lane < half * 0.35) return 1;
   if (lane < half * 0.7) return 0.9;
   if (lane < half) return 0.75;
-  return 0.48;
+  return 0.62;
 }
 function kartAngleDiff(a, b) {
   let d = a - b;
@@ -586,10 +586,12 @@ function kartInTrack(tr, x, y) {
   return near.dist <= half;
 }
 function kartPushToTrack(tr, k) {
+  if (k._offTrackGrace > 0) return;
   const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.mega ? 160 : tr.huge ? 140 : 80);
   k.x = near.x;
   k.y = near.y;
-  k.speed *= 0.45;
+  k.speed *= 0.72;
+  if (!k._offTrackGrace) k._offTrackGrace = 0.35;
   spawnParticles(k.x, k.y, '#ccc', 8, 220);
 }
 function mkKart(idx, tr, cfg) {
@@ -609,7 +611,7 @@ function mkKart(idx, tr, cfg) {
     startBoostAttempt: false, pendingStartBoost: 0,
     chassis: cfg.chassis || 0, wheels: cfg.wheels || 0, glider: cfg.glider || 0,
     input: { steer: 0, accel: 0, brake: 0, drift: false, useItem: false },
-    _stuckT: 0, _stuckCp: 0, _stuckLap: 0,
+    _stuckT: 0, _stuckCp: 0, _stuckLap: 0, _offTrackGrace: 0,
   };
   kartInitJumpState(k);
   return k;
@@ -682,6 +684,12 @@ function startKartRace(solo) {
   };
   for (let i = 0; i < roster.length; i++) race.karts.push(mkKart(i, tr, roster[i]));
   kartInitRaceExtras(tr);
+  if (!gs._hintKart) {
+    gs._hintKart = true;
+    showBanner(document.body.classList.contains('touch')
+      ? 'D-pad conducir · Deriva=Space · Arrastra derecha=cámara'
+      : 'WASD/Flechas · Espacio deriva · Q/E cámara', '#ff8020');
+  }
   kartResultsT = 0;
   sfx.select();
 }
@@ -815,12 +823,14 @@ function kartSimKart(k, dt, tr) {
   kartUpdateSlipstream(k, dt);
   if (k.stunTimer > 0) {
     k.stunTimer -= dt;
+    if (k._offTrackGrace > 0) k._offTrackGrace -= dt;
     k.speed *= 0.92;
     k.x += Math.cos(k.angle) * k.speed * dt;
     k.y += Math.sin(k.angle) * k.speed * dt;
     return;
   }
   if (k.shieldTimer > 0) k.shieldTimer -= dt;
+  if (k._offTrackGrace > 0) k._offTrackGrace -= dt;
   if (k.starTimer > 0) {
     k.starTimer -= dt;
     k.boost = Math.max(k.boost, 160);
@@ -864,11 +874,13 @@ function kartSimKart(k, dt, tr) {
         spawnText(k.x, k.y - 24, 'SUPER DRIFT!', '#f0f', 16);
         spawnRing(k.x, k.y, '#f0f', 70, 0.4);
         sfx.power();
+        maybeVibrate(45);
       } else if (charge > 0.75) {
         k.boost = KART_DRIFT_BOOST * charge * 1.2;
         spawnText(k.x, k.y - 20, 'MINI-TURBO!', '#f80', 14);
         spawnRing(k.x, k.y, '#ff8800', 55, 0.3);
         sfx.djump();
+        maybeVibrate(28);
       } else {
         k.boost = KART_DRIFT_BOOST * charge;
         spawnRing(k.x, k.y, '#ff0', 50, 0.25);

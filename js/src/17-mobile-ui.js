@@ -317,6 +317,67 @@ function mobGetHtmlMenuConfig() {
     const tr = KART_TRACKS[kartTrackSel];
     return { type: 'kartlobby', theme: 'purple', title: 'PISTA DE CARRERA', subtitle: tr.name, track: tr };
   }
+  if (gs.scene === 'worldmap' && typeof worldNames !== 'undefined') {
+    return {
+      type: 'worldmap', theme: 'blue', title: 'MAPA DE MUNDOS',
+      subtitle: worldNames[wmSel] + ' · Nivel ' + (wmLvl + 1),
+      items: worldNames.map((n, i) => gs.worldUnlocked[i] ? n : n + ' 🔒'),
+      getSel: () => wmSel,
+      setSel: v => { wmSel = v; },
+      onPick: idx => {
+        if (!gs.worldUnlocked[idx]) { sfx.hurt(); return; }
+        wmSel = idx;
+        mobMenuHtmlScene = '';
+        mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'pause') {
+    return {
+      type: 'list', theme: 'blue', title: 'PAUSA',
+      subtitle: 'W' + (gs.world + 1) + '-' + (gs.level + 1),
+      items: ['CONTINUAR', 'REINICIAR NIVEL', 'MENU PRINCIPAL'],
+      getSel: () => pauseSel,
+      setSel: v => { pauseSel = v; },
+      onPick: idx => {
+        if (idx === 0) { gs.scene = 'gameplay'; sfx.select(); }
+        else if (idx === 1) { startLevel(); gs.scene = 'gameplay'; sfx.select(); }
+        else { gs.lives = startLives(); gs.score = 0; gs.coins = 0; changeScene('menu'); menuSel = 0; }
+      },
+    };
+  }
+  if (gs.scene === 'settings') {
+    const viewLbl = typeof threeCanUse === 'function' && threeCanUse()
+      ? (gs.viewMode === '3d' ? '3D' : '2D') : '2D';
+    return {
+      type: 'settings', theme: 'blue', title: 'AJUSTES', subtitle: 'Toca para cambiar',
+      items: [
+        'Sonido: ' + (audio.sound ? 'ON' : 'OFF'),
+        'Música: ' + (audio.music ? 'ON' : 'OFF'),
+        'Dificultad: ' + diff().name,
+        'Vista: ' + viewLbl,
+        'Sacudida: ' + (gs.fxShake ? 'ON' : 'OFF'),
+        'Partículas: ' + (gs.fxParticles ? 'ON' : 'OFF'),
+        'Vibración: ' + (gs.vibration ? 'ON' : 'OFF'),
+        '← VOLVER AL MENÚ',
+      ],
+      onPick: idx => {
+        if (idx === 0) { audio.sound = !audio.sound; }
+        else if (idx === 1) { audio.music = !audio.music; if (audio.music) musicStart(); else musicStop(); }
+        else if (idx === 2) { gs.difficulty = (gs.difficulty + 1) % DIFFICULTIES.length; }
+        else if (idx === 3 && threeCanUse()) {
+          gs.viewMode = gs.viewMode === '3d' ? '2d' : '3d';
+          if (gs.viewMode === '2d') threeDisable();
+        }
+        else if (idx === 4) { gs.fxShake = !gs.fxShake; }
+        else if (idx === 5) { gs.fxParticles = !gs.fxParticles; }
+        else if (idx === 6) { gs.vibration = !gs.vibration; }
+        else if (idx === 7) { saveGame(); changeScene('menu'); return; }
+        sfx.select(); saveGame();
+        mobMenuHtmlScene = ''; mobMenuHtmlSync();
+      },
+    };
+  }
   return null;
 }
 
@@ -413,6 +474,37 @@ function mobMenuHtmlSync() {
       list.appendChild(prev);
       list.appendChild(next);
       list.appendChild(start);
+      }
+    } else if (cfg.type === 'worldmap') {
+      cfg.items.forEach((label, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'mmh-item';
+        btn.textContent = label;
+        if (idx === wmSel) btn.classList.add('sel');
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          if (cfg.onPick) cfg.onPick(idx);
+        });
+        list.appendChild(btn);
+      });
+      const sep = document.createElement('p');
+      sep.className = 'mmh-sub';
+      sep.style.marginTop = '10px';
+      sep.textContent = 'Elegir nivel';
+      list.appendChild(sep);
+      for (let lv = 0; lv < 3; lv++) {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'mmh-item';
+        const done = gs.levelDone[wmSel]?.[lv];
+        btn.textContent = (done ? '★ ' : '') + 'NIVEL ' + (lv + 1);
+        if (lv === wmLvl) btn.classList.add('sel');
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          if (!gs.worldUnlocked[wmSel]) return;
+          wmLvl = lv; gs.world = wmSel; gs.level = lv;
+          sfx.select(); mobQueueAction('ok');
+        });
+        list.appendChild(btn);
       }
     } else if (cfg.items) {
       cfg.items.forEach((label, idx) => {

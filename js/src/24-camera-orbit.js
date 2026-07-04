@@ -68,6 +68,7 @@ function camOrbitPointerMode(e, cx) {
   if (e.shiftKey || e.altKey) return 'camera';
   if (camOrbit.pointers.size >= 2) return 'camera';
   if (cx < W * 0.34) return 'move';
+  if (document.body.classList.contains('touch') && document.body.classList.contains('playing')) return 'camera';
   return 'camera';
 }
 

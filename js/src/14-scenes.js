@@ -1,11 +1,4 @@
 // === 14-scenes.js (from index.html lines 1981-2540) ===
-  if (!(typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly())) drawPlayer(player);
-  drawRemotePlayer();
-  cam.x=sx; cam.y=sy;
-  drawFlash();
-  drawBanner();
-  drawHUD(t);
-}
 
 function drawHUD(t) {
   // Top bar with rounded bottom edge
@@ -301,6 +294,40 @@ function drawWorldMap(t) {
   uiBgGrad('#080c14','#141e2e'); uiSparkles(t*0.5, 24);
   uiTitle('MAPA DE MUNDOS', 48, 38);
 
+  const touchList = document.body.classList.contains('touch') && !mobUseDesktopMenu();
+
+  if (touchList) {
+    const cardW = W - 48, cardH = 64, gap = 8, startY = 88;
+    for (let wi = 0; wi < WORLD_COUNT; wi++) {
+      const cy = startY + wi * (cardH + gap);
+      const locked = !gs.worldUnlocked[wi], sel = wi === wmSel;
+      const [c1, c2] = worldColors[wi];
+      const bx = 24, by = cy;
+      fillRR(bx, by, cardW, cardH, 12, locked ? '#222830' : c2);
+      if (!locked) {
+        const cg = ctx.createLinearGradient(bx, by, bx + cardW, by);
+        cg.addColorStop(0, c1); cg.addColorStop(1, c2);
+        fillRR(bx, by, cardW, cardH, 12, cg);
+      }
+      strokeRR(bx, by, cardW, cardH, 12, sel ? UI.gold : 'rgba(255,255,255,0.12)', sel ? 3 : 1);
+      if (!locked) mobRegisterWorldCard(wi, bx, by, cardW, cardH);
+      ctx.fillStyle = locked ? '#666' : UI.bright;
+      ctx.font = 'bold 18px monospace'; ctx.textAlign = 'left';
+      ctx.fillText(worldNames[wi], bx + 14, by + 28);
+      if (locked) {
+        ctx.fillStyle = UI.dim; ctx.font = '13px monospace';
+        ctx.fillText('Bloqueado', bx + 14, by + 48);
+      } else if (sel) {
+        for (let lv = 0; lv < 3; lv++) {
+          const lx = bx + cardW - 100 + lv * 32, ly = by + cardH / 2;
+          const done = gs.levelDone[wi][lv], lvsel = lv === wmLvl;
+          fillRR(lx - 12, ly - 12, 24, 24, 6, done ? UI.gold : lvsel ? UI.green : 'rgba(255,255,255,0.85)');
+          ctx.fillStyle = '#111'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+          ctx.fillText(String(lv + 1), lx, ly + 4);
+        }
+      }
+    }
+  } else {
   const cardW=WORLD_COUNT>5?178:210, gap=WORLD_COUNT>5?10:18, rowGap=18;
   const rows=Math.ceil(WORLD_COUNT/WORLDS_PER_ROW);
   const cardH=250, baseY=H/2-60-(rows>1?70:0);
@@ -339,6 +366,7 @@ function drawWorldMap(t) {
       }
       if(sel){ ctx.fillStyle=UI.dim; ctx.font='13px monospace'; ctx.fillText('W'+(wi+1)+'-'+(wmLvl+1),cx,cy+78); }
     }
+  }
   }
 
   fillRR(0,H-68,W,68,0,'rgba(0,0,0,0.65)');

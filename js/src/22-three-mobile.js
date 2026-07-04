@@ -1146,6 +1146,63 @@ function threeRebuildGameplayEntities(ctx) {
       ctx.enemyMeshes.push({ e, mesh });
     }
   }
+
+  ctx.hazardMeshes = [];
+  if (typeof checkpoints !== 'undefined') {
+    for (const c of checkpoints) {
+      const cp = threeGpPos(c.x, c.y);
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 2.8, 6),
+        new THREE.MeshStandardMaterial({ color: 0x6a5640, roughness: 0.9 })
+      );
+      pole.position.set(cp.x, cp.y + 1.4, 0.6);
+      ctx.entityGroup.add(pole);
+      const flag = new THREE.Mesh(
+        new THREE.BoxGeometry(1.4, 0.9, 0.08),
+        new THREE.MeshStandardMaterial({
+          color: c.reached ? 0x39d353 : 0x888888,
+          emissive: c.reached ? 0x1a8030 : 0x222222,
+          emissiveIntensity: c.reached ? 0.4 : 0.1,
+        })
+      );
+      flag.position.set(cp.x + 0.8, cp.y + 2.2, 0.9);
+      flag.userData.isCpFlag = true;
+      ctx.entityGroup.add(flag);
+      ctx.hazardMeshes.push({ kind: 'cp', c, mesh: flag });
+    }
+  }
+  if (typeof hazards !== 'undefined') {
+    for (const h of hazards) {
+      let mesh;
+      if (h.type === 'saw') {
+        mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.9, 0.9, 0.25, 10),
+          new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.5, roughness: 0.4 })
+        );
+        mesh.rotation.x = Math.PI / 2;
+      } else if (h.type === 'beam') {
+        mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(h.w * THREE_GP_SCALE, 0.35, 0.5),
+          new THREE.MeshStandardMaterial({ color: 0xff66ff, emissive: 0xaa22aa, emissiveIntensity: 0.6 })
+        );
+      } else if (h.type === 'spikes' || h.type === 'coral') {
+        mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(h.w * THREE_GP_SCALE, 0.5, 1.2),
+          new THREE.MeshStandardMaterial({ color: h.type === 'coral' ? 0xff6b8a : 0xaab3bd, roughness: 0.85 })
+        );
+      } else {
+        mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(0.7, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0x6a5040, roughness: 0.8 })
+        );
+      }
+      const hp = threeGpPos(h.x + (h.w || 0) / 2, h.y + (h.h || 0) / 2);
+      mesh.position.set(hp.x, hp.y, 0.5);
+      mesh.castShadow = true;
+      ctx.entityGroup.add(mesh);
+      ctx.hazardMeshes.push({ kind: 'haz', h, mesh });
+    }
+  }
 }
 
 function threeSyncGameplay(ctx, t) {
@@ -1153,9 +1210,10 @@ function threeSyncGameplay(ctx, t) {
   const ld = levelData;
   const key = gs.world + '-' + gs.level;
   if (ctx.gameLevelKey !== key) threeBuildGameplayScene(ctx, ld, gs.world);
-  if (ctx._itemsRef !== items || ctx._enemiesRef !== enemies) {
+  if (ctx._itemsRef !== items || ctx._enemiesRef !== enemies || ctx._hazardsRef !== hazards) {
     ctx._itemsRef = items;
     ctx._enemiesRef = enemies;
+    ctx._hazardsRef = hazards;
     threeRebuildGameplayEntities(ctx);
   }
 
@@ -1182,6 +1240,18 @@ function threeSyncGameplay(ctx, t) {
     if (e.active !== false) {
       const p = threeGpPos(e.x + e.w / 2, e.y + e.h / 2);
       mesh.position.set(p.x, p.y, 0.5);
+    }
+  }
+
+  for (const entry of ctx.hazardMeshes || []) {
+    if (entry.kind === 'haz') {
+      const h = entry.h, mesh = entry.mesh;
+      const hp = threeGpPos(h.x + (h.w || 0) / 2, h.y + (h.h || 0) / 2);
+      mesh.position.set(hp.x, hp.y, 0.5);
+      if (h.type === 'saw' || h.type === 'meteor') mesh.rotation.z = h.rot || 0;
+    } else if (entry.kind === 'cp' && entry.mesh?.material) {
+      entry.mesh.material.color.setHex(entry.c.reached ? 0x39d353 : 0x888888);
+      entry.mesh.material.emissiveIntensity = entry.c.reached ? 0.4 : 0.1;
     }
   }
 
