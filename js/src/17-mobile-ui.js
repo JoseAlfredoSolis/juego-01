@@ -290,27 +290,6 @@ function mobGetHtmlMenuConfig() {
       onPick: () => mobQueueAction('ok'),
     };
   }
-  if (gs.scene === 'pomworld') {
-    return {
-      type: 'list', theme: 'orange', title: 'MUNDO POMERANIAN', subtitle: 'Reino peludo',
-      items: ['JUGAR MUNDO', 'VER GALERIA', 'VOLVER'],
-      getSel: () => pomMenuSel, setSel: v => { pomMenuSel = v; },
-      onPick: () => mobQueueAction('ok'),
-    };
-  }
-  if (gs.scene === 'gallery') {
-    const c = CHARACTERS[gallerySel] || CHARACTERS[0];
-    return {
-      type: 'list', theme: 'blue', title: 'GALERIA', subtitle: c.name + ' (' + (gallerySel + 1) + '/' + CHARACTERS.length + ')',
-      items: ['◀ ANTERIOR', 'SIGUIENTE ▶', 'VOLVER AL MENU'],
-      getSel: () => 1, setSel: () => {},
-      onPick: idx => {
-        if (idx === 0) { gallerySel = (gallerySel - 1 + CHARACTERS.length) % CHARACTERS.length; sfx.select(); mobMenuHtmlScene = ''; mobMenuHtmlSync(); }
-        else if (idx === 1) { gallerySel = (gallerySel + 1) % CHARACTERS.length; sfx.select(); mobMenuHtmlScene = ''; mobMenuHtmlSync(); }
-        else mobQueueAction('back');
-      },
-    };
-  }
   if (gs.scene === 'kartselect') {
     const ch = CHARACTERS[kartSelectDriver] || CHARACTERS[0];
     const st = typeof kartPlayerStats === 'function' ? kartPlayerStats() : null;

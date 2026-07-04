@@ -284,6 +284,7 @@ function updatePomWorld(dt) {
 let pomMenuSel = 0;
 function drawPomWorld(t) {
   uiBgGrad('#ffe8c8', '#ff9a50');
+  const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
   for (let i = 0; i < 30; i++) {
     const x = (i * 97 + t * 40) % W, y = 60 + (i * 53) % 500;
     ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 2 + i);
@@ -291,39 +292,44 @@ function drawPomWorld(t) {
     ctx.beginPath(); ctx.arc(x, y, 8 + (i % 5) * 3, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
   }
-  uiTitle('MUNDO POMERANIAN', 70, 44);
-  hud('Reino de los perros peludos', W / 2, 108, '#e87830', 20, 'center');
-  uiPanel(W / 2 - 340, 130, 680, 400, 22);
+  uiTitle('MUNDO POMERANIAN', portrait ? 52 : 70, portrait ? 34 : 44);
+  hud('Reino de los perros peludos', W / 2, portrait ? 88 : 108, '#e87830', portrait ? 16 : 20, 'center');
+  uiPanel(W / 2 - (portrait ? 300 : 340), portrait ? 100 : 130, portrait ? 600 : 680, portrait ? 340 : 400, 22);
   const pomChars = [17, 18, 19, 20];
   for (let i = 0; i < pomChars.length; i++) {
     const ci = pomChars[i];
     const c = CHARACTERS[ci];
-    const px = W / 2 - 240 + i * 130, py = 200;
-    fillRR(px - 50, py - 30, 100, 120, 14, 'rgba(255,255,255,0.12)');
+    const col = i % 2, row = Math.floor(i / 2);
+    const px = portrait ? W / 2 - 120 + col * 140 : W / 2 - 240 + i * 130;
+    const py = portrait ? 155 + row * 95 : 200;
+    fillRR(px - 50, py - 30, 100, portrait ? 100 : 120, 14, 'rgba(255,255,255,0.12)');
     if (c?.draw) {
       ctx.save();
-      ctx.translate(px, py + 20);
+      ctx.translate(px, py + (portrait ? 12 : 20));
+      if (portrait) ctx.scale(0.85, 0.85);
       c.draw({ facing: 1 }, 0, 0);
       ctx.restore();
     }
     ctx.fillStyle = isCharUnlocked(ci) ? UI.bright : UI.dim;
-    ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(c?.name || '?', px, py + 72);
+    ctx.font = 'bold ' + (portrait ? 11 : 13) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(c?.name || '?', px, py + (portrait ? 58 : 72));
   }
-  hud('4 nuevos personajes · 3 niveles de jardin', W / 2, 310, UI.cyan, 16, 'center');
+  hud('4 nuevos personajes · 3 niveles de jardin', W / 2, portrait ? 268 : 310, UI.cyan, portrait ? 13 : 16, 'center');
   const opts = ['JUGAR MUNDO POMERANIAN', 'VER EN GALERIA', 'VOLVER AL MENU'];
   const lay = mobMenuLayout(opts.length);
   for (let i = 0; i < opts.length; i++) {
-    const y = lay.startY + i * lay.rowH;
+    const y = (portrait ? 290 : lay.startY) + i * (portrait ? 32 : lay.rowH);
     const sel = i === pomMenuSel;
-    fillRR(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, 12, sel ? 'rgba(255,154,64,0.35)' : 'rgba(0,0,0,0.25)');
-    if (sel) strokeRR(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, 12, '#ff9a40', 2);
-    hud(opts[i], W / 2, y + 5, sel ? '#ffd700' : UI.bright, 18, 'center');
-    mobRegisterRow(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, i);
+    const rw = portrait ? Math.min(lay.rw, W - 48) : lay.rw;
+    const rh = portrait ? 28 : lay.rh;
+    fillRR(W / 2 - rw / 2, y - rh / 2, rw, rh, 12, sel ? 'rgba(255,154,64,0.35)' : 'rgba(0,0,0,0.25)');
+    if (sel) strokeRR(W / 2 - rw / 2, y - rh / 2, rw, rh, 12, '#ff9a40', 2);
+    hud(opts[i], W / 2, y + 4, sel ? '#ffd700' : UI.bright, portrait ? 14 : 18, 'center');
+    mobRegisterRow(W / 2 - rw / 2, y - rh / 2, rw, rh, i);
   }
   const unlocked = gs.worldUnlocked[LAST_WORLD];
-  hud(unlocked ? 'Mundo desbloqueado — ¡listo para jugar!' : 'Bloqueado: completa el mundo COSMOS', W / 2, 470, unlocked ? UI.green : UI.dim, 15, 'center');
-  uiFooter('Enter = elegir · Esc = volver');
+  hud(unlocked ? 'Mundo desbloqueado — ¡listo para jugar!' : 'Bloqueado: completa el mundo COSMOS', W / 2, portrait ? H - 88 : 470, unlocked ? UI.green : UI.dim, portrait ? 12 : 15, 'center');
+  uiFooter(portrait ? 'Toca opcion · Desliza ▲▼' : 'Enter = elegir · Esc = volver');
 }
 
 // ── Character Gallery ───────────────────────────────────────────────────────
@@ -341,31 +347,36 @@ function updateGallery(dt) {
   if (pressed('Escape') || pressed('Enter')) { changeScene('menu'); }
 }
 function drawGallery(t) {
+  const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
   uiBgGrad('#0a1420', '#1a2840');
   uiSparkles(t * 0.4, 20);
-  uiTitle('GALERIA DE HEROES', 60, 36);
-  hud(gallerySel + 1 + ' / ' + CHARACTERS.length, W / 2, 100, UI.dim, 16, 'center');
+  uiTitle('GALERIA DE HEROES', portrait ? 48 : 60, portrait ? 28 : 36);
+  hud(gallerySel + 1 + ' / ' + CHARACTERS.length, W / 2, portrait ? 82 : 100, UI.dim, 16, 'center');
   const c = CHARACTERS[gallerySel];
   const unlocked = isCharUnlocked(gallerySel);
-  uiPanel(W / 2 - 280, 130, 560, 380, 20);
-  const bob = Math.sin(t * 2.5) * 8;
+  uiPanel(W / 2 - (portrait ? 300 : 280), portrait ? 100 : 130, portrait ? 600 : 560, portrait ? 420 : 380, 20);
+  const bob = Math.sin(t * 2.5) * (portrait ? 5 : 8);
   if (c?.draw) {
     ctx.save();
-    ctx.translate(W / 2, 280 + bob);
-    ctx.scale(2.2, 2.2);
+    ctx.translate(W / 2, (portrait ? 250 : 280) + bob);
+    ctx.scale(portrait ? 1.8 : 2.2, portrait ? 1.8 : 2.2);
     c.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
     ctx.restore();
   }
-  hud(c?.name || '?', W / 2, 160, unlocked ? UI.gold : UI.dim, 32, 'center');
-  hud(c?.desc || '', W / 2, 400, UI.bright, 18, 'center');
+  hud(c?.name || '?', W / 2, portrait ? 140 : 160, unlocked ? UI.gold : UI.dim, portrait ? 26 : 32, 'center');
+  hud(c?.desc || '', W / 2, portrait ? 370 : 400, UI.bright, portrait ? 15 : 18, 'center');
   const st = 'Vel ' + Math.round((c?.speed || 1) * 100) + '% · Salto ' + Math.round((c?.jump || 1) * 100) + '%';
-  hud(st, W / 2, 430, UI.cyan, 15, 'center');
-  if (c?.special) hud('Especial: ' + c.special.name, W / 2, 455, c.color || UI.cyan, 14, 'center');
-  hud(unlocked ? 'DESBLOQUEADO' : 'Mundos: ' + (c?.unlock || 0) + '+ o comprar en tienda', W / 2, 485, unlocked ? UI.green : UI.red, 14, 'center');
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('◀', 80, H / 2); ctx.fillText('▶', W - 80, H / 2);
-  uiFooter('◀▶ cambiar · Enter/Esc volver');
+  hud(st, W / 2, portrait ? 400 : 430, UI.cyan, portrait ? 13 : 15, 'center');
+  if (c?.special) hud('Especial: ' + c.special.name, W / 2, portrait ? 425 : 455, c.color || UI.cyan, portrait ? 12 : 14, 'center');
+  hud(unlocked ? 'DESBLOQUEADO' : 'Mundos: ' + (c?.unlock || 0) + '+ o comprar en tienda', W / 2, portrait ? 450 : 485, unlocked ? UI.green : UI.red, portrait ? 12 : 14, 'center');
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.font = 'bold ' + (portrait ? 22 : 28) + 'px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('◀', 60, H / 2); ctx.fillText('▶', W - 60, H / 2);
+  if (document.body.classList.contains('touch')) {
+    mobRegisterRow(0, H / 2 - 60, W * 0.38, 120, (gallerySel - 1 + CHARACTERS.length) % CHARACTERS.length);
+    mobRegisterRow(W * 0.62, H / 2 - 60, W * 0.38, 120, (gallerySel + 1) % CHARACTERS.length);
+  }
+  uiFooter(portrait ? 'Toca ◀▶ o desliza · Esc volver' : '◀▶ cambiar · Enter/Esc volver');
 }
 
 // ── World Map ──────────────────────────────────────────────────────────────
