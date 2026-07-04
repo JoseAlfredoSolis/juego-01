@@ -73,6 +73,10 @@ body.three-play #three-c {
   z-index: 2;
   touch-action: none;
 }
+body.touch.playing #touch {
+  z-index: 100;
+  pointer-events: auto;
+}
 body.three-menu.mob-menu-html #mobMenuHtml {
   background: linear-gradient(180deg, rgba(8,12,24,0.55) 0%, rgba(8,12,24,0.82) 100%);
 }
@@ -317,10 +321,7 @@ body.touch.landscape.mob-menu-html .mmh-sub { font-size: 15px; margin-bottom: 8p
   font: 600 16px system-ui, sans-serif;
   padding: 24px 12px;
 }
-body.touch.portrait.playing canvas { visibility: hidden; pointer-events: none; }
-body.touch.portrait.playing.three-race canvas#c { visibility: visible; pointer-events: none; }
-body.touch.portrait.playing.three-race #three-c { display: none; }
-body.touch.portrait.playing #touch { z-index: 50; }
+body.touch.portrait.playing #touch { z-index: 100; }
 .mmh-title {
   font: 900 28px system-ui, sans-serif;
   color: #ffd700;
@@ -398,7 +399,7 @@ body.touch.portrait.playing #touch { z-index: 50; }
   text-align: center;
   pointer-events: none;
 }
-body.touch.portrait.playing #rotateHint { display: flex; }
+body.touch.portrait.mob-menu #rotateHint { display: flex; }
 #rotateHint .rh-icon { font-size: 56px; line-height: 1; }
 #rotateHint .rh-sub { font-size: 14px; color: rgba(255,255,255,0.75); font-weight: 600; max-width: 280px; }
 @media (orientation: landscape) {
@@ -508,6 +509,6 @@ if (typeof THREE === 'undefined') {
   document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
 }
 </script>
-<script src="js/game.js"></script>
+<script src="js/game.js?v=64"></script>
 </body>
 </html>

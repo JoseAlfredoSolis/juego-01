@@ -12,7 +12,10 @@ function threeCanUse() {
 }
 
 function gameView3dEnabled() {
-  return threeCanUse() && gs.viewMode === '3d';
+  if (!threeCanUse() || gs.viewMode !== '3d') return false;
+  // 3D en vertical móvil dejaba la pista invisible (solo HUD) — forzar 2D al jugar.
+  if (typeof mobTouchPortrait === 'function' && mobTouchPortrait()) return false;
+  return true;
 }
 
 function gameViewModeLabel() {

@@ -1,6 +1,6 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v63';
+const GAME_VERSION = 'v64';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
@@ -6913,7 +6913,10 @@ function threeCanUse() {
 }
 
 function gameView3dEnabled() {
-  return threeCanUse() && gs.viewMode === '3d';
+  if (!threeCanUse() || gs.viewMode !== '3d') return false;
+  // 3D en vertical móvil dejaba la pista invisible (solo HUD) — forzar 2D al jugar.
+  if (typeof mobTouchPortrait === 'function' && mobTouchPortrait()) return false;
+  return true;
 }
 
 function gameViewModeLabel() {
