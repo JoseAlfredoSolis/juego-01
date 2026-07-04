@@ -608,6 +608,67 @@ function threeBuildKerbStrip(curve, divisions, roadHalf, kerbW, side, yOffset) {
   return geo;
 }
 
+function threeAddBoostPads(group, tr, curve) {
+  if (!tr.boostPads?.length) return;
+  const roadW = Math.max(5.4, (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.78);
+  const padW = roadW * 0.52;
+  const accent = threeHexColor(tr.accent || '#00d4ff');
+  for (const pad of tr.boostPads) {
+    const p = kartPathSample(tr, pad.u);
+    const tg = kartPathTangent(tr, pad.u);
+    const w = threeGameToWorld(p.x, p.y, 0, tr);
+    const h = threeTrackHeightAt(tr, p.x, p.y, curve) + 0.1;
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(padW, 0.1, 1.7),
+      new THREE.MeshStandardMaterial({
+        color: accent,
+        emissive: accent,
+        emissiveIntensity: 0.55,
+        transparent: true,
+        opacity: 0.92,
+        roughness: 0.35,
+        metalness: 0.25,
+      })
+    );
+    stripe.position.set(w.x, h, w.z);
+    stripe.rotation.y = -tg.angle + Math.PI / 2;
+    stripe.userData.boostPad = true;
+    stripe.userData.padU = pad.u;
+    stripe.receiveShadow = true;
+    group.add(stripe);
+    const glow = new THREE.PointLight(accent, 0.5, 12);
+    glow.position.set(w.x, h + 0.6, w.z);
+    glow.userData.boostPad = true;
+    group.add(glow);
+  }
+}
+
+function threeAddJumpRamps(group, tr, curve) {
+  if (!tr.jumpRamps?.length) return;
+  const accent = threeHexColor(tr.accent || '#ffcc40');
+  for (const ramp of tr.jumpRamps) {
+    const p = kartPathSample(tr, ramp.u);
+    const tg = kartPathTangent(tr, ramp.u);
+    const w = threeGameToWorld(p.x, p.y, 0, tr);
+    const h = threeTrackHeightAt(tr, p.x, p.y, curve) + 0.15;
+    const mesh = new THREE.Mesh(
+      new THREE.ConeGeometry(1.8, 1.2, 3),
+      new THREE.MeshStandardMaterial({
+        color: accent,
+        emissive: accent,
+        emissiveIntensity: 0.4,
+        roughness: 0.5,
+      })
+    );
+    mesh.position.set(w.x, h + 0.5, w.z);
+    mesh.rotation.y = -tg.angle + Math.PI / 2;
+    mesh.rotation.x = Math.PI;
+    mesh.castShadow = true;
+    mesh.userData.jumpRamp = true;
+    group.add(mesh);
+  }
+}
+
 function threeAddTrackObstacles(group, tr, curve) {
   if (!tr.obstacleSpots?.length) return;
   for (const spot of tr.obstacleSpots) {
@@ -708,6 +769,8 @@ function threeBuildTrackMesh(tr) {
   threeAddSkyDome(group, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
 
   threeAddTrackDecor(group, tr, curve);
+  threeAddBoostPads(group, tr, curve);
+  threeAddJumpRamps(group, tr, curve);
   threeAddTrackObstacles(group, tr, curve);
 
   for (const box of tr.items || []) {
@@ -953,6 +1016,10 @@ function threeSyncRaceKarts(ctx, tr, t) {
   }
   if (ctx.trackGroup) {
     ctx.trackGroup.children.forEach(ch => {
+      if (ch.userData?.boostPad && ch.material?.emissive) {
+        ch.material.emissiveIntensity = 0.4 + Math.sin((t || 0) * 8 + (ch.userData.padU || 0) * 18) * 0.28;
+        return;
+      }
       if (ch.isPointLight) return;
       if (ch.geometry?.type === 'BoxGeometry' && ch.material?.emissive) {
         ch.rotation.y = (t || 0) * 2.5;

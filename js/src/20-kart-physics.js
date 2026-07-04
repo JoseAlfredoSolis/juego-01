@@ -17,6 +17,7 @@ function kartInitJumpState(k) {
   k.vz = 0;
   k.antigrav = false;
   k._jumpCd = 0;
+  k._boostCd = 0;
   k._agWarn = 0;
 }
 
@@ -40,8 +41,27 @@ function kartCheckJumpRamps(k, tr) {
   }
 }
 
+function kartCheckBoostPads(k, tr) {
+  if (!tr.boostPads || k._boostCd > 0) return;
+  const u = kartPathU(tr, k.x, k.y);
+  for (const pad of tr.boostPads) {
+    if (Math.abs(u - pad.u) < 0.028 && k.speed > 80) {
+      const boost = pad.power || 100;
+      k.boost = Math.max(k.boost, boost);
+      k._boostCd = 0.45;
+      spawnText(k.x, k.y - 26, 'TURBO!', tr.accent || '#0cf', 14);
+      spawnRing(k.x, k.y, tr.accent || '#0cf', 55, 0.3);
+      spawnParticles(k.x, k.y, tr.accent || '#0cf', 6, 160);
+      sfx.power();
+      if (!k.ai && k.idx === kartLocalIdx()) maybeVibrate(20);
+      break;
+    }
+  }
+}
+
 function kartUpdateJump(k, dt) {
   if (k._jumpCd > 0) k._jumpCd -= dt;
+  if (k._boostCd > 0) k._boostCd -= dt;
   if (k.z <= 0 && k.vz <= 0) {
     k.z = 0;
     k.vz = 0;
@@ -163,6 +183,32 @@ function kartDrawJumpRamps(tr, t) {
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.restore();
+  }
+}
+
+function kartDrawBoostPads(tr, t, mini) {
+  if (!tr.boostPads || mini) return;
+  for (const pad of tr.boostPads) {
+    const p = kartPathSample(tr, pad.u);
+    const tg = kartPathTangent(tr, pad.u);
+    const sp = kartToScreen(p.x, p.y);
+    const pulse = 0.7 + 0.3 * Math.sin(t * 8 + pad.u * 20);
+    const hw = kartRoadHalf(tr, false) * 0.55;
+    const nx = -Math.sin(tg.angle), ny = Math.cos(tg.angle);
+    const l = kartToScreen(p.x + nx * hw, p.y + ny * hw);
+    const r = kartToScreen(p.x - nx * hw, p.y - ny * hw);
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = tr.accent || '#0cf';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(l.x, l.y);
+    ctx.lineTo(r.x, r.y);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = tr.accent || '#0cf';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡', sp.x, sp.y + 4);
   }
 }
 
