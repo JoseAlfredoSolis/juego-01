@@ -345,13 +345,53 @@ function kartToScreen(x, y, mini) {
     const s = mini.scale || 0.35;
     return { x: mini.px + (x - mini.tx) * s, y: mini.py + (y - mini.ty) * s };
   }
+  return kartWorldToScreen(x, y);
+}
+function kartWorldToScreen(x, y) {
   let dx = x - race.camX, dy = y - race.camY;
+  const zoom = race.camZoom || 1;
+  dx /= zoom;
+  dy /= zoom;
   const ca = race.camAngle || 0;
   if (ca) {
     const c = Math.cos(-ca), sn = Math.sin(-ca);
     return { x: dx * c - dy * sn + W / 2, y: dx * sn + dy * c + H / 2 };
   }
   return { x: dx + W / 2, y: dy + H / 2 };
+}
+function kartCamLookAngle(me, tr) {
+  const samples = tr.mega ? 160 : tr.huge ? 110 : 72;
+  const near = kartNearestPath(tr, me.x, me.y, samples);
+  const spd = Math.abs(me.speed || 0);
+  const speedFactor = Math.min(1, spd / 420);
+  const lookU = (near.u + (tr.mega ? 0.028 : tr.huge ? 0.038 : 0.048) + speedFactor * 0.065) % 1;
+  const ahead = kartPathSample(tr, lookU);
+  const pathAngle = Math.atan2(ahead.y - me.y, ahead.x - me.x);
+  if (spd > 90) {
+    const blend = 0.28 + speedFactor * 0.22;
+    return me.angle + kartAngleDiff(pathAngle, me.angle) * blend;
+  }
+  return kartPathTangent(tr, near.u).angle;
+}
+function kartUpdateRaceCamera(me, tr) {
+  const tierMul = tr.mega ? 2.4 : tr.huge ? 1.7 : 1;
+  const touch = document.body.classList.contains('touch');
+  const look = kartCamLookAngle(me, tr);
+  const speedFactor = Math.min(1, Math.abs(me.speed) / 420);
+  const boostFactor = Math.min(1, (me.boost || 0) / 200);
+  const lookAhead = (68 + speedFactor * 140 + boostFactor * 45) * tierMul * (touch ? 1.1 : 1);
+  const camLerp = 0.09 + speedFactor * 0.11 + boostFactor * 0.05;
+  const orbitX = Math.sin(camOrbit.yaw) * (touch ? 52 : 42);
+  const orbitY = camOrbit.pitch * (touch ? 36 : 30);
+  race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead + orbitX, camLerp);
+  race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead + orbitY, camLerp);
+  let targetA = look - Math.PI / 2;
+  targetA += kartAntigravCamTilt(me, tr);
+  const rotLerp = 0.055 + speedFactor * 0.07;
+  race.camAngle = (race.camAngle || 0) + kartAngleDiff(targetA, race.camAngle || 0) * rotLerp;
+  const jumpZoom = (me.z || 0) > 25 ? 0.06 : 0;
+  const zoomTarget = 1 + Math.min(0.18, Math.abs(me.speed) / 4800) + (me.boost > 70 ? 0.07 : 0) - jumpZoom;
+  race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.085);
 }
 function kartRoadHalf(tr, mini) {
   return (tr.roadWidth || 100) * (mini ? (mini.scale || 0.35) : 1) * 0.5;
@@ -546,14 +586,15 @@ function kartDrawHugeBg(tr) {
   const grid = 240;
   const camX = race.camX, camY = race.camY;
   const ca = race.camAngle || 0;
+  const zoom = race.camZoom || 1;
   const c = Math.cos(-ca), sn = Math.sin(-ca);
-  const startGX = Math.floor((camX - W) / grid) * grid;
-  const startGY = Math.floor((camY - H) / grid) * grid;
+  const startGX = Math.floor((camX - W * zoom) / grid) * grid;
+  const startGY = Math.floor((camY - H * zoom) / grid) * grid;
   ctx.strokeStyle = 'rgba(255,255,255,0.04)';
   ctx.lineWidth = 1;
-  for (let gx = startGX; gx < camX + W + grid; gx += grid) {
-    for (let gy = startGY; gy < camY + H + grid; gy += grid) {
-      const dx = gx - camX, dy = gy - camY;
+  for (let gx = startGX; gx < camX + W * zoom + grid; gx += grid) {
+    for (let gy = startGY; gy < camY + H * zoom + grid; gy += grid) {
+      let dx = (gx - camX) / zoom, dy = (gy - camY) / zoom;
       const sx = dx * c - dy * sn + W / 2;
       const sy = dx * sn + dy * c + H / 2;
       if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
@@ -1130,25 +1171,7 @@ function updateKart(dt) {
   kartTick(dt);
   if (race.phase === 'racing' || race.phase === 'countdown') {
     const me = race.karts[kartLocalIdx()];
-    if (me) {
-      const tr = race.track;
-      const tierMul = tr.mega ? 2.4 : tr.huge ? 1.7 : 1;
-      const look = me.speed > 80 ? me.angle : kartPathTangent(tr, kartNearestPath(tr, me.x, me.y).u).angle;
-      const speedFactor = Math.min(1, Math.abs(me.speed) / 380);
-      const lookAhead = (52 + speedFactor * 110) * tierMul;
-      const camLerp = 0.12 + speedFactor * 0.09;
-      const orbitX = Math.sin(camOrbit.yaw) * 40;
-      const orbitY = camOrbit.pitch * 28;
-      race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead + orbitX, camLerp);
-      race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead + orbitY, camLerp);
-      let targetA = look - Math.PI / 2;
-      const agTilt = kartAntigravCamTilt(me, race.track);
-      targetA += agTilt;
-      let da = kartAngleDiff(targetA, race.camAngle || 0);
-      race.camAngle = (race.camAngle || 0) + da * (0.07 + speedFactor * 0.05);
-      const zoomTarget = 1 + Math.min(0.12, Math.abs(me.speed) / 6500);
-      race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.07);
-    }
+    if (me) kartUpdateRaceCamera(me, race.track);
   }
   if (pressed('Escape') || pressed('KeyP')) {
     if (race.solo) { race = null; changeScene('kartmenu'); }
@@ -1251,6 +1274,18 @@ function drawKart(t) {
     drawKartTrack(race.track, t);
     const sorted = [...race.karts].sort((a, b) => a.rank - b.rank || 0);
     for (const k of sorted) drawKartEntity(k, race.track);
+    const meFx = race.karts[kartLocalIdx()];
+    if (meFx) {
+      const sf = Math.min(1, Math.abs(meFx.speed || 0) / 450);
+      const bf = Math.min(1, (meFx.boost || 0) / 180);
+      if (sf > 0.35 || bf > 0.3) {
+        const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.72);
+        vig.addColorStop(0, 'rgba(0,0,0,0)');
+        vig.addColorStop(1, `rgba(0,0,0,${0.12 + sf * 0.14 + bf * 0.1})`);
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
   }
   fillRR(8, 8, W - 16, 56, 14, 'rgba(8,12,20,0.85)');
   const me = race.karts[kartLocalIdx()];

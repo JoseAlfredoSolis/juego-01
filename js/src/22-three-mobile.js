@@ -1004,17 +1004,26 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const w = threeGameToWorld(local.x, local.y, local.z, tr);
     const curve = ctx.trackGroup?.userData?.raceCurve;
     const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
-    const ca = (race.camAngle || local.angle || 0) + camOrbit.yaw * 0.35;
-    const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 380);
-    const dist = 16 + (race.camZoom || 1) * 4 + speedFactor * 8 + camOrbit.dist * 0.35;
-    const h = 8.5 + Math.min(7, (local.z || 0) * 0.045) + speedFactor * 2 + camOrbit.pitch * 12;
-    const cx = w.x - Math.cos(ca) * dist;
-    const cz = w.z - Math.sin(ca) * dist;
-    const lookH = 2.2 + Math.min(2, (local.speed || 0) * 0.003);
-    const camLerp = 0.12 + speedFactor * 0.06;
-    ctx.camera.position.lerp(new THREE.Vector3(cx, roadH + w.y + h, cz), camLerp);
-    ctx.camera.lookAt(w.x + Math.cos(ca) * 3, roadH + w.y + lookH, w.z + Math.sin(ca) * 3);
-    ctx.camera.fov = lerp(ctx.camera.fov, 58 + (local.speed || 0) * 0.01, 0.09);
+    const samples = tr.mega ? 140 : tr.huge ? 100 : 64;
+    const near = kartNearestPath(tr, local.x, local.y, samples);
+    const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 400);
+    const boostFactor = Math.min(1, (local.boost || 0) / 200);
+    const lookU = (near.u + 0.035 + speedFactor * 0.055) % 1;
+    const aheadP = kartPathSample(tr, lookU);
+    const aw = threeGameToWorld(aheadP.x, aheadP.y, local.z, tr);
+    const aheadH = threeTrackHeightAt(tr, aheadP.x, aheadP.y, curve);
+    const bearing = (race.camAngle || 0) + Math.PI / 2 + camOrbit.yaw * 0.42;
+    const dist = 13 + (race.camZoom || 1) * 5.5 + speedFactor * 11 + boostFactor * 7 + camOrbit.dist * 0.42;
+    const h = 7 + Math.min(9, (local.z || 0) * 0.055) + speedFactor * 3 + camOrbit.pitch * 15;
+    const cx = w.x - Math.cos(bearing) * dist;
+    const cz = w.z - Math.sin(bearing) * dist;
+    const camY = roadH + w.y + h;
+    const lookH = aheadH + 2.8 + Math.min(2, (local.speed || 0) * 0.004);
+    const camLerp = 0.1 + speedFactor * 0.08 + boostFactor * 0.04;
+    ctx.camera.position.lerp(new THREE.Vector3(cx, camY, cz), camLerp);
+    ctx.camera.lookAt(aw.x, lookH, aw.z);
+    const targetFov = 52 + speedFactor * 10 + boostFactor * 8 + (local.z > 30 ? 4 : 0);
+    ctx.camera.fov = lerp(ctx.camera.fov, targetFov, 0.085);
     ctx.camera.updateProjectionMatrix();
   }
   if (ctx.trackGroup) {
