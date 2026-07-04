@@ -190,6 +190,8 @@ function loop(ts) {
       case 'charselect': updateCharSelect(dt); break;
       case 'shop':       updateShop(dt); break;
       case 'achievements': updateAchievements(dt); break;
+      case 'pomworld':   updatePomWorld(dt); break;
+      case 'gallery':    updateGallery(dt); break;
       case 'multimenu':  updateMultiMenu(dt); break;
       case 'mpcreate':   updateMpCreate(dt); break;
       case 'mpjoin':     updateMpJoin(dt); break;
@@ -220,6 +222,8 @@ function loop(ts) {
     case 'charselect':    drawCharSelect(); break;
     case 'shop':          drawShop(); break;
     case 'achievements':  drawAchievements(); break;
+    case 'pomworld':      drawPomWorld(t); break;
+    case 'gallery':       drawGallery(t); break;
     case 'multimenu':     drawMultiMenu(t); break;
     case 'mpcreate':      drawMpCreate(t); break;
     case 'mpjoin':        drawMpJoin(t); break;

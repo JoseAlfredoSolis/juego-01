@@ -350,6 +350,42 @@ function drawCosmo(p, x, y) {
   ctx.fillStyle='#c8f'; ctx.fillRect(x+PLAYER_W/2-4,y-10,8,6);
   ctx.fillStyle='#8af'; ctx.fillRect(x+(f?22:6),y+7,5,4);
 }
+function drawPomeranian(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ff9a40'; ctx.fillRect(x+4,y+14,PLAYER_W-8,PLAYER_H-14);
+  ctx.fillStyle='#ffb870'; ctx.fillRect(x+2,y+6,PLAYER_W-4,22);
+  ctx.fillStyle='#ff9a40'; ctx.fillRect(x,y-2,10,12); ctx.fillRect(x+PLAYER_W-10,y-2,10,12);
+  ctx.fillStyle='#fff8f0'; ctx.fillRect(x+8,y+10,8,8); ctx.fillRect(x+PLAYER_W-16,y+10,8,8);
+  ctx.fillStyle='#222'; ctx.fillRect(x+(f?20:8),y+12,5,5);
+  ctx.fillStyle='#ff7040'; ctx.fillRect(x+PLAYER_W/2-2,y+18,4,3);
+  ctx.fillStyle='#ff9a40'; ctx.fillRect(x+(f?PLAYER_W-2:-6),y+20,8,10);
+}
+function drawFluffy(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#fff5e8'; ctx.fillRect(x+2,y+10,PLAYER_W-4,PLAYER_H-10);
+  ctx.fillStyle='#ffe8d0'; ctx.fillRect(x,y,PLAYER_W,20);
+  ctx.fillStyle='#fff'; ctx.fillRect(x-2,y-4,8,10); ctx.fillRect(x+PLAYER_W-6,y-4,8,10);
+  ctx.fillStyle='#333'; ctx.fillRect(x+8,y+8,6,6); ctx.fillRect(x+PLAYER_W-14,y+8,6,6);
+  ctx.fillStyle='#f88'; ctx.fillRect(x+PLAYER_W/2-2,y+14,4,3);
+  ctx.fillStyle='#ffe0c8'; ctx.fillRect(x+(f?PLAYER_W:0),y+18,6,12);
+}
+function drawPrincePom(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ffd700'; ctx.fillRect(x,y-8,PLAYER_W,8);
+  ctx.fillStyle='#e87830'; ctx.fillRect(x+4,y+12,PLAYER_W-8,PLAYER_H-12);
+  ctx.fillStyle='#ffb050'; ctx.fillRect(x+2,y+4,PLAYER_W-4,20);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+6,y+10,7,7); ctx.fillRect(x+PLAYER_W-13,y+10,7,7);
+  ctx.fillStyle='#003'; ctx.fillRect(x+(f?22:6),y+12,5,4);
+  ctx.fillStyle='#c8102e'; ctx.fillRect(x+PLAYER_W/2-5,y+18,10,4);
+}
+function drawTinyPom(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ff8040'; ctx.fillRect(x+8,y+20,PLAYER_W-16,PLAYER_H-20);
+  ctx.fillStyle='#ffa060'; ctx.fillRect(x+6,y+10,PLAYER_W-12,16);
+  ctx.fillStyle='#ff8040'; ctx.fillRect(x+4,y+4,8,8); ctx.fillRect(x+PLAYER_W-12,y+4,8,8);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?18:10),y+12,4,4);
+  ctx.fillStyle='#ff6040'; ctx.fillRect(x+PLAYER_W/2-1,y+16,2,2);
+}
 
 // stat: speed/jump multipliers; special: {type,cd,fx,name}; unlock: worlds cleared needed
 const CHARACTERS = [
@@ -387,6 +423,14 @@ const CHARACTERS = [
     special:{ type:'thrust', cd:1.0, fx:'#ff8fb0', name:'INHALE' } },
   { name:'COSMO',     speed:1.12, jump:1.20, color:'#7a40c0', draw:drawCosmo,    unlock:7, desc:'Poder cosmico',
     special:{ type:'rewind', cd:6.0, fx:'#c8f',   name:'STAR HEAL' } },
+  { name:'POM',       speed:1.14, jump:1.16, color:'#ff9a40', draw:drawPomeranian, unlock:8, desc:'Peludo y veloz del jardin',
+    special:{ type:'dash',   cd:0.85, fx:'#ffb870', name:'FLUFF DASH' } },
+  { name:'FLUFFY',    speed:1.08, jump:1.22, color:'#fff5e8', draw:drawFluffy,   unlock:9, desc:'Nube de algodon saltarina',
+    special:{ type:'thrust', cd:1.0, fx:'#ffe8d0', name:'CLOUD JUMP' } },
+  { name:'PRINCE POM',speed:1.12, jump:1.14, color:'#ffd700', draw:drawPrincePom, unlock:10, desc:'Rey del parque canino',
+    special:{ type:'punch',  cd:1.2, fx:'#ffd700', name:'ROYAL BARK' } },
+  { name:'TINY POM',  speed:1.26, jump:1.10, color:'#ff8040', draw:drawTinyPom,  unlock:8, desc:'Pequeño pero imparable',
+    special:{ type:'dash',   cd:0.75, fx:'#ffa060', name:'ZOOM ZOOM' } },
 ];
 
 function worldsCleared(){
@@ -406,7 +450,8 @@ const ACHIEVEMENTS = [
   { id:'rich',      name:'Millonario oso',  desc:'Acumula 500 monedas en total' },
   { id:'shopper',   name:'Comprador',       desc:'Compra algo en la tienda' },
   { id:'allchars',  name:'Equipo completo', desc:'Desbloquea todos los personajes' },
-  { id:'allworlds', name:'Leyenda',         desc:'Completa los 10 mundos' },
+  { id:'allworlds', name:'Leyenda',         desc:'Completa los 11 mundos' },
+  { id:'pomworld',  name:'Amante pomerania', desc:'Visita el mundo Pomeranian' },
   { id:'coop',      name:'Equipo online',   desc:'Juega con un amigo en linea' },
 ];
 function unlockAch(id){

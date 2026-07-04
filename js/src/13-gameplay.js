@@ -44,6 +44,20 @@ function drawBg(bg, levelW) {
       const sx=((i*190+50)-off*0.5%levelW+levelW)%levelW-cam.x, sy=40+((i*67)%600);
       if (sx>-10&&sx<W+10) { ctx.fillStyle=['#c8f','#8af','#f8f'][i%3]; ctx.globalAlpha=0.5; ctx.fillRect(sx,sy,4,14); ctx.globalAlpha=1; }
     }
+  } else if (w===LAST_WORLD) {
+    for (let i=0;i<22;i++) {
+      const bx=((i*280+60)-off%levelW+levelW)%levelW-cam.x, by=70+((i*47)%420);
+      if (bx>-50&&bx<W+50) {
+        ctx.globalAlpha=0.35; ctx.fillStyle=i%3?'#ffb870':'#ff9a50';
+        ctx.beginPath(); ctx.arc(bx,by,10+((i*5)%14),0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+    }
+    for (let i=0;i<10;i++) {
+      const fx=((i*520+100)-off*0.2%levelW+levelW)%levelW-cam.x;
+      ctx.fillStyle='#5a9a40'; ctx.fillRect(fx,H-120,8,50);
+      ctx.fillStyle='#3a7828'; ctx.beginPath(); ctx.arc(fx+4,H-125,18,0,Math.PI*2); ctx.fill();
+    }
   } else if (w===10) {
     for (let i=0;i<80;i++) {
       const sx=(i*97+(i*13)%200)%W, sy=(i*61)%H;
@@ -65,7 +79,8 @@ function drawPlatforms(plats, world) {
   const cols = [
     ['#3d7a2a','#2d5a1b'],['#4a3520','#2d1f0f'],['#b0c8e0','#8aaac0'],
     ['#8a3320','#5a1e10'],['#dfeaf6','#a9c4e0'],['#d4b860','#9a7830'],
-    ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#4a5080','#1a2048']
+    ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#4a5080','#1a2048'],
+    ['#ffd4a8','#e89050']
   ];
   const [top,side] = cols[world]||cols[0];
   for (const [px,py,pw,ph] of plats) {
@@ -105,6 +120,14 @@ function startLevel() {
       ? 'D-pad = mover · Arrastra derecha = cámara'
       : 'Flechas mover · Q/E cámara · Espacio saltar';
     showBanner(hint, '#5dd4ff');
+  }
+  if (gs.world === LAST_WORLD) {
+    if (!gs.ach) gs.ach = {};
+    gs.ach.pomworld = true;
+    if (!gs._hintPom) {
+      gs._hintPom = true;
+      showBanner('MUNDO POMERANIAN — ¡Auuuu!', '#ff9a40');
+    }
   }
 }
 

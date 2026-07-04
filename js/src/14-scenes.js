@@ -141,7 +141,7 @@ function drawMpJoin(t) {
 
 // ── Menu Scene ─────────────────────────────────────────────────────────────
 let menuSel=0, menuT=0;
-const menuItems=['PLAY','KART RACE','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
+const menuItems=['PLAY','KART RACE','POMERANIA','GALERIA','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 
 function updateMenu(dt) {
   mobBindMenu(() => menuSel, v => { menuSel = v; });
@@ -159,6 +159,8 @@ function updateMenu(dt) {
     const it=menuItems[menuSel];
     if (it==='PLAY')             { gs.lives=startLives(); gs.score=0; gs.coins=0; changeScene('worldmap'); wmSel=gs.world; wmLvl=0; }
     else if (it==='KART RACE')   { kartMenuSel=0; mp.gameMode='kart'; changeScene('kartmenu'); }
+    else if (it==='POMERANIA')   { pomT=0; changeScene('pomworld'); }
+    else if (it==='GALERIA')     { gallerySel=0; galleryT=0; changeScene('gallery'); }
     else if (it==='MULTIJUGADOR'){ mp.menuSel=0; mp.gameMode='platformer'; mp.joinBuf=''; mp.errMsg=''; changeScene('multimenu'); }
     else if (it==='CHARACTER')   { changeScene('charselect'); charSel=gs.character; charT=0; }
     else if (it==='TIENDA')      { changeScene('shop'); shopSel=0; }
@@ -249,15 +251,133 @@ function drawInstructions() {
   if (pressed('Enter')||pressed('Escape')) changeScene('menu');
 }
 
+// ── Pomeranian World Screen ─────────────────────────────────────────────────
+let pomT = 0;
+function updatePomWorld(dt) {
+  pomT += dt;
+  if (!gs.ach) gs.ach = {};
+  gs.ach.pomworld = true;
+  mobBindMenu(() => pomMenuSel, v => { pomMenuSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'up') pomMenuSel = (pomMenuSel - 1 + 3) % 3;
+    if (dir === 'down') pomMenuSel = (pomMenuSel + 1) % 3;
+  });
+  if (pressed('ArrowUp') || pressed('KeyW')) { pomMenuSel = (pomMenuSel - 1 + 3) % 3; sfx.select(); }
+  if (pressed('ArrowDown') || pressed('KeyS')) { pomMenuSel = (pomMenuSel + 1) % 3; sfx.select(); }
+  if (pressed('Escape')) { changeScene('menu'); return; }
+  if (pressed('Enter') || pressed('Space')) {
+    sfx.select();
+    if (!gs.ach) gs.ach = {};
+    gs.ach.pomworld = true;
+    if (pomMenuSel === 0) {
+      if (gs.worldUnlocked[LAST_WORLD]) {
+        wmSel = LAST_WORLD; wmLvl = 0; gs.world = LAST_WORLD; gs.level = 0;
+        gs.lives = startLives(); gs.score = 0; gs.coins = 0;
+        startLevel(); changeScene('gameplay');
+      } else {
+        showBanner('Completa COSMOS primero', '#f80');
+      }
+    } else if (pomMenuSel === 1) { gallerySel = 17; changeScene('gallery'); }
+    else changeScene('menu');
+  }
+}
+let pomMenuSel = 0;
+function drawPomWorld(t) {
+  uiBgGrad('#ffe8c8', '#ff9a50');
+  for (let i = 0; i < 30; i++) {
+    const x = (i * 97 + t * 40) % W, y = 60 + (i * 53) % 500;
+    ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 2 + i);
+    ctx.fillStyle = i % 2 ? '#ffb870' : '#fff5e8';
+    ctx.beginPath(); ctx.arc(x, y, 8 + (i % 5) * 3, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  uiTitle('MUNDO POMERANIAN', 70, 44);
+  hud('Reino de los perros peludos', W / 2, 108, '#e87830', 20, 'center');
+  uiPanel(W / 2 - 340, 130, 680, 400, 22);
+  const pomChars = [17, 18, 19, 20];
+  for (let i = 0; i < pomChars.length; i++) {
+    const ci = pomChars[i];
+    const c = CHARACTERS[ci];
+    const px = W / 2 - 240 + i * 130, py = 200;
+    fillRR(px - 50, py - 30, 100, 120, 14, 'rgba(255,255,255,0.12)');
+    if (c?.draw) {
+      ctx.save();
+      ctx.translate(px, py + 20);
+      c.draw({ facing: 1 }, 0, 0);
+      ctx.restore();
+    }
+    ctx.fillStyle = isCharUnlocked(ci) ? UI.bright : UI.dim;
+    ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(c?.name || '?', px, py + 72);
+  }
+  hud('4 nuevos personajes · 3 niveles de jardin', W / 2, 310, UI.cyan, 16, 'center');
+  const opts = ['JUGAR MUNDO POMERANIAN', 'VER EN GALERIA', 'VOLVER AL MENU'];
+  const lay = mobMenuLayout(opts.length);
+  for (let i = 0; i < opts.length; i++) {
+    const y = lay.startY + i * lay.rowH;
+    const sel = i === pomMenuSel;
+    fillRR(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, 12, sel ? 'rgba(255,154,64,0.35)' : 'rgba(0,0,0,0.25)');
+    if (sel) strokeRR(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, 12, '#ff9a40', 2);
+    hud(opts[i], W / 2, y + 5, sel ? '#ffd700' : UI.bright, 18, 'center');
+    mobRegisterRow(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, i);
+  }
+  const unlocked = gs.worldUnlocked[LAST_WORLD];
+  hud(unlocked ? 'Mundo desbloqueado — ¡listo para jugar!' : 'Bloqueado: completa el mundo COSMOS', W / 2, 470, unlocked ? UI.green : UI.dim, 15, 'center');
+  uiFooter('Enter = elegir · Esc = volver');
+}
+
+// ── Character Gallery ───────────────────────────────────────────────────────
+let gallerySel = 0, galleryT = 0;
+function updateGallery(dt) {
+  galleryT += dt;
+  mobBindMenu(() => gallerySel, v => { gallerySel = v; });
+  mobBindSwipe(dir => {
+    const n = CHARACTERS.length;
+    if (dir === 'left') gallerySel = (gallerySel - 1 + n) % n;
+    if (dir === 'right') gallerySel = (gallerySel + 1) % n;
+  });
+  if (pressed('ArrowLeft') || pressed('KeyA')) { gallerySel = (gallerySel - 1 + CHARACTERS.length) % CHARACTERS.length; sfx.select(); }
+  if (pressed('ArrowRight') || pressed('KeyD')) { gallerySel = (gallerySel + 1) % CHARACTERS.length; sfx.select(); }
+  if (pressed('Escape') || pressed('Enter')) { changeScene('menu'); }
+}
+function drawGallery(t) {
+  uiBgGrad('#0a1420', '#1a2840');
+  uiSparkles(t * 0.4, 20);
+  uiTitle('GALERIA DE HEROES', 60, 36);
+  hud(gallerySel + 1 + ' / ' + CHARACTERS.length, W / 2, 100, UI.dim, 16, 'center');
+  const c = CHARACTERS[gallerySel];
+  const unlocked = isCharUnlocked(gallerySel);
+  uiPanel(W / 2 - 280, 130, 560, 380, 20);
+  const bob = Math.sin(t * 2.5) * 8;
+  if (c?.draw) {
+    ctx.save();
+    ctx.translate(W / 2, 280 + bob);
+    ctx.scale(2.2, 2.2);
+    c.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
+    ctx.restore();
+  }
+  hud(c?.name || '?', W / 2, 160, unlocked ? UI.gold : UI.dim, 32, 'center');
+  hud(c?.desc || '', W / 2, 400, UI.bright, 18, 'center');
+  const st = 'Vel ' + Math.round((c?.speed || 1) * 100) + '% · Salto ' + Math.round((c?.jump || 1) * 100) + '%';
+  hud(st, W / 2, 430, UI.cyan, 15, 'center');
+  if (c?.special) hud('Especial: ' + c.special.name, W / 2, 455, c.color || UI.cyan, 14, 'center');
+  hud(unlocked ? 'DESBLOQUEADO' : 'Mundos: ' + (c?.unlock || 0) + '+ o comprar en tienda', W / 2, 485, unlocked ? UI.green : UI.red, 14, 'center');
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('◀', 80, H / 2); ctx.fillText('▶', W - 80, H / 2);
+  uiFooter('◀▶ cambiar · Enter/Esc volver');
+}
+
 // ── World Map ──────────────────────────────────────────────────────────────
 let wmSel=0, wmLvl=0;
-const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS'];
+const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS','POMERANIAN'];
 const worldColors=[
   ['#2d6e1a','#1a4010'],['#2a3f5a','#0d1b2a'],['#6090b0','#3060a0'],
   ['#7a2418','#3a0d08'],['#5a86c0','#2b4f7a'],['#a08030','#6a5018'],
-  ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#6a70c0','#2a3068']
+  ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#6a70c0','#2a3068'],
+  ['#ffb870','#e87830']
 ];
-const worldHints=['','','','','','Valle: exploracion tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos laser','Cosmos: gravedad baja'];
+const worldHints=['','','','','','Valle: exploracion tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos laser','Cosmos: gravedad baja','Pomeranian: jardines peludos y rey canino'];
 
 function updateWorldMap(dt) {
   if (mp.active && mp.role==='guest') {

@@ -1,9 +1,9 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v64';
+const GAME_VERSION = 'v65';
 const W = 1280, H = 720;
 let threeCtx = null;
-const WORLD_COUNT = 10;           // FOREST..COSMOS (10 mundos)
+const WORLD_COUNT = 11;           // FOREST..COSMOS + POMERANIAN
 const LAST_WORLD = WORLD_COUNT-1;
 const WORLDS_PER_ROW = 5;
 const GRAVITY = 1800, MAX_FALL = 900;
@@ -582,7 +582,62 @@ function mkLevel(world, lvl) {
       goal:[4180,540]
     }
   ];
-  return [W1,W2,W3,W4,W5,W6,W7,W8,W9,W10][world][lvl];
+  const W11=[
+    // POMERANIAN 1 — Jardín soleado
+    { levelW:3800, bg:['#f0dcc8','#ffb870'],
+      platforms:[
+        [0,640,880,80],[960,640,720,80],[1760,640,680,80],[2540,640,1260,80],
+        [180,520,130,18],[400,470,120,18],[620,520,130,18],[860,480,110,18],
+        [1040,510,130,18],[1260,460,110,18],[1480,500,140,18],[1680,460,120,18],
+        [1880,520,130,18],[2100,470,110,18],[2320,510,140,18],[2540,460,100,18],
+        [2760,520,140,18],[2980,470,130,18],[3220,510,160,18],[3440,460,140,18]
+      ],
+      enemies:[[320,615,'patrol',170],[680,615,'patrol',190],[1080,615,'patrol',200],
+               [1520,615,'chaser',220],[1980,615,'patrol',180],[2420,615,'chaser',240],
+               [2880,615,'patrol',200],[3300,615,'patrol',170]],
+      coins:[[220,490],[440,440],[660,500],[880,450],[1080,480],[1280,430],
+             [1500,470],[1720,440],[1940,500],[2160,440],[2380,480],[2600,430],
+             [2820,490],[3040,440],[3280,480],[3500,430]],
+      stars:[[1240,430],[2680,480]],
+      powerups:[[760,470,'djump'],[2140,440,'speed']],
+      goal:[3660,555]
+    },
+    // POMERANIAN 2 — Parque de peluches
+    { levelW:3900, bg:['#f5e8d8','#ff9a50'],
+      platforms:[
+        [0,640,720,80],[780,640,520,80],[1380,640,460,80],[1920,640,520,80],[2520,640,640,80],[3240,640,660,80],
+        [160,520,120,18],[360,470,110,18],[560,530,130,18],[760,480,100,18],
+        [880,520,120,18],[1080,460,110,18],[1320,510,130,18],[1480,460,100,18],
+        [1720,530,120,18],[1920,470,110,18],[2120,510,140,18],[2320,460,100,18],
+        [2580,520,130,18],[2780,470,120,18],[3030,510,140,18],[3280,460,130,18]
+      ],
+      enemies:[[280,615,'patrol',170],[720,615,'chaser',210],[1080,615,'patrol',190],
+               [1620,615,'patrol',190],[2020,615,'chaser',230],[2720,615,'patrol',210],[3360,615,'chaser',200]],
+      coins:[[200,490],[400,440],[600,500],[800,450],[950,490],[1150,430],
+             [1400,480],[1550,430],[1800,500],[2000,440],[2200,480],[2400,430],
+             [2700,490],[2900,440],[3150,480],[3400,430]],
+      stars:[[1100,430],[2900,440]],
+      powerups:[[580,500,'inv'],[2200,480,'djump']],
+      goal:[3760,555]
+    },
+    // POMERANIAN 3 — Rey Peludo (jefe)
+    { levelW:4000, bg:['#ffe8c8','#ff8040'],
+      platforms:[
+        [0,640,920,80],[1000,640,740,80],[1820,640,700,80],[2620,640,640,80],[3340,630,660,10],
+        [200,530,130,18],[460,470,120,18],[720,520,130,18],[980,480,110,18],
+        [1180,510,130,18],[1440,460,110,18],[1690,510,130,18],[1940,470,120,18],
+        [2180,510,130,18],[2440,460,110,18],[2700,500,130,18],[2960,460,120,18]
+      ],
+      enemies:[[340,615,'patrol',170],[780,615,'patrol',190],[1240,615,'chaser',230],
+               [1740,615,'patrol',210],[2240,615,'chaser',250],[3620,555,'boss',300]],
+      coins:[[240,500],[500,440],[760,490],[1020,450],[1220,480],[1470,430],
+             [1720,480],[1970,440],[2170,480],[2420,430],[2670,470],[2920,430]],
+      stars:[[1440,430],[2700,460]],
+      powerups:[[820,490,'speed'],[2440,430,'inv']],
+      goal:[3880,540]
+    }
+  ];
+  return [W1,W2,W3,W4,W5,W6,W7,W8,W9,W10,W11][world][lvl];
 }
 
 // ── Hazards / obstacles ─────────────────────────────────────────────────────
@@ -639,6 +694,11 @@ function hazardData(world, lvl) {
       [[600,540,'meteor',220],[1240,540,'meteor',240],[1880,540,'meteor',260],[2520,540,'meteor',260]],
       [[780,520,'meteor',240],[1280,560,'meteor',260],[1780,520,'meteor',280],[2280,560,'meteor',280]],
     ],
+    [ // POMERANIAN (espinas, cepillos, barro)
+      [[520,620,'spikes',90],[1200,540,'saw',190],[1980,620,'quicksand',110],[2780,540,'saw',210]],
+      [[480,620,'spikes',100],[1150,540,'saw',200],[2050,620,'quicksand',120],[2850,540,'saw',220]],
+      [[620,620,'spikes',110],[1400,540,'saw',210],[2200,620,'quicksand',130],[3000,540,'saw',230]],
+    ],
   ];
   return D[world]?.[lvl] || [];
 }
@@ -692,6 +752,11 @@ function extraEnemies(world, lvl) {
       [[900,490,'flyer',340],[1700,600,'jumper',0],[2500,600,'spitter',0],[1500,600,'armor',160],[2100,460,'hunter',0]],
       [[700,480,'flyer',340],[1600,600,'jumper',0],[2800,600,'spitter',0],[1400,460,'hunter',0],[2300,600,'armor',160],[1100,560,'miniboss',240]],
       [[1300,500,'flyer',360],[2050,600,'jumper',0],[2700,600,'spitter',0],[1600,600,'armor',160],[2400,460,'hunter',0]],
+    ],
+    [ // POMERANIAN — gatos celosos y aspiradoras
+      [[880,490,'flyer',300],[1620,600,'jumper',0],[2550,600,'spitter',0],[1480,600,'armor',150]],
+      [[720,480,'flyer',310],[1680,600,'jumper',0],[2850,600,'spitter',0],[1420,460,'hunter',0],[1100,560,'miniboss',210]],
+      [[1280,500,'flyer',330],[2050,600,'jumper',0],[2750,600,'spitter',0],[1580,600,'armor',150],[2350,460,'hunter',0]],
     ],
   ];
   return E[world]?.[lvl] || [];
@@ -1986,6 +2051,42 @@ function drawCosmo(p, x, y) {
   ctx.fillStyle='#c8f'; ctx.fillRect(x+PLAYER_W/2-4,y-10,8,6);
   ctx.fillStyle='#8af'; ctx.fillRect(x+(f?22:6),y+7,5,4);
 }
+function drawPomeranian(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ff9a40'; ctx.fillRect(x+4,y+14,PLAYER_W-8,PLAYER_H-14);
+  ctx.fillStyle='#ffb870'; ctx.fillRect(x+2,y+6,PLAYER_W-4,22);
+  ctx.fillStyle='#ff9a40'; ctx.fillRect(x,y-2,10,12); ctx.fillRect(x+PLAYER_W-10,y-2,10,12);
+  ctx.fillStyle='#fff8f0'; ctx.fillRect(x+8,y+10,8,8); ctx.fillRect(x+PLAYER_W-16,y+10,8,8);
+  ctx.fillStyle='#222'; ctx.fillRect(x+(f?20:8),y+12,5,5);
+  ctx.fillStyle='#ff7040'; ctx.fillRect(x+PLAYER_W/2-2,y+18,4,3);
+  ctx.fillStyle='#ff9a40'; ctx.fillRect(x+(f?PLAYER_W-2:-6),y+20,8,10);
+}
+function drawFluffy(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#fff5e8'; ctx.fillRect(x+2,y+10,PLAYER_W-4,PLAYER_H-10);
+  ctx.fillStyle='#ffe8d0'; ctx.fillRect(x,y,PLAYER_W,20);
+  ctx.fillStyle='#fff'; ctx.fillRect(x-2,y-4,8,10); ctx.fillRect(x+PLAYER_W-6,y-4,8,10);
+  ctx.fillStyle='#333'; ctx.fillRect(x+8,y+8,6,6); ctx.fillRect(x+PLAYER_W-14,y+8,6,6);
+  ctx.fillStyle='#f88'; ctx.fillRect(x+PLAYER_W/2-2,y+14,4,3);
+  ctx.fillStyle='#ffe0c8'; ctx.fillRect(x+(f?PLAYER_W:0),y+18,6,12);
+}
+function drawPrincePom(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ffd700'; ctx.fillRect(x,y-8,PLAYER_W,8);
+  ctx.fillStyle='#e87830'; ctx.fillRect(x+4,y+12,PLAYER_W-8,PLAYER_H-12);
+  ctx.fillStyle='#ffb050'; ctx.fillRect(x+2,y+4,PLAYER_W-4,20);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+6,y+10,7,7); ctx.fillRect(x+PLAYER_W-13,y+10,7,7);
+  ctx.fillStyle='#003'; ctx.fillRect(x+(f?22:6),y+12,5,4);
+  ctx.fillStyle='#c8102e'; ctx.fillRect(x+PLAYER_W/2-5,y+18,10,4);
+}
+function drawTinyPom(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ff8040'; ctx.fillRect(x+8,y+20,PLAYER_W-16,PLAYER_H-20);
+  ctx.fillStyle='#ffa060'; ctx.fillRect(x+6,y+10,PLAYER_W-12,16);
+  ctx.fillStyle='#ff8040'; ctx.fillRect(x+4,y+4,8,8); ctx.fillRect(x+PLAYER_W-12,y+4,8,8);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?18:10),y+12,4,4);
+  ctx.fillStyle='#ff6040'; ctx.fillRect(x+PLAYER_W/2-1,y+16,2,2);
+}
 
 // stat: speed/jump multipliers; special: {type,cd,fx,name}; unlock: worlds cleared needed
 const CHARACTERS = [
@@ -2023,6 +2124,14 @@ const CHARACTERS = [
     special:{ type:'thrust', cd:1.0, fx:'#ff8fb0', name:'INHALE' } },
   { name:'COSMO',     speed:1.12, jump:1.20, color:'#7a40c0', draw:drawCosmo,    unlock:7, desc:'Poder cosmico',
     special:{ type:'rewind', cd:6.0, fx:'#c8f',   name:'STAR HEAL' } },
+  { name:'POM',       speed:1.14, jump:1.16, color:'#ff9a40', draw:drawPomeranian, unlock:8, desc:'Peludo y veloz del jardin',
+    special:{ type:'dash',   cd:0.85, fx:'#ffb870', name:'FLUFF DASH' } },
+  { name:'FLUFFY',    speed:1.08, jump:1.22, color:'#fff5e8', draw:drawFluffy,   unlock:9, desc:'Nube de algodon saltarina',
+    special:{ type:'thrust', cd:1.0, fx:'#ffe8d0', name:'CLOUD JUMP' } },
+  { name:'PRINCE POM',speed:1.12, jump:1.14, color:'#ffd700', draw:drawPrincePom, unlock:10, desc:'Rey del parque canino',
+    special:{ type:'punch',  cd:1.2, fx:'#ffd700', name:'ROYAL BARK' } },
+  { name:'TINY POM',  speed:1.26, jump:1.10, color:'#ff8040', draw:drawTinyPom,  unlock:8, desc:'Pequeño pero imparable',
+    special:{ type:'dash',   cd:0.75, fx:'#ffa060', name:'ZOOM ZOOM' } },
 ];
 
 function worldsCleared(){
@@ -2042,7 +2151,8 @@ const ACHIEVEMENTS = [
   { id:'rich',      name:'Millonario oso',  desc:'Acumula 500 monedas en total' },
   { id:'shopper',   name:'Comprador',       desc:'Compra algo en la tienda' },
   { id:'allchars',  name:'Equipo completo', desc:'Desbloquea todos los personajes' },
-  { id:'allworlds', name:'Leyenda',         desc:'Completa los 10 mundos' },
+  { id:'allworlds', name:'Leyenda',         desc:'Completa los 11 mundos' },
+  { id:'pomworld',  name:'Amante pomerania', desc:'Visita el mundo Pomeranian' },
   { id:'coop',      name:'Equipo online',   desc:'Juega con un amigo en linea' },
 ];
 function unlockAch(id){
@@ -2458,6 +2568,20 @@ function drawBg(bg, levelW) {
       const sx=((i*190+50)-off*0.5%levelW+levelW)%levelW-cam.x, sy=40+((i*67)%600);
       if (sx>-10&&sx<W+10) { ctx.fillStyle=['#c8f','#8af','#f8f'][i%3]; ctx.globalAlpha=0.5; ctx.fillRect(sx,sy,4,14); ctx.globalAlpha=1; }
     }
+  } else if (w===LAST_WORLD) {
+    for (let i=0;i<22;i++) {
+      const bx=((i*280+60)-off%levelW+levelW)%levelW-cam.x, by=70+((i*47)%420);
+      if (bx>-50&&bx<W+50) {
+        ctx.globalAlpha=0.35; ctx.fillStyle=i%3?'#ffb870':'#ff9a50';
+        ctx.beginPath(); ctx.arc(bx,by,10+((i*5)%14),0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1;
+      }
+    }
+    for (let i=0;i<10;i++) {
+      const fx=((i*520+100)-off*0.2%levelW+levelW)%levelW-cam.x;
+      ctx.fillStyle='#5a9a40'; ctx.fillRect(fx,H-120,8,50);
+      ctx.fillStyle='#3a7828'; ctx.beginPath(); ctx.arc(fx+4,H-125,18,0,Math.PI*2); ctx.fill();
+    }
   } else if (w===10) {
     for (let i=0;i<80;i++) {
       const sx=(i*97+(i*13)%200)%W, sy=(i*61)%H;
@@ -2479,7 +2603,8 @@ function drawPlatforms(plats, world) {
   const cols = [
     ['#3d7a2a','#2d5a1b'],['#4a3520','#2d1f0f'],['#b0c8e0','#8aaac0'],
     ['#8a3320','#5a1e10'],['#dfeaf6','#a9c4e0'],['#d4b860','#9a7830'],
-    ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#4a5080','#1a2048']
+    ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#4a5080','#1a2048'],
+    ['#ffd4a8','#e89050']
   ];
   const [top,side] = cols[world]||cols[0];
   for (const [px,py,pw,ph] of plats) {
@@ -2519,6 +2644,14 @@ function startLevel() {
       ? 'D-pad = mover · Arrastra derecha = cámara'
       : 'Flechas mover · Q/E cámara · Espacio saltar';
     showBanner(hint, '#5dd4ff');
+  }
+  if (gs.world === LAST_WORLD) {
+    if (!gs.ach) gs.ach = {};
+    gs.ach.pomworld = true;
+    if (!gs._hintPom) {
+      gs._hintPom = true;
+      showBanner('MUNDO POMERANIAN — ¡Auuuu!', '#ff9a40');
+    }
   }
 }
 
@@ -2896,7 +3029,7 @@ function drawMpJoin(t) {
 
 // ── Menu Scene ─────────────────────────────────────────────────────────────
 let menuSel=0, menuT=0;
-const menuItems=['PLAY','KART RACE','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
+const menuItems=['PLAY','KART RACE','POMERANIA','GALERIA','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 
 function updateMenu(dt) {
   mobBindMenu(() => menuSel, v => { menuSel = v; });
@@ -2914,6 +3047,8 @@ function updateMenu(dt) {
     const it=menuItems[menuSel];
     if (it==='PLAY')             { gs.lives=startLives(); gs.score=0; gs.coins=0; changeScene('worldmap'); wmSel=gs.world; wmLvl=0; }
     else if (it==='KART RACE')   { kartMenuSel=0; mp.gameMode='kart'; changeScene('kartmenu'); }
+    else if (it==='POMERANIA')   { pomT=0; changeScene('pomworld'); }
+    else if (it==='GALERIA')     { gallerySel=0; galleryT=0; changeScene('gallery'); }
     else if (it==='MULTIJUGADOR'){ mp.menuSel=0; mp.gameMode='platformer'; mp.joinBuf=''; mp.errMsg=''; changeScene('multimenu'); }
     else if (it==='CHARACTER')   { changeScene('charselect'); charSel=gs.character; charT=0; }
     else if (it==='TIENDA')      { changeScene('shop'); shopSel=0; }
@@ -3004,15 +3139,133 @@ function drawInstructions() {
   if (pressed('Enter')||pressed('Escape')) changeScene('menu');
 }
 
+// ── Pomeranian World Screen ─────────────────────────────────────────────────
+let pomT = 0;
+function updatePomWorld(dt) {
+  pomT += dt;
+  if (!gs.ach) gs.ach = {};
+  gs.ach.pomworld = true;
+  mobBindMenu(() => pomMenuSel, v => { pomMenuSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'up') pomMenuSel = (pomMenuSel - 1 + 3) % 3;
+    if (dir === 'down') pomMenuSel = (pomMenuSel + 1) % 3;
+  });
+  if (pressed('ArrowUp') || pressed('KeyW')) { pomMenuSel = (pomMenuSel - 1 + 3) % 3; sfx.select(); }
+  if (pressed('ArrowDown') || pressed('KeyS')) { pomMenuSel = (pomMenuSel + 1) % 3; sfx.select(); }
+  if (pressed('Escape')) { changeScene('menu'); return; }
+  if (pressed('Enter') || pressed('Space')) {
+    sfx.select();
+    if (!gs.ach) gs.ach = {};
+    gs.ach.pomworld = true;
+    if (pomMenuSel === 0) {
+      if (gs.worldUnlocked[LAST_WORLD]) {
+        wmSel = LAST_WORLD; wmLvl = 0; gs.world = LAST_WORLD; gs.level = 0;
+        gs.lives = startLives(); gs.score = 0; gs.coins = 0;
+        startLevel(); changeScene('gameplay');
+      } else {
+        showBanner('Completa COSMOS primero', '#f80');
+      }
+    } else if (pomMenuSel === 1) { gallerySel = 17; changeScene('gallery'); }
+    else changeScene('menu');
+  }
+}
+let pomMenuSel = 0;
+function drawPomWorld(t) {
+  uiBgGrad('#ffe8c8', '#ff9a50');
+  for (let i = 0; i < 30; i++) {
+    const x = (i * 97 + t * 40) % W, y = 60 + (i * 53) % 500;
+    ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 2 + i);
+    ctx.fillStyle = i % 2 ? '#ffb870' : '#fff5e8';
+    ctx.beginPath(); ctx.arc(x, y, 8 + (i % 5) * 3, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  uiTitle('MUNDO POMERANIAN', 70, 44);
+  hud('Reino de los perros peludos', W / 2, 108, '#e87830', 20, 'center');
+  uiPanel(W / 2 - 340, 130, 680, 400, 22);
+  const pomChars = [17, 18, 19, 20];
+  for (let i = 0; i < pomChars.length; i++) {
+    const ci = pomChars[i];
+    const c = CHARACTERS[ci];
+    const px = W / 2 - 240 + i * 130, py = 200;
+    fillRR(px - 50, py - 30, 100, 120, 14, 'rgba(255,255,255,0.12)');
+    if (c?.draw) {
+      ctx.save();
+      ctx.translate(px, py + 20);
+      c.draw({ facing: 1 }, 0, 0);
+      ctx.restore();
+    }
+    ctx.fillStyle = isCharUnlocked(ci) ? UI.bright : UI.dim;
+    ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(c?.name || '?', px, py + 72);
+  }
+  hud('4 nuevos personajes · 3 niveles de jardin', W / 2, 310, UI.cyan, 16, 'center');
+  const opts = ['JUGAR MUNDO POMERANIAN', 'VER EN GALERIA', 'VOLVER AL MENU'];
+  const lay = mobMenuLayout(opts.length);
+  for (let i = 0; i < opts.length; i++) {
+    const y = lay.startY + i * lay.rowH;
+    const sel = i === pomMenuSel;
+    fillRR(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, 12, sel ? 'rgba(255,154,64,0.35)' : 'rgba(0,0,0,0.25)');
+    if (sel) strokeRR(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, 12, '#ff9a40', 2);
+    hud(opts[i], W / 2, y + 5, sel ? '#ffd700' : UI.bright, 18, 'center');
+    mobRegisterRow(W / 2 - lay.rw / 2, y - lay.rh / 2, lay.rw, lay.rh, i);
+  }
+  const unlocked = gs.worldUnlocked[LAST_WORLD];
+  hud(unlocked ? 'Mundo desbloqueado — ¡listo para jugar!' : 'Bloqueado: completa el mundo COSMOS', W / 2, 470, unlocked ? UI.green : UI.dim, 15, 'center');
+  uiFooter('Enter = elegir · Esc = volver');
+}
+
+// ── Character Gallery ───────────────────────────────────────────────────────
+let gallerySel = 0, galleryT = 0;
+function updateGallery(dt) {
+  galleryT += dt;
+  mobBindMenu(() => gallerySel, v => { gallerySel = v; });
+  mobBindSwipe(dir => {
+    const n = CHARACTERS.length;
+    if (dir === 'left') gallerySel = (gallerySel - 1 + n) % n;
+    if (dir === 'right') gallerySel = (gallerySel + 1) % n;
+  });
+  if (pressed('ArrowLeft') || pressed('KeyA')) { gallerySel = (gallerySel - 1 + CHARACTERS.length) % CHARACTERS.length; sfx.select(); }
+  if (pressed('ArrowRight') || pressed('KeyD')) { gallerySel = (gallerySel + 1) % CHARACTERS.length; sfx.select(); }
+  if (pressed('Escape') || pressed('Enter')) { changeScene('menu'); }
+}
+function drawGallery(t) {
+  uiBgGrad('#0a1420', '#1a2840');
+  uiSparkles(t * 0.4, 20);
+  uiTitle('GALERIA DE HEROES', 60, 36);
+  hud(gallerySel + 1 + ' / ' + CHARACTERS.length, W / 2, 100, UI.dim, 16, 'center');
+  const c = CHARACTERS[gallerySel];
+  const unlocked = isCharUnlocked(gallerySel);
+  uiPanel(W / 2 - 280, 130, 560, 380, 20);
+  const bob = Math.sin(t * 2.5) * 8;
+  if (c?.draw) {
+    ctx.save();
+    ctx.translate(W / 2, 280 + bob);
+    ctx.scale(2.2, 2.2);
+    c.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
+    ctx.restore();
+  }
+  hud(c?.name || '?', W / 2, 160, unlocked ? UI.gold : UI.dim, 32, 'center');
+  hud(c?.desc || '', W / 2, 400, UI.bright, 18, 'center');
+  const st = 'Vel ' + Math.round((c?.speed || 1) * 100) + '% · Salto ' + Math.round((c?.jump || 1) * 100) + '%';
+  hud(st, W / 2, 430, UI.cyan, 15, 'center');
+  if (c?.special) hud('Especial: ' + c.special.name, W / 2, 455, c.color || UI.cyan, 14, 'center');
+  hud(unlocked ? 'DESBLOQUEADO' : 'Mundos: ' + (c?.unlock || 0) + '+ o comprar en tienda', W / 2, 485, unlocked ? UI.green : UI.red, 14, 'center');
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('◀', 80, H / 2); ctx.fillText('▶', W - 80, H / 2);
+  uiFooter('◀▶ cambiar · Enter/Esc volver');
+}
+
 // ── World Map ──────────────────────────────────────────────────────────────
 let wmSel=0, wmLvl=0;
-const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS'];
+const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS','POMERANIAN'];
 const worldColors=[
   ['#2d6e1a','#1a4010'],['#2a3f5a','#0d1b2a'],['#6090b0','#3060a0'],
   ['#7a2418','#3a0d08'],['#5a86c0','#2b4f7a'],['#a08030','#6a5018'],
-  ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#6a70c0','#2a3068']
+  ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#6a70c0','#2a3068'],
+  ['#ffb870','#e87830']
 ];
-const worldHints=['','','','','','Valle: exploracion tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos laser','Cosmos: gravedad baja'];
+const worldHints=['','','','','','Valle: exploracion tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos laser','Cosmos: gravedad baja','Pomeranian: jardines peludos y rey canino'];
 
 function updateWorldMap(dt) {
   if (mp.active && mp.role==='guest') {
@@ -3647,6 +3900,8 @@ function loop(ts) {
       case 'charselect': updateCharSelect(dt); break;
       case 'shop':       updateShop(dt); break;
       case 'achievements': updateAchievements(dt); break;
+      case 'pomworld':   updatePomWorld(dt); break;
+      case 'gallery':    updateGallery(dt); break;
       case 'multimenu':  updateMultiMenu(dt); break;
       case 'mpcreate':   updateMpCreate(dt); break;
       case 'mpjoin':     updateMpJoin(dt); break;
@@ -3677,6 +3932,8 @@ function loop(ts) {
     case 'charselect':    drawCharSelect(); break;
     case 'shop':          drawShop(); break;
     case 'achievements':  drawAchievements(); break;
+    case 'pomworld':      drawPomWorld(t); break;
+    case 'gallery':       drawGallery(t); break;
     case 'multimenu':     drawMultiMenu(t); break;
     case 'mpcreate':      drawMpCreate(t); break;
     case 'mpjoin':        drawMpJoin(t); break;
@@ -5228,7 +5485,7 @@ function drawKartLobby(t) {
 const MOB_PLAY_SCENES = ['gameplay', 'kart'];
 const MOB_MENU_SCENES = [
   'menu', 'multimenu', 'kartmenu', 'kartselect', 'kartcup', 'kartcupresults',
-  'settings', 'shop', 'pause', 'worldmap',
+  'settings', 'shop', 'pause', 'worldmap', 'pomworld', 'gallery',
   'charselect', 'achievements', 'kartlobby', 'kartresults', 'gameover',
   'levelcomplete', 'instructions', 'credits', 'mpcreate', 'kartcreate', 'victory',
 ];
@@ -5516,6 +5773,27 @@ function mobGetHtmlMenuConfig() {
       onPick: () => mobQueueAction('ok'),
     };
   }
+  if (gs.scene === 'pomworld') {
+    return {
+      type: 'list', theme: 'orange', title: 'MUNDO POMERANIAN', subtitle: 'Reino peludo',
+      items: ['JUGAR MUNDO', 'VER GALERIA', 'VOLVER'],
+      getSel: () => pomMenuSel, setSel: v => { pomMenuSel = v; },
+      onPick: () => mobQueueAction('ok'),
+    };
+  }
+  if (gs.scene === 'gallery') {
+    const c = CHARACTERS[gallerySel] || CHARACTERS[0];
+    return {
+      type: 'list', theme: 'blue', title: 'GALERIA', subtitle: c.name + ' (' + (gallerySel + 1) + '/' + CHARACTERS.length + ')',
+      items: ['◀ ANTERIOR', 'SIGUIENTE ▶', 'VOLVER AL MENU'],
+      getSel: () => 1, setSel: () => {},
+      onPick: idx => {
+        if (idx === 0) { gallerySel = (gallerySel - 1 + CHARACTERS.length) % CHARACTERS.length; sfx.select(); mobMenuHtmlScene = ''; mobMenuHtmlSync(); }
+        else if (idx === 1) { gallerySel = (gallerySel + 1) % CHARACTERS.length; sfx.select(); mobMenuHtmlScene = ''; mobMenuHtmlSync(); }
+        else mobQueueAction('back');
+      },
+    };
+  }
   if (gs.scene === 'kartselect') {
     const ch = CHARACTERS[kartSelectDriver] || CHARACTERS[0];
     const st = typeof kartPlayerStats === 'function' ? kartPlayerStats() : null;
@@ -5622,6 +5900,7 @@ function mobMenuHtmlSync() {
   if (root) {
     root.classList.toggle('theme-purple', show && cfg?.theme === 'purple');
     root.classList.toggle('theme-blue', show && cfg?.theme === 'blue');
+    root.classList.toggle('theme-orange', show && cfg?.theme === 'orange');
   }
 
   if (!root || !list) return;
@@ -6179,6 +6458,7 @@ const KART_CHAR_CLASS = {
   0: 'balanced', 1: 'light', 2: 'light', 3: 'heavy', 4: 'medium', 5: 'heavy',
   6: 'medium', 7: 'light', 8: 'medium', 9: 'heavy', 10: 'medium', 11: 'light',
   12: 'medium', 13: 'light', 14: 'light', 15: 'medium', 16: 'balanced',
+  17: 'light', 18: 'light', 19: 'balanced', 20: 'light',
 };
 const KART_CHASSIS = [
   { name: 'ESTANDAR', accel: 1.0, topSpeed: 1.0, handling: 1.0 },
@@ -7980,6 +8260,7 @@ const THREE_WORLD_COLS = [
   ['#3d7a2a', '#2d5a1b'], ['#4a3520', '#2d1f0f'], ['#b0c8e0', '#8aaac0'],
   ['#8a3320', '#5a1e10'], ['#dfeaf6', '#a9c4e0'], ['#d4b860', '#9a7830'],
   ['#2a8a9a', '#145a70'], ['#d4a850', '#a07828'], ['#9a60e0', '#5a28a0'], ['#4a5080', '#1a2048'],
+  ['#ffd4a8', '#e89050'],
 ];
 
 function threeGpPos(gx, gy, gz) {
