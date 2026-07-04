@@ -470,6 +470,18 @@ function threeAddTrackDecor(group, tr, curve) {
         })
       );
       mesh.position.y = groundY + h / 2;
+    } else if (decor === 'pom') {
+      const flowerColors = [0xff90b8, 0xffd080, 0x90d8ff, 0xc0ff90];
+      mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5 + Math.random() * 0.3, 8, 6),
+        new THREE.MeshStandardMaterial({
+          color: flowerColors[i % flowerColors.length],
+          emissive: flowerColors[i % flowerColors.length],
+          emissiveIntensity: 0.15,
+          roughness: 0.7,
+        })
+      );
+      mesh.position.y = groundY + 0.6;
     } else {
       const h = 2.5;
       mesh = new THREE.Mesh(

@@ -35,6 +35,7 @@ const KART_CUPS = [
   { name: 'COPA NEBULA',   tracks: [3, 4, 5], color: '#a040ff', icon: '🌌' },
   { name: 'COPA OBSTÁCULOS', tracks: [5, 1, 3], color: '#ff6020', icon: '💥' },
   { name: 'COPA VELOCIDAD', tracks: [7, 0, 3], color: '#00c8ff', icon: '⚡' },
+  { name: 'COPA POMERANIAN', tracks: [8, 0, 2], color: '#ff90b8', icon: '🐕' },
 ];
 const KART_CPU_NAMES = ['PEACH', 'BOWSER', 'TOAD', 'LUIGI', 'YOSHI', 'WARIO', 'WALUIGI'];
 
@@ -313,6 +314,39 @@ function kartDrawWaterZones(tr, t) {
       ctx.ellipse(sp.x, sp.y + wave, tr.roadWidth * 0.35, tr.roadWidth * 0.22, tg.angle, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+}
+
+function kartDrawOffroadZones(tr, t) {
+  if (!tr.surfaces) return;
+  for (const s of tr.surfaces) {
+    if (s.type !== 'offroad') continue;
+    const segs = 14;
+    const u0 = s.uStart, u1 = s.uEnd;
+    for (let i = 0; i < segs; i++) {
+      const u = u0 + (u1 - u0) * (i / segs);
+      const p = kartPathSample(tr, u);
+      const tg = kartPathTangent(tr, u);
+      const sp = kartToScreen(p.x, p.y);
+      const wobble = Math.sin(t * 2 + i * 0.6) * 2;
+      ctx.fillStyle = 'rgba(90,70,40,0.42)';
+      ctx.beginPath();
+      ctx.ellipse(sp.x, sp.y + wobble, tr.roadWidth * 0.32, tr.roadWidth * 0.2, tg.angle, 0, Math.PI * 2);
+      ctx.fill();
+      if (i % 3 === 0) {
+        ctx.fillStyle = 'rgba(60,100,40,0.35)';
+        ctx.beginPath();
+        ctx.arc(sp.x + Math.sin(i) * 8, sp.y + wobble - 6, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const midU = (u0 + u1) / 2;
+    const mp = kartPathSample(tr, midU);
+    const ms = kartToScreen(mp.x, mp.y);
+    ctx.fillStyle = '#c8a060';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TIERRA', ms.x, ms.y - 28);
   }
 }
 

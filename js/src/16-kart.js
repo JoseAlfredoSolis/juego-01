@@ -56,20 +56,42 @@ const KART_TRACKS = [
     accent: '#5ee0ff',
     decor: 'palm',
     scale: KART_TRACK_SCALE,
-    roadWidth: 168,
-    surfaces: [{ uStart: 0.08, uEnd: 0.16, type: 'water' }, { uStart: 0.48, uEnd: 0.54, type: 'water' }],
-    obstacleSpots: [{ u: 0.22, kind: 'rock' }, { u: 0.55, kind: 'crab' }, { u: 0.78, kind: 'rock' }],
-    boostPads: [{ u: 0.18, power: 115 }, { u: 0.42, power: 125 }, { u: 0.68, power: 120 }],
-    shortcuts: [{
-      width: 76,
-      path: [
-        { x: 740, y: 370 }, { x: 820, y: 430 }, { x: 900, y: 400 }, { x: 960, y: 330 },
-      ],
-    }],
+    roadWidth: 178,
+    surfaces: [
+      { uStart: 0.06, uEnd: 0.14, type: 'water' },
+      { uStart: 0.44, uEnd: 0.52, type: 'water' },
+      { uStart: 0.72, uEnd: 0.78, type: 'offroad' },
+    ],
+    obstacleSpots: [
+      { u: 0.18, kind: 'crab' }, { u: 0.35, kind: 'rock' },
+      { u: 0.52, kind: 'crab' }, { u: 0.68, kind: 'rock' }, { u: 0.85, kind: 'crab' },
+    ],
+    boostPads: [
+      { u: 0.12, power: 115 }, { u: 0.28, power: 120 }, { u: 0.45, power: 125 },
+      { u: 0.62, power: 118 }, { u: 0.78, power: 122 },
+    ],
+    jumpRamps: [{ u: 0.58, power: 185 }],
+    shortcuts: [
+      {
+        width: 82,
+        path: [
+          { x: 740, y: 370 }, { x: 820, y: 430 }, { x: 900, y: 400 }, { x: 960, y: 330 },
+        ],
+      },
+      {
+        width: 68,
+        path: [
+          { x: 420, y: 150 }, { x: 480, y: 220 }, { x: 520, y: 300 }, { x: 480, y: 380 },
+        ],
+      },
+    ],
     path: [
-      { x: 160, y: 520 }, { x: 320, y: 450 }, { x: 520, y: 400 }, { x: 740, y: 370 },
-      { x: 960, y: 330 }, { x: 1120, y: 240 }, { x: 1080, y: 110 }, { x: 880, y: 70 },
-      { x: 640, y: 90 }, { x: 420, y: 150 }, { x: 260, y: 260 }, { x: 150, y: 400 },
+      { x: 160, y: 520 }, { x: 240, y: 480 }, { x: 320, y: 450 }, { x: 420, y: 420 },
+      { x: 520, y: 400 }, { x: 640, y: 385 }, { x: 740, y: 370 }, { x: 860, y: 350 },
+      { x: 960, y: 330 }, { x: 1040, y: 290 }, { x: 1120, y: 240 }, { x: 1100, y: 160 },
+      { x: 1080, y: 110 }, { x: 980, y: 80 }, { x: 880, y: 70 }, { x: 760, y: 75 },
+      { x: 640, y: 90 }, { x: 520, y: 120 }, { x: 420, y: 150 }, { x: 340, y: 200 },
+      { x: 260, y: 260 }, { x: 200, y: 330 }, { x: 150, y: 400 }, { x: 140, y: 460 },
     ],
   },
   {
@@ -81,15 +103,33 @@ const KART_TRACKS = [
     accent: '#ffb060',
     decor: 'rock',
     scale: KART_TRACK_SCALE,
-    roadWidth: 150,
-    surfaces: [{ uStart: 0.72, uEnd: 0.82, type: 'offroad' }],
-    obstacleSpots: [{ u: 0.3, kind: 'rock' }, { u: 0.65, kind: 'crab' }],
-    boostPads: [{ u: 0.12, power: 100 }, { u: 0.48, power: 110 }, { u: 0.82, power: 105 }],
-    jumpRamps: [{ u: 0.58, power: 200 }],
+    roadWidth: 164,
+    surfaces: [
+      { uStart: 0.18, uEnd: 0.26, type: 'offroad' },
+      { uStart: 0.68, uEnd: 0.78, type: 'offroad' },
+    ],
+    obstacleSpots: [
+      { u: 0.22, kind: 'rock' }, { u: 0.38, kind: 'crab' },
+      { u: 0.55, kind: 'rock' }, { u: 0.72, kind: 'crab' }, { u: 0.88, kind: 'rock' },
+    ],
+    boostPads: [
+      { u: 0.10, power: 105 }, { u: 0.32, power: 112 }, { u: 0.55, power: 108 },
+      { u: 0.75, power: 115 }, { u: 0.90, power: 102 },
+    ],
+    jumpRamps: [{ u: 0.48, power: 210 }, { u: 0.82, power: 175 }],
+    shortcuts: [{
+      width: 72,
+      path: [
+        { x: 620, y: 170 }, { x: 720, y: 220 }, { x: 780, y: 320 }, { x: 820, y: 210 },
+      ],
+    }],
     path: [
-      { x: 140, y: 380 }, { x: 260, y: 290 }, { x: 420, y: 200 }, { x: 620, y: 170 },
-      { x: 820, y: 210 }, { x: 1000, y: 310 }, { x: 1100, y: 440 }, { x: 1040, y: 560 },
-      { x: 880, y: 640 }, { x: 680, y: 660 }, { x: 460, y: 600 }, { x: 280, y: 500 },
+      { x: 140, y: 380 }, { x: 200, y: 330 }, { x: 260, y: 290 }, { x: 340, y: 240 },
+      { x: 420, y: 200 }, { x: 520, y: 175 }, { x: 620, y: 170 }, { x: 720, y: 190 },
+      { x: 820, y: 210 }, { x: 920, y: 260 }, { x: 1000, y: 310 }, { x: 1060, y: 380 },
+      { x: 1100, y: 440 }, { x: 1080, y: 510 }, { x: 1040, y: 560 }, { x: 960, y: 610 },
+      { x: 880, y: 640 }, { x: 780, y: 655 }, { x: 680, y: 660 }, { x: 560, y: 630 },
+      { x: 460, y: 600 }, { x: 360, y: 550 }, { x: 280, y: 500 }, { x: 200, y: 440 },
     ],
   },
   {
@@ -101,13 +141,30 @@ const KART_TRACKS = [
     accent: '#80b0ff',
     decor: 'city',
     scale: KART_TRACK_SCALE,
-    roadWidth: 145,
-    obstacleSpots: [{ u: 0.4, kind: 'crab' }, { u: 0.7, kind: 'rock' }],
-    boostPads: [{ u: 0.15, power: 105 }, { u: 0.38, power: 120 }, { u: 0.62, power: 115 }, { u: 0.88, power: 108 }],
+    roadWidth: 162,
+    surfaces: [{ uStart: 0.32, uEnd: 0.40, type: 'offroad' }],
+    obstacleSpots: [
+      { u: 0.25, kind: 'crab' }, { u: 0.48, kind: 'rock' },
+      { u: 0.62, kind: 'crab' }, { u: 0.82, kind: 'rock' },
+    ],
+    boostPads: [
+      { u: 0.12, power: 108 }, { u: 0.28, power: 118 }, { u: 0.45, power: 122 },
+      { u: 0.62, power: 115 }, { u: 0.78, power: 110 }, { u: 0.92, power: 105 },
+    ],
+    jumpRamps: [{ u: 0.38, power: 195 }, { u: 0.72, power: 180 }],
+    shortcuts: [{
+      width: 70,
+      path: [
+        { x: 680, y: 510 }, { x: 760, y: 460 }, { x: 820, y: 400 }, { x: 880, y: 350 },
+      ],
+    }],
     path: [
-      { x: 200, y: 600 }, { x: 440, y: 570 }, { x: 680, y: 510 }, { x: 920, y: 430 },
-      { x: 1080, y: 300 }, { x: 1060, y: 170 }, { x: 900, y: 110 }, { x: 700, y: 140 },
-      { x: 520, y: 240 }, { x: 400, y: 380 }, { x: 420, y: 500 }, { x: 300, y: 570 },
+      { x: 200, y: 600 }, { x: 320, y: 585 }, { x: 440, y: 570 }, { x: 560, y: 545 },
+      { x: 680, y: 510 }, { x: 800, y: 470 }, { x: 920, y: 430 }, { x: 1020, y: 370 },
+      { x: 1080, y: 300 }, { x: 1070, y: 230 }, { x: 1060, y: 170 }, { x: 980, y: 130 },
+      { x: 900, y: 110 }, { x: 800, y: 125 }, { x: 700, y: 140 }, { x: 600, y: 180 },
+      { x: 520, y: 240 }, { x: 460, y: 310 }, { x: 420, y: 380 }, { x: 400, y: 450 },
+      { x: 420, y: 500 }, { x: 380, y: 540 }, { x: 300, y: 570 },
     ],
   },
   {
@@ -119,13 +176,22 @@ const KART_TRACKS = [
     accent: '#ff3838',
     decor: 'grandstand',
     scale: 3.5,
-    roadWidth: 198,
+    roadWidth: 205,
     laps: 2,
     huge: true,
     boostPads: [
-      { u: 0.08, power: 110 }, { u: 0.22, power: 125 }, { u: 0.36, power: 115 },
-      { u: 0.50, power: 130 }, { u: 0.64, power: 120 }, { u: 0.78, power: 125 }, { u: 0.92, power: 115 },
+      { u: 0.06, power: 110 }, { u: 0.14, power: 118 }, { u: 0.22, power: 125 },
+      { u: 0.30, power: 115 }, { u: 0.38, power: 128 }, { u: 0.46, power: 120 },
+      { u: 0.54, power: 130 }, { u: 0.62, power: 122 }, { u: 0.70, power: 125 },
+      { u: 0.78, power: 118 }, { u: 0.86, power: 128 }, { u: 0.94, power: 115 },
     ],
+    jumpRamps: [{ u: 0.25, power: 200 }, { u: 0.62, power: 215 }],
+    shortcuts: [{
+      width: 88,
+      path: [
+        { x: 2400, y: 1050 }, { x: 2550, y: 1200 }, { x: 2650, y: 1400 }, { x: 2700, y: 1750 },
+      ],
+    }],
     path: [
       { x: 500, y: 2200 }, { x: 1100, y: 2150 }, { x: 1900, y: 2050 }, { x: 2700, y: 1880 },
       { x: 3400, y: 1620 }, { x: 3900, y: 1250 }, { x: 4100, y: 800 }, { x: 3950, y: 400 },
@@ -148,18 +214,28 @@ const KART_TRACKS = [
     accent: '#d080ff',
     decor: 'city',
     scale: KART_TRACK_SCALE,
-    roadWidth: 158,
+    roadWidth: 168,
     surfaces: [
-      { uStart: 0.22, uEnd: 0.40, type: 'antigrav' },
-      { uStart: 0.62, uEnd: 0.78, type: 'antigrav' },
+      { uStart: 0.18, uEnd: 0.36, type: 'antigrav' },
+      { uStart: 0.58, uEnd: 0.76, type: 'antigrav' },
     ],
-    jumpRamps: [{ u: 0.10, power: 190 }, { u: 0.50, power: 250 }, { u: 0.88, power: 170 }],
-    boostPads: [{ u: 0.28, power: 120 }, { u: 0.72, power: 125 }],
-    obstacleSpots: [{ u: 0.35, kind: 'rock' }, { u: 0.72, kind: 'crab' }],
+    jumpRamps: [{ u: 0.08, power: 195 }, { u: 0.45, power: 260 }, { u: 0.82, power: 180 }],
+    boostPads: [{ u: 0.24, power: 125 }, { u: 0.52, power: 130 }, { u: 0.78, power: 122 }],
+    obstacleSpots: [
+      { u: 0.30, kind: 'rock' }, { u: 0.48, kind: 'crab' }, { u: 0.65, kind: 'rock' }, { u: 0.88, kind: 'crab' },
+    ],
+    shortcuts: [{
+      width: 74,
+      path: [
+        { x: 600, y: 360 }, { x: 700, y: 420 }, { x: 820, y: 480 }, { x: 900, y: 420 },
+      ],
+    }],
     path: [
-      { x: 180, y: 520 }, { x: 380, y: 440 }, { x: 600, y: 360 }, { x: 820, y: 300 },
-      { x: 1020, y: 280 }, { x: 1100, y: 420 }, { x: 1000, y: 560 }, { x: 820, y: 620 },
-      { x: 600, y: 580 }, { x: 400, y: 500 }, { x: 280, y: 400 }, { x: 200, y: 480 },
+      { x: 180, y: 520 }, { x: 280, y: 480 }, { x: 380, y: 440 }, { x: 500, y: 390 },
+      { x: 600, y: 360 }, { x: 720, y: 320 }, { x: 820, y: 300 }, { x: 920, y: 285 },
+      { x: 1020, y: 280 }, { x: 1080, y: 340 }, { x: 1100, y: 420 }, { x: 1060, y: 500 },
+      { x: 980, y: 560 }, { x: 880, y: 600 }, { x: 760, y: 620 }, { x: 640, y: 600 },
+      { x: 520, y: 560 }, { x: 400, y: 500 }, { x: 300, y: 440 }, { x: 220, y: 480 },
     ],
   },
   {
@@ -219,17 +295,67 @@ const KART_TRACKS = [
     accent: '#00d4ff',
     decor: 'grandstand',
     scale: KART_TRACK_SCALE,
-    roadWidth: 192,
+    roadWidth: 200,
     boostPads: [
-      { u: 0.10, power: 130 }, { u: 0.22, power: 140 }, { u: 0.35, power: 135 },
-      { u: 0.48, power: 150 }, { u: 0.62, power: 140 }, { u: 0.75, power: 135 }, { u: 0.88, power: 128 },
+      { u: 0.08, power: 132 }, { u: 0.18, power: 142 }, { u: 0.28, power: 138 },
+      { u: 0.38, power: 148 }, { u: 0.48, power: 155 }, { u: 0.58, power: 145 },
+      { u: 0.68, power: 140 }, { u: 0.78, power: 138 }, { u: 0.88, power: 130 },
     ],
-    jumpRamps: [{ u: 0.50, power: 220 }],
-    obstacleSpots: [{ u: 0.30, kind: 'rock' }, { u: 0.55, kind: 'crab' }, { u: 0.78, kind: 'rock' }],
+    jumpRamps: [{ u: 0.25, power: 200 }, { u: 0.50, power: 235 }, { u: 0.75, power: 195 }],
+    obstacleSpots: [
+      { u: 0.20, kind: 'rock' }, { u: 0.40, kind: 'crab' },
+      { u: 0.60, kind: 'rock' }, { u: 0.80, kind: 'crab' },
+    ],
+    shortcuts: [{
+      width: 76,
+      path: [
+        { x: 2100, y: 1550 }, { x: 2500, y: 2000 }, { x: 2900, y: 2500 }, { x: 2900, y: 3100 },
+      ],
+    }],
     path: [
-      { x: 500, y: 2100 }, { x: 1200, y: 1700 }, { x: 2100, y: 1550 }, { x: 3000, y: 1700 },
-      { x: 3700, y: 2300 }, { x: 3600, y: 3100 }, { x: 2900, y: 3600 }, { x: 2000, y: 3700 },
-      { x: 1100, y: 3400 }, { x: 600, y: 2800 },
+      { x: 500, y: 2100 }, { x: 900, y: 1850 }, { x: 1200, y: 1700 }, { x: 1600, y: 1580 },
+      { x: 2100, y: 1550 }, { x: 2600, y: 1620 }, { x: 3000, y: 1700 }, { x: 3400, y: 2000 },
+      { x: 3700, y: 2300 }, { x: 3700, y: 2800 }, { x: 3600, y: 3100 }, { x: 3300, y: 3400 },
+      { x: 2900, y: 3600 }, { x: 2400, y: 3700 }, { x: 1900, y: 3680 }, { x: 1400, y: 3500 },
+      { x: 1000, y: 3300 }, { x: 700, y: 3000 }, { x: 550, y: 2600 },
+    ],
+  },
+  {
+    name: 'JARDÍN POMERANIAN',
+    bg: ['#301828', '#f0a0c0'],
+    grass: ['#3a5828', '#5a8840'],
+    asphalt: ['#5a4e48', '#726860'],
+    kerb: ['#ff80a0', '#fff0e8'],
+    accent: '#ff90b8',
+    decor: 'pom',
+    scale: KART_TRACK_SCALE,
+    roadWidth: 172,
+    surfaces: [
+      { uStart: 0.12, uEnd: 0.20, type: 'water' },
+      { uStart: 0.55, uEnd: 0.62, type: 'offroad' },
+    ],
+    obstacleSpots: [
+      { u: 0.20, kind: 'crab' }, { u: 0.42, kind: 'rock' },
+      { u: 0.65, kind: 'crab' }, { u: 0.85, kind: 'rock' },
+    ],
+    boostPads: [
+      { u: 0.15, power: 112 }, { u: 0.35, power: 118 }, { u: 0.55, power: 120 },
+      { u: 0.72, power: 115 }, { u: 0.88, power: 108 },
+    ],
+    jumpRamps: [{ u: 0.48, power: 190 }],
+    shortcuts: [{
+      width: 74,
+      path: [
+        { x: 520, y: 380 }, { x: 600, y: 440 }, { x: 680, y: 400 }, { x: 720, y: 320 },
+      ],
+    }],
+    path: [
+      { x: 180, y: 480 }, { x: 260, y: 420 }, { x: 340, y: 360 }, { x: 440, y: 320 },
+      { x: 520, y: 300 }, { x: 620, y: 310 }, { x: 720, y: 340 }, { x: 820, y: 380 },
+      { x: 920, y: 420 }, { x: 1000, y: 480 }, { x: 1060, y: 540 }, { x: 1080, y: 620 },
+      { x: 1040, y: 680 }, { x: 960, y: 720 }, { x: 860, y: 740 }, { x: 760, y: 720 },
+      { x: 660, y: 680 }, { x: 560, y: 620 }, { x: 460, y: 560 }, { x: 360, y: 520 },
+      { x: 260, y: 500 },
     ],
   },
 ].map(kartLayoutTrack);
@@ -449,6 +575,7 @@ function kartDrawRoadRibbon(tr, t, mini) {
   ctx.fillStyle = ag;
   ctx.fill();
   kartDrawRoadKerbs(left, right, tr, mini);
+  if (!mini) kartDrawRoadShoulders(tr, segs, hw, mini);
   ctx.setLineDash(mini ? [6, 8] : [14, 16]);
   ctx.strokeStyle = 'rgba(255,255,255,0.35)';
   ctx.lineWidth = mini ? 1.5 : 2.5;
@@ -500,6 +627,49 @@ function kartDrawRoadKerbs(left, right, tr, mini) {
     }
   }
 }
+function kartDrawRoadShoulders(tr, segs, hw, mini) {
+  const shW = hw * 0.22;
+  const outer = hw + shW;
+  for (let side = 0; side < 2; side++) {
+    const sign = side ? -1 : 1;
+    ctx.strokeStyle = tr.grass[1] || tr.grass[0];
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = shW * 0.9;
+    ctx.beginPath();
+    for (let i = 0; i <= segs; i++) {
+      const u = i / segs;
+      const p = kartPathSample(tr, u);
+      const tg = kartPathTangent(tr, u);
+      const nx = -Math.sin(tg.angle), ny = Math.cos(tg.angle);
+      const sp = kartToScreen(p.x + nx * outer * sign, p.y + ny * outer * sign, mini);
+      if (i === 0) ctx.moveTo(sp.x, sp.y); else ctx.lineTo(sp.x, sp.y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+function kartDrawSectorSigns(tr, t) {
+  if (tr.mega) return;
+  const count = tr.huge ? 4 : 3;
+  for (let s = 1; s <= count; s++) {
+    const u = s / (count + 1);
+    const p = kartPathSample(tr, u);
+    const tg = kartPathTangent(tr, u);
+    const nx = -Math.sin(tg.angle), ny = Math.cos(tg.angle);
+    const off = tr.roadWidth * 0.72;
+    const sp = kartToScreen(p.x + nx * off, p.y + ny * off);
+    const bob = Math.sin(t * 3 + s) * 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    fillRR(sp.x - 18, sp.y - 12 + bob, 36, 24, 4, ctx.fillStyle);
+    ctx.strokeStyle = tr.accent || '#fff';
+    ctx.lineWidth = 1.5;
+    strokeRR(sp.x - 18, sp.y - 12 + bob, 36, 24, 4, ctx.strokeStyle, ctx.lineWidth);
+    ctx.fillStyle = tr.accent || '#fff';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('S' + s, sp.x, sp.y + 5 + bob);
+  }
+}
 function kartDrawTrackDecor(tr, t, mini) {
   const n = mini ? (tr.mega ? 20 : tr.huge ? 16 : 12) : (tr.mega ? 72 : tr.huge ? 56 : 28);
   const hw = (tr.roadWidth || 100) * 0.5 + (mini ? 18 : (tr.mega ? 70 : tr.huge ? 50 : 50));
@@ -532,6 +702,19 @@ function kartDrawTrackDecor(tr, t, mini) {
         ctx.fillStyle = tr.accent;
         ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
         ctx.fillText('GT', sp.x, sp.y - bh / 2 - 4);
+      }
+    } else if (tr.decor === 'pom') {
+      const fs = mini ? 6 : 12;
+      const colors = ['#ff90b8', '#ffd080', '#90d8ff', '#c0ff90'];
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, fs, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3a5820';
+      ctx.fillRect(sp.x - 1, sp.y + fs - 2, 2, mini ? 6 : 10);
+      if (!mini && i % 6 === 0) {
+        ctx.fillStyle = '#f8e0c8';
+        fillRR(sp.x - 10, sp.y - 18, 20, 14, 3, ctx.fillStyle);
+        ctx.fillStyle = '#c06040';
+        fillRR(sp.x - 6, sp.y - 10, 12, 8, 2, ctx.fillStyle);
       }
     } else {
       ctx.fillStyle = 'rgba(80,90,120,0.85)';
@@ -1188,7 +1371,9 @@ function drawKartTrack(tr, t) {
   kartDrawRoadRibbon(tr, t || 0, false);
   kartDrawShortcuts(tr, t || 0);
   kartDrawWaterZones(tr, t || 0);
+  kartDrawOffroadZones(tr, t || 0);
   kartDrawAntigravZones(tr, t || 0);
+  kartDrawSectorSigns(tr, t || 0);
   kartDrawJumpRamps(tr, t || 0);
   kartDrawBoostPads(tr, t || 0);
   kartDrawObstacles(tr, t || 0);
@@ -1542,10 +1727,13 @@ function drawKartLobby(t) {
   kartDrawRoadRibbon(tr, t, mini);
   const decor = tr.mega ? 'Mega arena · ' + Math.round(tr.length || 0) + ' m · Obstáculos · 1 vuelta'
     : tr.huge ? 'Pista enorme · ' + Math.round(tr.length || 0) + ' m · ' + kartTrackLaps(tr) + ' vueltas'
+    : tr.decor === 'pom' ? 'Jardín Pomeranian · Flores · Atajos · Fuente'
     : tr.surfaces?.some(s => s.type === 'antigrav') ? 'Antigravedad · Saltos · Nebulosa'
-    : tr.boostPads?.length >= 5 ? 'Óvalo velocidad · ' + tr.boostPads.length + ' turbos · Saltos'
-    : tr.decor === 'palm' ? 'Costa · Rectas rapidas · Agua'
-    : tr.decor === 'rock' ? 'Montaña · Curvas cerradas' : 'Urbano · Tecnica pura';
+    : tr.boostPads?.length >= 7 ? 'Óvalo velocidad · ' + tr.boostPads.length + ' turbos · Saltos'
+    : tr.shortcuts?.length >= 2 ? 'Doble atajo · Turbos · ' + (tr.surfaces?.length || 0) + ' zonas'
+    : tr.decor === 'palm' ? 'Costa · Rectas rápidas · Agua · Atajos'
+    : tr.decor === 'rock' ? 'Montaña · Curvas cerradas · Saltos'
+    : 'Urbano · Técnica · Atajos';
   hud(decor, W / 2, 430, tr.accent, 15, 'center');
   hud('Dificultad IA: ' + kartDiff().name, W / 2, 455, UI.cyan, 15, 'center');
   ctx.fillStyle = UI.dim; ctx.font = '16px monospace'; ctx.textAlign = 'center';
