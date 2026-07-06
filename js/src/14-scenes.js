@@ -194,7 +194,7 @@ function drawMenu(t) {
       uiMenuRow(menuItems[i], lay.startY + i * lay.rowH, i === menuSel, lay.rw, lay.rh, i);
     }
     uiPill(12, 22, 'Best: ' + gs.highScore, UI.cyan);
-    drawCoinIcon(12, 42, 8); hud(' ' + gs.wallet, 26, 48, UI.gold, 14);
+    uiWalletBadge(100, 48, gs.wallet);
     uiPill(12, 64, CHARACTERS[gs.character].name, UI.gold);
     uiFooter('▲▼ navegar · OK confirmar');
   } else {
@@ -205,7 +205,7 @@ function drawMenu(t) {
     uiPanel(W / 2 - 200, 262, 400, 480, 20);
     for (let i = 0; i < menuItems.length; i++) uiMenuRow(menuItems[i], 318 + i * 54, i === menuSel, 360, 44, i);
     uiPill(16, 36, 'Best: ' + gs.highScore, UI.cyan);
-    drawCoinIcon(16, 58, 9); hud(' ' + gs.wallet, 32, 64, UI.gold, 17);
+    uiWalletBadge(120, 62, gs.wallet);
     uiPill(16, 88, CHARACTERS[gs.character].name, UI.gold);
     uiPill(16, 118, 'Dif: ' + diff().name, diff().color);
     uiFooter('WASD/Flechas · Espacio · Esc');
@@ -349,37 +349,53 @@ function updateGallery(dt) {
 function drawGallery(t) {
   const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
   uiBgGrad('#0a1420', '#1a2840');
-  uiSparkles(t * 0.4, 20);
-  uiTitle('GALERIA DE HEROES', portrait ? 48 : 60, portrait ? 28 : 36);
-  hud(gallerySel + 1 + ' / ' + CHARACTERS.length, W / 2, portrait ? 82 : 100, UI.dim, 16, 'center');
+  uiSparkles(t * 0.4, 24);
+  uiTitle('GALERIA DE HEROES', portrait ? 48 : 58, portrait ? 28 : 36);
+  uiWalletBadge(W - 110, portrait ? 38 : 42, gs.wallet);
+
   const c = CHARACTERS[gallerySel];
   const unlocked = isCharUnlocked(gallerySel);
-  uiPanel(W / 2 - (portrait ? 300 : 280), portrait ? 100 : 130, portrait ? 600 : 560, portrait ? 420 : 380, 20);
-  const bob = Math.sin(t * 2.5) * (portrait ? 5 : 8);
+  const pw = portrait ? 600 : 640, ph = portrait ? 400 : 390;
+  const px = W / 2 - pw / 2, py = portrait ? 92 : 108;
+  uiPanel(px, py, pw, ph, 20);
+
+  const previewY = py + (portrait ? 155 : 165) + Math.sin(t * 2.5) * 6;
+  uiGlowCircle(W / 2, previewY, portrait ? 58 : 68, c?.color || UI.gold, t);
   if (c?.draw) {
     ctx.save();
-    ctx.translate(W / 2, (portrait ? 250 : 280) + bob);
-    ctx.scale(portrait ? 1.8 : 2.2, portrait ? 1.8 : 2.2);
+    ctx.translate(W / 2, previewY);
+    ctx.scale(portrait ? 2.0 : 2.4, portrait ? 2.0 : 2.4);
     c.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
+    if (!unlocked) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H); }
     ctx.restore();
   }
-  hud(c?.name || '?', W / 2, portrait ? 140 : 160, unlocked ? UI.gold : UI.dim, portrait ? 26 : 32, 'center');
-  hud(c?.desc || '', W / 2, portrait ? 370 : 400, UI.bright, portrait ? 15 : 18, 'center');
-  const st = 'Vel ' + Math.round((c?.speed || 1) * 100) + '% · Salto ' + Math.round((c?.jump || 1) * 100) + '%';
-  hud(st, W / 2, portrait ? 400 : 430, UI.cyan, portrait ? 13 : 15, 'center');
-  if (c?.special) hud('Especial: ' + c.special.name, W / 2, portrait ? 425 : 455, c.color || UI.cyan, portrait ? 12 : 14, 'center');
-  hud(unlocked ? 'DESBLOQUEADO' : (
-    c?.shopOnly ? '★ Tienda · ' + charShopCost(c) + ' monedas' :
-    charInShop(gallerySel) ? 'Tienda · ' + charShopCost(c) + ' monedas' :
-    'Mundos: ' + (c?.unlock || 0) + '+ o tienda · ' + charShopCost(c) + ' mon'
-  ), W / 2, portrait ? 450 : 485, unlocked ? UI.green : UI.red, portrait ? 12 : 14, 'center');
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.font = 'bold ' + (portrait ? 22 : 28) + 'px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('◀', 60, H / 2); ctx.fillText('▶', W - 60, H / 2);
+
+  uiNavBtn(px + 14, py + 120, 48, 48, '◀', true);
+  uiNavBtn(px + pw - 62, py + 120, 48, 48, '▶', true);
   if (document.body.classList.contains('touch')) {
-    mobRegisterRow(0, H / 2 - 60, W * 0.38, 120, (gallerySel - 1 + CHARACTERS.length) % CHARACTERS.length);
-    mobRegisterRow(W * 0.62, H / 2 - 60, W * 0.38, 120, (gallerySel + 1) % CHARACTERS.length);
+    mobRegisterRow(px + 14, py + 120, 48, 48, (gallerySel - 1 + CHARACTERS.length) % CHARACTERS.length);
+    mobRegisterRow(px + pw - 62, py + 120, 48, 48, (gallerySel + 1) % CHARACTERS.length);
   }
+
+  hud(c?.name || '?', W / 2, py + 28, unlocked ? UI.gold : UI.dim, portrait ? 24 : 28, 'center');
+  uiBadge(W / 2, py + ph - 108, unlocked ? 'DESBLOQUEADO' : 'BLOQUEADO', unlocked ? UI.green : UI.red,
+    unlocked ? 'rgba(20,60,30,0.65)' : 'rgba(60,20,20,0.55)');
+
+  const bx = W / 2 - (portrait ? 140 : 160), bw = portrait ? 280 : 320;
+  drawStatBar(bx, py + ph - 82, bw, c?.speed || 1, 'VEL', UI.green);
+  drawStatBar(bx, py + ph - 58, bw, c?.jump || 1, 'SAL', UI.cyan);
+  hud(c?.desc || '', W / 2, py + ph - 34, UI.bright, portrait ? 14 : 15, 'center');
+  if (c?.special) hud('★ ' + c.special.name, W / 2, py + ph - 14, c.color || UI.cyan, portrait ? 12 : 13, 'center');
+
+  if (!unlocked) {
+    const lockTxt = c?.shopOnly ? '★ Tienda · ' + charShopCost(c) + ' monedas' :
+      charInShop(gallerySel) ? 'Tienda · ' + charShopCost(c) + ' monedas' :
+      'Mundos: ' + (c?.unlock || 0) + '+ o tienda · ' + charShopCost(c) + ' mon';
+    hud(lockTxt, W / 2, py + ph + 18, UI.gold, portrait ? 12 : 13, 'center');
+  }
+
+  uiPager(W / 2, py + ph + (unlocked ? 18 : 40), gallerySel, CHARACTERS.length);
+  drawCharThumbStrip(W / 2, py + ph + (unlocked ? 58 : 80), gallerySel, CHARACTERS.length, portrait ? 7 : 11);
   uiFooter(portrait ? 'Toca ◀▶ o desliza · Esc volver' : '◀▶ cambiar · Enter/Esc volver');
 }
 
@@ -727,71 +743,110 @@ function updateCharSelect(dt) {
     else sfx.hurt();
   }
 }
-function drawStatBar(x,y,w,val,label,color){
-  const frac=Math.min(1,Math.max(0.06,(val-0.8)/0.6));
-  ctx.textAlign='left'; ctx.font='14px monospace'; ctx.fillStyle=UI.dim; ctx.fillText(label,x,y+9);
-  uiBar(x+48,y,w-48,12,frac,color);
+function drawStatBar(x,y,w,val,label,color){ uiStatBar(x, y, w, val, label, color); }
+
+function drawCharThumbStrip(cx, cy, sel, n, maxShow) {
+  const show = maxShow || 11;
+  const half = Math.floor(show / 2);
+  let start = Math.max(0, sel - half);
+  let end = Math.min(n, start + show);
+  if (end - start < show) start = Math.max(0, end - show);
+  const slotW = 46, totalW = (end - start) * slotW;
+  const sx = cx - totalW / 2;
+  for (let i = start; i < end; i++) {
+    const c = CHARACTERS[i];
+    const x = sx + (i - start) * slotW;
+    const on = i === sel;
+    const ok = isCharUnlocked(i);
+    fillRR(x, cy - 24, 40, 48, 9, on ? 'rgba(255,215,0,0.22)' : 'rgba(255,255,255,0.05)');
+    if (on) strokeRR(x, cy - 24, 40, 48, 9, UI.gold, 2);
+    else if (ok) strokeRR(x, cy - 24, 40, 48, 9, 'rgba(255,255,255,0.1)', 1);
+    if (c?.draw) {
+      ctx.save();
+      ctx.translate(x + 20, cy + 2);
+      ctx.scale(0.68, 0.68);
+      const sil = !ok && !c.shopOnly && !c.shopPrice;
+      if (!sil) {
+        c.draw({ facing: 1, power: null, invTimer: 0 }, -PLAYER_W / 2, -PLAYER_H / 2);
+        if (!ok) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H); }
+      } else {
+        ctx.fillStyle = '#2b3240'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H);
+      }
+      ctx.restore();
+    }
+  }
 }
+
 function drawCharSelect() {
-  uiBgGrad('#0a1018','#101826', false); uiSparkles(charT*0.3, 20);
-  uiTitle('PERSONAJES', 72, 40);
-  uiPanel(W/2-220,110,440,380,20);
+  uiBgGrad('#0a1018', '#142038', false); uiSparkles(charT * 0.3, 24);
+  uiTitle('PERSONAJES', 68, 40);
+  uiWalletBadge(W - 110, 42, gs.wallet);
+
+  const pw = 620, ph = 400, px = W / 2 - pw / 2, py = 108;
+  uiPanel(px, py, pw, ph, 22);
   const ch = CHARACTERS[charSel];
   const unlocked = isCharUnlocked(charSel);
-  const bob = Math.sin(charT*4)*6;
+  const bob = Math.sin(charT * 4) * 5;
+  const previewY = py + 175 + bob;
 
-  fillRR(140,268,56,56,14,'rgba(255,215,0,0.12)'); strokeRR(140,268,56,56,14,UI.gold,1);
-  fillRR(W-196,268,56,56,14,'rgba(255,215,0,0.12)'); strokeRR(W-196,268,56,56,14,UI.gold,1);
-  ctx.fillStyle=UI.gold; ctx.font='bold 36px monospace'; ctx.textAlign='center';
-  ctx.fillText('<', 168, 306); ctx.fillText('>', W-168, 306);
+  uiNavBtn(px + 18, py + 130, 52, 52, '◀', true);
+  uiNavBtn(px + pw - 70, py + 130, 52, 52, '▶', true);
+  if (document.body.classList.contains('touch')) {
+    mobRegisterRow(px + 18, py + 130, 52, 52, (charSel - 1 + CHARACTERS.length) % CHARACTERS.length);
+    mobRegisterRow(px + pw - 70, py + 130, 52, 52, (charSel + 1) % CHARACTERS.length);
+  }
 
-  // Big preview (or locked silhouette)
+  uiGlowCircle(W / 2, previewY, 72, ch.color || UI.gold, charT);
   ctx.save();
-  ctx.translate(W/2, 270+bob);
-  ctx.scale(5.5,5.5);
+  ctx.translate(W / 2, previewY);
+  ctx.scale(5.2, 5.2);
   const showSilhouette = !unlocked && !ch.shopOnly && !ch.shopPrice;
   if (!showSilhouette) {
-    ch.draw({facing:1,power:null,invTimer:0}, -PLAYER_W/2, -PLAYER_H/2);
-    if (!unlocked) { ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(-PLAYER_W/2,-PLAYER_H/2,PLAYER_W,PLAYER_H); }
+    ch.draw({ facing: 1, power: null, invTimer: 0 }, -PLAYER_W / 2, -PLAYER_H / 2);
+    if (!unlocked) { ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H); }
   } else {
-    ctx.fillStyle='#2b3240'; ctx.fillRect(-PLAYER_W/2,-PLAYER_H/2,PLAYER_W,PLAYER_H);
-    ctx.fillStyle='#566'; ctx.font='bold 30px monospace'; ctx.textAlign='center'; ctx.fillText('?',0,12);
+    ctx.fillStyle = '#2b3240'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H);
+    ctx.fillStyle = '#566'; ctx.font = 'bold 30px monospace'; ctx.textAlign = 'center'; ctx.fillText('?', 0, 12);
   }
   ctx.restore();
 
-  // Name
-  ctx.fillStyle=unlocked?UI.bright:UI.dim; ctx.font='bold 36px monospace'; ctx.textAlign='center';
-  ctx.fillText(unlocked ? ch.name : (ch.shopOnly || ch.shopPrice ? ch.name : '???'), W/2, 470);
+  ctx.fillStyle = unlocked ? UI.bright : UI.dim;
+  ctx.font = 'bold 32px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(unlocked ? ch.name : (ch.shopOnly || ch.shopPrice ? ch.name : '???'), W / 2, py + ph - 118);
 
   if (!unlocked) {
-    hud('BLOQUEADO', W/2, 515, UI.red, 22, 'center');
+    uiBadge(W / 2, py + ph - 88, 'BLOQUEADO', UI.red, 'rgba(80,20,20,0.55)');
     if (ch.shopOnly) {
-      hud('★ Exclusivo TIENDA · ' + charShopCost(ch) + ' monedas', W/2, 548, UI.gold, 18, 'center');
+      hud('★ Exclusivo TIENDA · ' + charShopCost(ch) + ' monedas', W / 2, py + ph - 58, UI.gold, 16, 'center');
     } else if (ch.shopPrice) {
-      hud('Compra en TIENDA · ' + charShopCost(ch) + ' monedas', W/2, 548, UI.gold, 18, 'center');
+      hud('Compra en TIENDA · ' + charShopCost(ch) + ' monedas', W / 2, py + ph - 58, UI.gold, 16, 'center');
     } else if (charInShop(charSel)) {
-      hud('Mundos: ' + ch.unlock + '+ · O tienda ' + charShopCost(ch) + ' mon', W/2, 548, UI.dim, 18, 'center');
+      hud('Mundos: ' + ch.unlock + '+ · O tienda ' + charShopCost(ch) + ' mon', W / 2, py + ph - 58, UI.dim, 15, 'center');
     } else {
-      hud('Completa ' + ch.unlock + ' mundo(s)', W/2, 548, UI.dim, 18, 'center');
+      hud('Completa ' + ch.unlock + ' mundo(s)', W / 2, py + ph - 58, UI.dim, 15, 'center');
     }
   } else {
-    const bx=W/2-180, bw=360;
-    drawStatBar(bx, 495, bw, ch.speed, 'SPD', UI.green);
-    drawStatBar(bx, 520, bw, ch.jump,  'JMP', UI.cyan);
-    hud('Especial: '+ch.special.name, W/2, 560, UI.gold, 19, 'center');
-    hud(ch.desc, W/2, 588, UI.dim, 17, 'center');
-    if (gs.character===charSel) uiPill(W/2-40, 618, 'EN USO', UI.green);
+    const bx = W / 2 - 170, bw = 340;
+    drawStatBar(bx, py + ph - 108, bw, ch.speed, 'VEL', UI.green);
+    drawStatBar(bx, py + ph - 82, bw, ch.jump, 'SAL', UI.cyan);
+    hud('★ ' + ch.special.name, W / 2, py + ph - 54, UI.gold, 16, 'center');
+    hud(ch.desc, W / 2, py + ph - 30, UI.dim, 14, 'center');
+    if (gs.character === charSel) uiBadge(W / 2, py + 28, 'EN USO', UI.green, 'rgba(20,60,30,0.7)');
   }
 
-  const n=CHARACTERS.length, dotW=16, totalW=n*dotW, sx=W/2-totalW/2;
-  for(let i=0;i<n;i++){
-    fillRR(sx+i*dotW, 636, 12, 12, 6, i===charSel?UI.gold:(isCharUnlocked(i)?'#556':'#333'));
-  }
-  uiFooter('Izq/Der · Enter · Esc');
+  uiPager(W / 2, py + ph + 28, charSel, CHARACTERS.length);
+  drawCharThumbStrip(W / 2, py + ph + 72, charSel, CHARACTERS.length, 11);
+  uiFooter('◀▶ elegir · Enter confirmar · Esc volver');
 }
 
 // ── Shop Scene ───────────────────────────────────────────────────────────────
 let shopSel=0;
+const SHOP_ROW_H = 66;
+const SHOP_VISIBLE = 6;
+function shopListOffset(n) {
+  if (n <= SHOP_VISIBLE) return 0;
+  return Math.max(0, Math.min(shopSel - Math.floor(SHOP_VISIBLE / 2), n - SHOP_VISIBLE));
+}
 function buildShop(){
   const list=[];
   if(!gs.magnet) list.push({key:'magnet', label:'Iman de monedas', desc:'Atrae monedas cercanas', cost:300});
@@ -836,15 +891,98 @@ function updateShop(dt){
   if(banner){ banner.life-=dt; if(banner.life<=0) banner=null; }
 }
 function drawShop(){
-  uiBgGrad('#100818','#161020', false);
-  uiTitle('TIENDA', 72, 42);
-  drawCoinIcon(W/2-60, 108, 12); hud(' '+gs.wallet+' monedas', W/2+10, 114, UI.gold, 22, 'center');
-  uiPanel(W/2-380,130,760,480,18);
-  const list=buildShop();
-  if(!list.length){
-    hud('Todo comprado. Buen trabajo!', W/2, H/2, UI.green, 24, 'center');
+  uiBgGrad('#100818','#1a1030', false);
+  uiSparkles(performance.now() * 0.001, 18);
+  uiTitle('TIENDA', 68, 42);
+  uiWalletBadge(W / 2, 108, gs.wallet);
+
+  const pw = 780, ph = 490, px = W / 2 - pw / 2, py = 132;
+  uiPanel(px, py, pw, ph, 20);
+  const list = buildShop();
+  const listX = px + 16, listW = 430, listY = py + 14, listH = ph - 28;
+  const detailX = px + listW + 28, detailW = pw - listW - 44;
+
+  fillRR(detailX, listY, detailW, listH, 16, 'rgba(0,0,0,0.28)');
+  strokeRR(detailX, listY, detailW, listH, 16, 'rgba(255,215,0,0.15)', 1);
+  hud('VISTA PREVIA', detailX + detailW / 2, listY + 24, UI.dim, 14, 'center');
+
+  if (!list.length) {
+    hud('¡Todo comprado!', W / 2, py + ph / 2, UI.green, 26, 'center');
+    hud('Sigue jugando para ganar más monedas', W / 2, py + ph / 2 + 36, UI.dim, 16, 'center');
   } else {
-    list.forEach((o,i)=>{
-      const y=175+i*58, afford=gs.wallet>=o.cost;
-      uiListRow(y, o.label, o.cost+' mon.', i===shopSel, afford?UI.gold:UI.red, i);
-      hud(o.desc, W/2-330, y+18, UI.dim, 14);
+    const off = shopListOffset(list.length);
+    const clipH = SHOP_VISIBLE * SHOP_ROW_H;
+    uiClipScroll(listX, listY, listW, clipH, 14, () => {
+      list.forEach((o, i) => {
+        const y = listY + (i - off) * SHOP_ROW_H + 8;
+        const sel = i === shopSel;
+        const afford = gs.wallet >= o.cost;
+        uiShopCard(listX + 4, y, listW - 8, SHOP_ROW_H - 10, sel, afford, () => {
+          if (o.key === 'char') {
+            const ch = CHARACTERS[o.idx];
+            ctx.save();
+            ctx.translate(listX + 36, y + SHOP_ROW_H / 2 - 2);
+            ctx.scale(0.9, 0.9);
+            if (ch?.draw) ch.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
+            ctx.restore();
+          } else if (o.key === 'magnet') {
+            drawCoinIcon(listX + 36, y + SHOP_ROW_H / 2 - 2, 14);
+            ctx.fillStyle = UI.cyan; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+            ctx.fillText('MAG', listX + 36, y + SHOP_ROW_H / 2 + 14);
+          } else {
+            drawHeartIcon(listX + 36, y + SHOP_ROW_H / 2 - 10, 12, true);
+          }
+          ctx.textAlign = 'left'; ctx.font = sel ? 'bold 20px monospace' : '18px monospace';
+          ctx.fillStyle = sel ? UI.gold : UI.bright;
+          ctx.fillText(o.label, listX + 68, y + 28);
+          ctx.font = '14px monospace'; ctx.fillStyle = UI.dim;
+          ctx.fillText(o.desc.slice(0, 34) + (o.desc.length > 34 ? '…' : ''), listX + 68, y + 48);
+          ctx.textAlign = 'right'; ctx.font = 'bold 18px monospace';
+          ctx.fillStyle = afford ? UI.gold : UI.red;
+          ctx.fillText(o.cost + ' mon.', listX + listW - 20, y + 36);
+        });
+        if (sel) mobRegisterRow(listX + 4, y, listW - 8, SHOP_ROW_H - 10, i);
+      });
+    });
+
+    if (list.length > SHOP_VISIBLE) {
+      const scrollFrac = off / Math.max(1, list.length - SHOP_VISIBLE);
+      uiBar(listX + listW + 6, listY, 5, clipH, (off + SHOP_VISIBLE) / list.length, UI.gold);
+      hud('▲▼ ' + (shopSel + 1) + '/' + list.length, listX + listW / 2, listY + clipH + 16, UI.dim, 13, 'center');
+    }
+
+    const item = list[shopSel];
+    if (item) {
+      const cx = detailX + detailW / 2, cy = listY + listH / 2 - 10;
+      if (item.key === 'char') {
+        const ch = CHARACTERS[item.idx];
+        uiGlowCircle(cx, cy - 20, 56, ch?.color || UI.gold, performance.now() * 0.001);
+        ctx.save();
+        ctx.translate(cx, cy - 20);
+        ctx.scale(3.2, 3.2);
+        if (ch?.draw) ch.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
+        ctx.restore();
+        hud(ch?.name || '', cx, cy + 58, UI.gold, 20, 'center');
+        if (ch?.special) hud('★ ' + ch.special.name, cx, cy + 84, ch.color || UI.cyan, 14, 'center');
+      } else if (item.key === 'magnet') {
+        drawCoinIcon(cx, cy - 10, 28);
+        hud('Imán activo en niveles', cx, cy + 50, UI.cyan, 15, 'center');
+      } else {
+        for (let h = 0; h < 3; h++) drawHeartIcon(cx - 30 + h * 30, cy - 10, 14, true);
+        hud('+1 vida al empezar', cx, cy + 50, UI.red, 15, 'center');
+      }
+      const afford = gs.wallet >= item.cost;
+      uiBadge(cx, listY + listH - 28, afford ? 'COMPRAR' : 'SIN MONEDAS', afford ? UI.green : UI.red,
+        afford ? 'rgba(20,60,30,0.7)' : 'rgba(60,20,20,0.6)');
+      hud(item.cost + ' monedas', cx, listY + listH - 52, afford ? UI.gold : UI.red, 16, 'center');
+    }
+  }
+
+  if (banner) {
+    const a = banner.life / banner.max;
+    ctx.globalAlpha = Math.min(1, a * 2);
+    uiBadge(W / 2, py - 8, banner.text, banner.color, 'rgba(0,0,0,0.75)');
+    ctx.globalAlpha = 1;
+  }
+  uiFooter('▲▼ navegar · Enter comprar · Esc volver');
+}

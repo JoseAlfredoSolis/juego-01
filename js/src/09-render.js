@@ -122,6 +122,65 @@ function uiPill(x,y,text,color){
   const tw=ctx.measureText(text).width+22; fillRR(x,y-17,tw,30,15,'rgba(0,0,0,0.5)'); strokeRR(x,y-17,tw,30,15,'rgba(255,255,255,0.12)',1);
   ctx.fillStyle=color; ctx.fillText(text,x+11,y+2);
 }
+function uiWalletBadge(cx, y, amount) {
+  const label = '' + amount;
+  ctx.font = 'bold 22px monospace';
+  const tw = ctx.measureText(label).width;
+  const w = tw + 54, x = cx - w / 2;
+  fillRR(x, y - 22, w, 44, 22, 'rgba(8,12,20,0.88)');
+  strokeRR(x, y - 22, w, 44, 22, 'rgba(255,215,0,0.4)', 2);
+  drawCoinIcon(x + 20, y, 12);
+  ctx.fillStyle = UI.gold; ctx.textAlign = 'left';
+  ctx.fillText(label, x + 38, y + 8);
+}
+function uiBadge(cx, y, text, color, bg) {
+  ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+  const tw = ctx.measureText(text).width + 24, h = 26;
+  fillRR(cx - tw / 2, y - h / 2, tw, h, h / 2, bg || 'rgba(0,0,0,0.45)');
+  strokeRR(cx - tw / 2, y - h / 2, tw, h, h / 2, color, 1);
+  ctx.fillStyle = color; ctx.fillText(text, cx, y + 5);
+}
+function uiPager(cx, y, index, total) {
+  hud((index + 1) + ' / ' + total, cx, y, UI.bright, 17, 'center');
+  const bw = Math.min(240, W * 0.35), bx = cx - bw / 2;
+  uiBar(bx, y + 12, bw, 7, total > 1 ? (index + 1) / total : 1, UI.gold);
+}
+function uiGlowCircle(cx, cy, r, color, t) {
+  const pulse = 0.88 + Math.sin(t * 3) * 0.12;
+  ctx.globalAlpha = 0.22 * pulse;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(cx, cy, r * pulse, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.08;
+  ctx.beginPath(); ctx.arc(cx, cy, r * 1.35 * pulse, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+function uiNavBtn(x, y, w, h, label, active) {
+  fillRR(x, y, w, h, 14, active ? 'rgba(255,215,0,0.16)' : 'rgba(255,255,255,0.05)');
+  strokeRR(x, y, w, h, 14, active ? UI.gold : 'rgba(255,255,255,0.14)', active ? 2 : 1);
+  ctx.fillStyle = active ? UI.gold : UI.dim;
+  ctx.font = 'bold ' + Math.min(32, h - 8) + 'px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(label, x + w / 2, y + h / 2 + 10);
+}
+function uiStatBar(x, y, w, val, label, color) {
+  const frac = Math.min(1, Math.max(0.06, (val - 0.8) / 0.6));
+  ctx.textAlign = 'left'; ctx.font = '14px monospace'; ctx.fillStyle = UI.dim;
+  ctx.fillText(label, x, y + 9);
+  uiBar(x + 48, y, w - 48, 12, frac, color);
+}
+function uiClipScroll(x, y, w, h, r, drawFn) {
+  ctx.save();
+  roundRectPath(x, y, w, h, r);
+  ctx.clip();
+  drawFn();
+  ctx.restore();
+  strokeRR(x, y, w, h, r, 'rgba(255,255,255,0.08)', 1);
+}
+function uiShopCard(x, y, w, h, sel, afford, drawFn) {
+  fillRR(x, y, w, h, 14, sel ? 'rgba(255,215,0,0.14)' : 'rgba(255,255,255,0.04)');
+  if (sel) strokeRR(x, y, w, h, 14, UI.gold, 2);
+  else strokeRR(x, y, w, h, 14, 'rgba(255,255,255,0.08)', 1);
+  if (drawFn) drawFn(x, y, w, h, sel, afford);
+}
 function drawHeartIcon(x,y,s,on=true){
   ctx.fillStyle=on?'#ff4d6d':'#3a3040'; ctx.beginPath();
   ctx.moveTo(x,y+s*0.3); ctx.bezierCurveTo(x,y,x-s*0.45,y-s*0.15,x-s*0.45,y+s*0.12);

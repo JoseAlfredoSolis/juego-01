@@ -1,9 +1,4 @@
 // === 15-bootstrap.js (from index.html lines 2541-2705) ===
-    });
-  }
-  uiFooter('Enter=Comprar  Esc=Volver');
-  drawBanner();
-}
 
 // ── Achievements Scene ───────────────────────────────────────────────────────
 function updateAchievements(dt){
