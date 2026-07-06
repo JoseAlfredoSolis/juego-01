@@ -181,6 +181,27 @@ function uiShopCard(x, y, w, h, sel, afford, drawFn) {
   else strokeRR(x, y, w, h, 14, 'rgba(255,255,255,0.08)', 1);
   if (drawFn) drawFn(x, y, w, h, sel, afford);
 }
+function uiMenuTile(x, y, w, h, title, desc, sel, rowIdx) {
+  fillRR(x, y, w, h, 12, sel ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.05)');
+  if (sel) {
+    strokeRR(x, y, w, h, 12, UI.gold, 2);
+    fillRR(x, y, 4, h, 4, UI.gold);
+  } else strokeRR(x, y, w, h, 12, 'rgba(255,255,255,0.1)', 1);
+  ctx.textAlign = 'left';
+  ctx.font = sel ? 'bold 19px monospace' : 'bold 17px monospace';
+  ctx.fillStyle = sel ? UI.gold : UI.bright;
+  ctx.fillText(sel ? '▸ ' + title : '  ' + title, x + 16, y + h / 2 + 6);
+  if (desc) {
+    ctx.font = '13px monospace';
+    ctx.fillStyle = sel ? 'rgba(255,255,255,0.75)' : UI.dim;
+    ctx.fillText(desc, x + 16, y + h - 8);
+  }
+  if (rowIdx !== undefined) mobRegisterRow(x, y, w, h, rowIdx);
+}
+function uiSectionLabel(x, y, text) {
+  ctx.textAlign = 'left'; ctx.font = 'bold 13px monospace'; ctx.fillStyle = UI.cyan;
+  ctx.fillText(text, x, y);
+}
 function drawHeartIcon(x,y,s,on=true){
   ctx.fillStyle=on?'#ff4d6d':'#3a3040'; ctx.beginPath();
   ctx.moveTo(x,y+s*0.3); ctx.bezierCurveTo(x,y,x-s*0.45,y-s*0.15,x-s*0.45,y+s*0.12);

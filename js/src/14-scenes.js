@@ -142,6 +142,87 @@ function drawMpJoin(t) {
 // ── Menu Scene ─────────────────────────────────────────────────────────────
 let menuSel=0, menuT=0;
 const menuItems=['PLAY','KART RACE','POMERANIA','GALERIA','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
+const MENU_SECTIONS = [
+  { label: 'JUGAR', start: 0 },
+  { label: 'TU PERFIL', start: 3 },
+  { label: 'MÁS OPCIONES', start: 8 },
+];
+const MENU_META = {
+  'PLAY':          { title: 'AVENTURA',       desc: 'Mapa de mundos y niveles' },
+  'KART RACE':     { title: 'KART RACE',      desc: 'Carreras arcade multijugador' },
+  'POMERANIA':     { title: 'POMERANIA',      desc: 'Mundo especial de perros' },
+  'GALERIA':       { title: 'GALERÍA',        desc: 'Todos los héroes del juego' },
+  'MULTIJUGADOR':  { title: 'MULTIJUGADOR',   desc: 'Jugar en línea con amigos' },
+  'CHARACTER':     { title: 'PERSONAJES',     desc: 'Elegir tu héroe' },
+  'TIENDA':        { title: 'TIENDA',         desc: 'Comprar héroes y mejoras' },
+  'LOGROS':        { title: 'LOGROS',         desc: 'Medallas y retos' },
+  'INSTRUCTIONS':  { title: 'INSTRUCCIONES',  desc: 'Controles y mecánicas' },
+  'SETTINGS':      { title: 'AJUSTES',        desc: 'Audio, gráficos y dificultad' },
+  'CREDITS':       { title: 'CRÉDITOS',       desc: 'Equipo y agradecimientos' },
+};
+
+function drawMenuHeroPanel(t) {
+  const px = 28, py = 64, pw = 400, ph = 592;
+  uiPanel(px, py, pw, ph, 22);
+  const ch = CHARACTERS[gs.character] || CHARACTERS[0];
+  const bob = Math.sin(t * 2.2) * 6;
+  const cx = px + pw / 2, cy = py + 200 + bob;
+
+  uiGlowCircle(cx, cy, 88, ch.color || UI.gold, t);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(4.8, 4.8);
+  ch.draw({ facing: 1, power: null, invTimer: 0 }, -PLAYER_W / 2, -PLAYER_H / 2);
+  ctx.restore();
+
+  uiTitle('SUPER BEAR', py + 52, 44);
+  hud('ADVENTURE', cx, py + 92, '#fff', 22, 'center');
+
+  const sy = py + 340;
+  uiPanel(px + 20, sy, pw - 40, 220, 16, 'rgba(0,0,0,0.35)', 'rgba(255,255,255,0.1)');
+  hud('TU PARTIDA', px + 36, sy + 28, UI.cyan, 14, 'left');
+  hud('Héroe: ' + ch.name, px + 36, sy + 54, UI.gold, 17, 'left');
+  hud('Récord: ' + gs.highScore, px + 36, sy + 78, UI.bright, 16, 'left');
+  uiWalletBadge(px + 130, sy + 108, gs.wallet);
+  uiBadge(px + pw - 56, sy + 108, 'Dif. ' + diff().name, diff().color, 'rgba(0,0,0,0.45)');
+
+  let cleared = 0;
+  for (let w = 0; w < WORLD_COUNT; w++) if (gs.levelDone[w].every(Boolean)) cleared++;
+  const unlocked = typeof worldsUnlockedCount === 'function' ? worldsUnlockedCount() : 1;
+  hud('Mundos: ' + unlocked + '/' + WORLD_COUNT + ' · Completos: ' + cleared, px + 36, sy + 148, UI.dim, 14, 'left');
+  uiBar(px + 36, sy + 162, pw - 72, 8, cleared / WORLD_COUNT, UI.green);
+  hud('Plataformas 2D/3D · PWA', px + 36, sy + 192, UI.dim, 13, 'left');
+}
+
+function drawMenuDesktop(t) {
+  drawMenuHeroPanel(t);
+
+  const rx = 452, ry = 64, rw = 800, rh = 592;
+  uiPanel(rx, ry, rw, rh, 22);
+  hud('MENÚ PRINCIPAL', rx + rw / 2, ry + 32, UI.gold, 22, 'center');
+
+  const tileX = rx + 28, tileW = rw - 56, tileH = 36;
+  let y = ry + 52;
+  for (let s = 0; s < MENU_SECTIONS.length; s++) {
+    const sec = MENU_SECTIONS[s];
+    const nextStart = s + 1 < MENU_SECTIONS.length ? MENU_SECTIONS[s + 1].start : menuItems.length;
+    uiSectionLabel(tileX, y + 12, sec.label);
+    y += 22;
+    for (let i = sec.start; i < nextStart; i++) {
+      const key = menuItems[i];
+      const meta = MENU_META[key] || { title: key, desc: '' };
+      uiMenuTile(tileX, y, tileW, tileH, meta.title, null, i === menuSel, i);
+      y += tileH + 4;
+    }
+    y += 8;
+  }
+
+  const selKey = menuItems[menuSel];
+  const selMeta = MENU_META[selKey] || { title: selKey, desc: '' };
+  fillRR(rx + 20, ry + rh - 58, rw - 40, 44, 12, 'rgba(255,215,0,0.08)');
+  strokeRR(rx + 20, ry + rh - 58, rw - 40, 44, 12, 'rgba(255,215,0,0.25)', 1);
+  hud('Enter · ' + selMeta.title + (selMeta.desc ? ' — ' + selMeta.desc : ''), rx + rw / 2, ry + rh - 30, UI.bright, 15, 'center');
+}
 
 function updateMenu(dt) {
   mobBindMenu(() => menuSel, v => { menuSel = v; });
@@ -198,17 +279,8 @@ function drawMenu(t) {
     uiPill(12, 64, CHARACTERS[gs.character].name, UI.gold);
     uiFooter('▲▼ navegar · OK confirmar');
   } else {
-    drawBearSil(80, H - 160, 60); drawBearSil(W - 140, H - 160, 60);
-    uiTitle('SUPER BEAR', 130 + bob, 68);
-    uiTitle('ADVENTURE', 200 + bob, 52, '#fff');
-    hud('Plataformas 2D · PWA movil', W / 2, 238 + bob, UI.dim, 18, 'center');
-    uiPanel(W / 2 - 200, 262, 400, 480, 20);
-    for (let i = 0; i < menuItems.length; i++) uiMenuRow(menuItems[i], 318 + i * 54, i === menuSel, 360, 44, i);
-    uiPill(16, 36, 'Best: ' + gs.highScore, UI.cyan);
-    uiWalletBadge(120, 62, gs.wallet);
-    uiPill(16, 88, CHARACTERS[gs.character].name, UI.gold);
-    uiPill(16, 118, 'Dif: ' + diff().name, diff().color);
-    uiFooter('WASD/Flechas · Espacio · Esc');
+    drawMenuDesktop(t);
+    uiFooter('▲▼ navegar · Enter confirmar · Esc');
   }
   hud(GAME_VERSION, W - 12, H - 12, 'rgba(255,255,255,0.4)', 13, 'right');
 }
