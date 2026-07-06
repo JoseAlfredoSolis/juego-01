@@ -16,7 +16,7 @@ let sceneTrans = { active:false, t:0, dur:0.34, from:'menu', to:'menu', mode:'in
 function changeScene(next, instant=false){
   if(next===gs.scene && !sceneTrans.active) return;
   if(!instant && document.body.classList.contains('mob-menu-html')) instant=true;
-  if(instant){ gs.scene=next; sceneTrans.active=false; mpHostBroadcast(); return; }
+  if(instant){ gs.scene=next; sceneTrans.active=false; musicOnScene(next); mpHostBroadcast(); return; }
   if(sceneTrans.active) return;
   sceneTrans = { active:true, t:0, dur:0.34, from:gs.scene, to:next, mode:'out' };
 }
@@ -25,6 +25,7 @@ function updateSceneTrans(dt){
   sceneTrans.t += dt;
   if(sceneTrans.mode==='out' && sceneTrans.t>=sceneTrans.dur){
     gs.scene=sceneTrans.to; sceneTrans.mode='in'; sceneTrans.t=0;
+    musicOnScene(gs.scene);
   } else if(sceneTrans.mode==='in' && sceneTrans.t>=sceneTrans.dur){
     sceneTrans.active=false;
     mpHostBroadcast();

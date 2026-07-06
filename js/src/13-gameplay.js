@@ -162,6 +162,7 @@ function startLevel() {
       showBanner('BIKINI PECERA — ¡Estoy listo!', '#f5e040');
     }
   }
+  if (typeof musicPlayLevel === 'function') musicPlayLevel(gs.world, gs.level);
 }
 
 function updateGameplay(dt) {

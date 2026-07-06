@@ -95,6 +95,25 @@ function gameTestKartInfo() {
   };
 }
 
+function gameTestMusicInfo() {
+  if (typeof musicTrack === 'undefined' || !musicTrack) {
+    return { playing: false, levelId: null, tempo: null };
+  }
+  let levelId = null;
+  if (typeof levelMusicCache !== 'undefined' && levelMusicCache && musicTrack !== MENU_MUSIC) {
+    const idx = levelMusicCache.indexOf(musicTrack);
+    if (idx >= 0) levelId = idx;
+  }
+  return {
+    playing: typeof musicTimer !== 'undefined' && !!musicTimer,
+    levelId,
+    menu: musicTrack === MENU_MUSIC,
+    tempo: musicTrack.tempo,
+    world: levelId != null ? Math.floor(levelId / 3) : null,
+    level: levelId != null ? levelId % 3 : null,
+  };
+}
+
 function gameTestMeta() {
   return {
     worldCount: typeof WORLD_COUNT !== 'undefined' ? WORLD_COUNT : 0,
@@ -188,6 +207,7 @@ function gameTestInstall() {
     clearInput: gameTestClearInput,
     holdKey: gameTestHoldKey,
     snapshot: gameTestSnapshot,
+    musicInfo: gameTestMusicInfo,
     meta: gameTestMeta,
     gameplayInfo: gameTestGameplayInfo,
     kartInfo: gameTestKartInfo,
@@ -209,7 +229,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v75';
+const GAME_VERSION = 'v76';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 12;           // FOREST..COSMOS + POMERANIAN + BIKINI
@@ -1255,21 +1275,101 @@ const sfx = {
   win:   ()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.16,'triangle',0.2),i*120));},
   select:()=>beep(660,0.05,'square',0.12),
 };
-// Simple looped background melody
-let musicTimer=null, musicStep=0;
-const melody=[392,440,494,523,494,440,392,330];
-function musicStart(){
-  if (musicTimer || !audio.music) return;
-  musicTimer=setInterval(()=>{
+// Simple looped background melody — one track per level (world × 3 niveles)
+let musicTimer = null, musicStep = 0, musicTrack = null;
+let levelMusicCache = null;
+
+const MENU_MUSIC = {
+  melody: [330, 392, 440, 392, 330, 294, 330, 392],
+  tempo: 340, type: 'triangle', vol: 0.045, dur: 0.2,
+};
+
+function musicNote(root, semi) {
+  return root * Math.pow(2, semi / 12);
+}
+
+function buildLevelTracks() {
+  const worlds = [
+    { root: 392, pat: [0, 2, 4, 5, 7, 5, 4, 2], tempo: 300, type: 'triangle' },   // bosque
+    { root: 196, pat: [0, 3, 5, 7, 5, 3, 0, 3], tempo: 340, type: 'sawtooth' },  // cueva
+    { root: 494, pat: [0, 2, 4, 7, 4, 2, 0, 2], tempo: 275, type: 'triangle' },   // nieve
+    { root: 220, pat: [0, 3, 6, 3, 0, 3, 6, 8], tempo: 255, type: 'square' },    // lava
+    { root: 440, pat: [0, 4, 7, 11, 7, 4, 0, 4], tempo: 315, type: 'triangle' }, // cielo
+    { root: 349, pat: [0, 2, 5, 7, 5, 2, 0, 5], tempo: 325, type: 'triangle' },  // valle
+    { root: 330, pat: [0, 3, 5, 8, 5, 3, 0, 5], tempo: 305, type: 'sine' },      // océano
+    { root: 262, pat: [0, 2, 4, 2, 0, 2, 4, 5], tempo: 345, type: 'triangle' },  // desierto
+    { root: 415, pat: [0, 4, 7, 4, 0, 7, 4, 0], tempo: 265, type: 'triangle' },  // cristal
+    { root: 370, pat: [0, 3, 7, 10, 7, 3, 0, 3], tempo: 285, type: 'sine' },     // cosmos
+    { root: 440, pat: [0, 2, 5, 7, 5, 2, 0, 7], tempo: 295, type: 'triangle' },  // pomerania
+    { root: 349, pat: [0, 4, 7, 11, 7, 4, 0, 2], tempo: 280, type: 'triangle' }, // bikini
+  ];
+  const tracks = [];
+  for (let w = 0; w < WORLD_COUNT; w++) {
+    const cfg = worlds[w] || worlds[0];
+    for (let l = 0; l < 3; l++) {
+      const shift = l * 2;
+      const melody = cfg.pat.map(s => musicNote(cfg.root, s + shift));
+      const tempo = l === 2 ? Math.max(200, cfg.tempo - 40) : cfg.tempo + l * 14;
+      tracks.push({
+        melody,
+        tempo,
+        type: l === 2 ? 'sawtooth' : cfg.type,
+        vol: 0.04 + l * 0.007,
+        dur: l === 2 ? 0.14 : 0.18,
+      });
+    }
+  }
+  return tracks;
+}
+
+function levelMusicTrack(world, level) {
+  if (!levelMusicCache) levelMusicCache = buildLevelTracks();
+  const w = Math.max(0, Math.min(WORLD_COUNT - 1, world | 0));
+  const l = Math.max(0, Math.min(2, level | 0));
+  return levelMusicCache[w * 3 + l] || MENU_MUSIC;
+}
+
+function musicStop() {
+  if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+}
+
+function musicApplyTrack(track) {
+  musicTrack = track || MENU_MUSIC;
+  musicStep = 0;
+  musicStop();
+  if (!audio.music) return;
+  const tick = () => {
+    if (!audio.music || !audio.ctx || !musicTrack) return;
+    const freq = musicTrack.melody[musicStep % musicTrack.melody.length];
+    if (freq > 0) {
+      beep(freq, musicTrack.dur || 0.18, musicTrack.type || 'triangle', musicTrack.vol || 0.05);
+    }
+    musicStep++;
+  };
+  tick();
+  musicTimer = setInterval(tick, musicTrack.tempo || 300);
+}
+
+function musicStart(track) {
+  musicApplyTrack(track || musicTrack || MENU_MUSIC);
+}
+
+function musicPlayMenu() {
+  musicApplyTrack(MENU_MUSIC);
+}
+
+function musicPlayLevel(world, level) {
+  musicApplyTrack(levelMusicTrack(world, level));
+}
+
+function musicOnScene(scene) {
+  if (scene === 'gameplay' || scene === 'pause' || scene === 'levelcomplete' ||
+      scene === 'gameover' || scene === 'kart') return;
+  musicPlayMenu();
+}
 
 
 // === 07-save.js (from index.html lines 580-628) ===
-    if(!audio.music||!audio.ctx){return;}
-    beep(melody[musicStep%melody.length],0.18,'triangle',0.05);
-    musicStep++;
-  },300);
-}
-function musicStop(){ if(musicTimer){clearInterval(musicTimer);musicTimer=null;} }
 
 // ── Save / load progress (localStorage) ─────────────────────────────────────
 const SAVE_KEY='superbear_save_v1';
@@ -1668,7 +1768,7 @@ let sceneTrans = { active:false, t:0, dur:0.34, from:'menu', to:'menu', mode:'in
 function changeScene(next, instant=false){
   if(next===gs.scene && !sceneTrans.active) return;
   if(!instant && document.body.classList.contains('mob-menu-html')) instant=true;
-  if(instant){ gs.scene=next; sceneTrans.active=false; mpHostBroadcast(); return; }
+  if(instant){ gs.scene=next; sceneTrans.active=false; musicOnScene(next); mpHostBroadcast(); return; }
   if(sceneTrans.active) return;
   sceneTrans = { active:true, t:0, dur:0.34, from:gs.scene, to:next, mode:'out' };
 }
@@ -1677,6 +1777,7 @@ function updateSceneTrans(dt){
   sceneTrans.t += dt;
   if(sceneTrans.mode==='out' && sceneTrans.t>=sceneTrans.dur){
     gs.scene=sceneTrans.to; sceneTrans.mode='in'; sceneTrans.t=0;
+    musicOnScene(gs.scene);
   } else if(sceneTrans.mode==='in' && sceneTrans.t>=sceneTrans.dur){
     sceneTrans.active=false;
     mpHostBroadcast();
@@ -3218,6 +3319,7 @@ function startLevel() {
       showBanner('BIKINI PECERA — ¡Estoy listo!', '#f5e040');
     }
   }
+  if (typeof musicPlayLevel === 'function') musicPlayLevel(gs.world, gs.level);
 }
 
 function updateGameplay(dt) {

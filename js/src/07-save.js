@@ -1,10 +1,4 @@
 // === 07-save.js (from index.html lines 580-628) ===
-    if(!audio.music||!audio.ctx){return;}
-    beep(melody[musicStep%melody.length],0.18,'triangle',0.05);
-    musicStep++;
-  },300);
-}
-function musicStop(){ if(musicTimer){clearInterval(musicTimer);musicTimer=null;} }
 
 // ── Save / load progress (localStorage) ─────────────────────────────────────
 const SAVE_KEY='superbear_save_v1';

@@ -67,6 +67,30 @@ test.describe('Gameplay plataformas', () => {
     expect(info.hazards).toBeGreaterThan(0);
   });
 
+  test('cada nivel usa musica de fondo distinta', async ({ page }) => {
+    await waitGameTest(page);
+    await page.evaluate(() => {
+      window.__GAME_TEST__.setViewMode('2d');
+      window.__GAME_TEST__.goGameplay(0, 0);
+    });
+    await waitForSnapshot(page, 'gameplay_2d');
+    const m0 = await page.evaluate(() => window.__GAME_TEST__.musicInfo());
+    expect(m0.levelId).toBe(0);
+
+    await page.evaluate(() => window.__GAME_TEST__.goGameplay(0, 1));
+    await waitForSnapshot(page, 'gameplay_2d');
+    const m1 = await page.evaluate(() => window.__GAME_TEST__.musicInfo());
+    expect(m1.levelId).toBe(1);
+    expect(m1.tempo).not.toBe(m0.tempo);
+
+    await page.evaluate(() => window.__GAME_TEST__.goGameplay(2, 2));
+    await waitForSnapshot(page, 'gameplay_2d');
+    const m2 = await page.evaluate(() => window.__GAME_TEST__.musicInfo());
+    expect(m2.levelId).toBe(8);
+    expect(m2.world).toBe(2);
+    expect(m2.level).toBe(2);
+  });
+
   test('pausa desde gameplay', async ({ page }) => {
     await waitGameTest(page);
     await page.evaluate(() => window.__GAME_TEST__.goGameplay(0, 0));

@@ -95,6 +95,25 @@ function gameTestKartInfo() {
   };
 }
 
+function gameTestMusicInfo() {
+  if (typeof musicTrack === 'undefined' || !musicTrack) {
+    return { playing: false, levelId: null, tempo: null };
+  }
+  let levelId = null;
+  if (typeof levelMusicCache !== 'undefined' && levelMusicCache && musicTrack !== MENU_MUSIC) {
+    const idx = levelMusicCache.indexOf(musicTrack);
+    if (idx >= 0) levelId = idx;
+  }
+  return {
+    playing: typeof musicTimer !== 'undefined' && !!musicTimer,
+    levelId,
+    menu: musicTrack === MENU_MUSIC,
+    tempo: musicTrack.tempo,
+    world: levelId != null ? Math.floor(levelId / 3) : null,
+    level: levelId != null ? levelId % 3 : null,
+  };
+}
+
 function gameTestMeta() {
   return {
     worldCount: typeof WORLD_COUNT !== 'undefined' ? WORLD_COUNT : 0,
@@ -188,6 +207,7 @@ function gameTestInstall() {
     clearInput: gameTestClearInput,
     holdKey: gameTestHoldKey,
     snapshot: gameTestSnapshot,
+    musicInfo: gameTestMusicInfo,
     meta: gameTestMeta,
     gameplayInfo: gameTestGameplayInfo,
     kartInfo: gameTestKartInfo,
