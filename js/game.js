@@ -229,7 +229,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v76';
+const GAME_VERSION = 'v77';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 12;           // FOREST..COSMOS + POMERANIAN + BIKINI
@@ -1280,44 +1280,113 @@ let musicTimer = null, musicStep = 0, musicTrack = null;
 let levelMusicCache = null;
 
 const MENU_MUSIC = {
-  melody: [330, 392, 440, 392, 330, 294, 330, 392],
-  tempo: 340, type: 'triangle', vol: 0.045, dur: 0.2,
+  melody: [330, 392, 440, 494, 440, 392, 330, 294, 330, 392],
+  bass: [165, 0, 196, 0, 165, 0, 147, 0, 165, 0],
+  tempo: 350, type: 'triangle', bassType: 'sine', vol: 0.044, dur: 0.2,
 };
 
 function musicNote(root, semi) {
   return root * Math.pow(2, semi / 12);
 }
 
+function mkMelody(root, semis) {
+  return semis.map(s => (s == null || s < 0 ? 0 : musicNote(root, s)));
+}
+
+function mkTrack(root, melodySemi, bassSemi, opts) {
+  return {
+    melody: mkMelody(root, melodySemi),
+    bass: bassSemi ? mkMelody(root, bassSemi.map(s => (s == null || s < 0 ? -1 : s - 12))) : null,
+    tempo: opts.tempo,
+    type: opts.type || 'triangle',
+    bassType: opts.bassType || 'sine',
+    vol: opts.vol ?? 0.045,
+    dur: opts.dur ?? 0.18,
+  };
+}
+
+// Temas por mundo: 3 pistas (nivel 1, 2, jefe) con melodía y bajo propios
 function buildLevelTracks() {
-  const worlds = [
-    { root: 392, pat: [0, 2, 4, 5, 7, 5, 4, 2], tempo: 300, type: 'triangle' },   // bosque
-    { root: 196, pat: [0, 3, 5, 7, 5, 3, 0, 3], tempo: 340, type: 'sawtooth' },  // cueva
-    { root: 494, pat: [0, 2, 4, 7, 4, 2, 0, 2], tempo: 275, type: 'triangle' },   // nieve
-    { root: 220, pat: [0, 3, 6, 3, 0, 3, 6, 8], tempo: 255, type: 'square' },    // lava
-    { root: 440, pat: [0, 4, 7, 11, 7, 4, 0, 4], tempo: 315, type: 'triangle' }, // cielo
-    { root: 349, pat: [0, 2, 5, 7, 5, 2, 0, 5], tempo: 325, type: 'triangle' },  // valle
-    { root: 330, pat: [0, 3, 5, 8, 5, 3, 0, 5], tempo: 305, type: 'sine' },      // océano
-    { root: 262, pat: [0, 2, 4, 2, 0, 2, 4, 5], tempo: 345, type: 'triangle' },  // desierto
-    { root: 415, pat: [0, 4, 7, 4, 0, 7, 4, 0], tempo: 265, type: 'triangle' },  // cristal
-    { root: 370, pat: [0, 3, 7, 10, 7, 3, 0, 3], tempo: 285, type: 'sine' },     // cosmos
-    { root: 440, pat: [0, 2, 5, 7, 5, 2, 0, 7], tempo: 295, type: 'triangle' },  // pomerania
-    { root: 349, pat: [0, 4, 7, 11, 7, 4, 0, 2], tempo: 280, type: 'triangle' }, // bikini
+  const T = mkTrack;
+  const themes = [
+    // 0 FOREST — alegre, saltarina
+    [
+      T(392, [0, 2, 4, 7, 4, 2, 0, 2, 4, 5], [0, -1, 4, -1, 0, -1, 4, -1, 0, -1], { tempo: 310, type: 'triangle', vol: 0.044 }),
+      T(392, [0, 4, 7, 11, 7, 4, 2, 4, 7, 9, 7, 4], [0, -1, 4, -1, 7, -1, 4, -1, 0, -1, 4, -1], { tempo: 285, type: 'triangle', vol: 0.046 }),
+      T(392, [0, 2, 4, 7, 12, 7, 4, 2, 0, 3, 7, 10, 7], [0, -1, 0, -1, 4, -1, 0, -1, 0, -1, 3, -1, 0], { tempo: 235, type: 'sawtooth', vol: 0.05, dur: 0.14 }),
+    ],
+    // 1 CAVE — grave, misteriosa
+    [
+      T(196, [0, 3, 5, 7, 5, 3, 0, 3, 5], [0, -1, 3, -1, 0, -1, 3, -1, 0], { tempo: 360, type: 'sawtooth', vol: 0.042 }),
+      T(196, [0, 3, 6, 8, 6, 3, 0, 5, 3, 0], [0, -1, 3, -1, 0, -1, 3, -1, 0, -1], { tempo: 330, type: 'sawtooth', vol: 0.044 }),
+      T(185, [0, 3, 6, 10, 6, 3, 0, 6, 3, 0, 3, 8], [0, -1, 0, -1, 3, -1, 0, -1, 3, -1, 0, -1], { tempo: 270, type: 'square', vol: 0.048, dur: 0.15 }),
+    ],
+    // 2 SNOW — cristalina, lenta
+    [
+      T(494, [0, 2, 4, 7, 4, 2, 0, -1, 2, 4], [0, -1, -1, 4, -1, -1, 0, -1, -1, 4], { tempo: 380, type: 'sine', vol: 0.04, dur: 0.22 }),
+      T(494, [0, 4, 7, 11, 7, 4, 0, 4, 7], [0, -1, 4, -1, 0, -1, 4, -1, 0], { tempo: 340, type: 'triangle', vol: 0.042, dur: 0.2 }),
+      T(494, [0, 2, 4, 7, 12, 7, 4, 2, 0, 7, 12, 7], [0, -1, 0, -1, 4, -1, 0, -1, 0, -1, 4, -1], { tempo: 290, type: 'sawtooth', vol: 0.046, dur: 0.16 }),
+    ],
+    // 3 LAVA — urgente, volcánica
+    [
+      T(220, [0, 3, 6, 3, 0, 3, 6, 8, 6, 3], [0, -1, 3, -1, 0, -1, 3, -1, 0, -1], { tempo: 250, type: 'square', vol: 0.046 }),
+      T(220, [0, 3, 7, 10, 7, 3, 0, 5, 8, 5, 3, 0], [0, -1, 3, -1, 0, -1, 3, -1, 5, -1, 3, -1], { tempo: 230, type: 'square', vol: 0.048 }),
+      T(207, [0, 3, 6, 10, 13, 10, 6, 3, 0, 6, 10, 6], [0, -1, 0, -1, 3, -1, 0, -1, 0, -1, 3, -1], { tempo: 195, type: 'sawtooth', vol: 0.052, dur: 0.12 }),
+    ],
+    // 4 SKY — etérea, arpegios
+    [
+      T(440, [0, 4, 7, 11, 7, 4, 0, 4, 7], [0, -1, 4, -1, 0, -1, 4, -1, 0], { tempo: 300, type: 'sine', vol: 0.043 }),
+      T(440, [0, 4, 7, 12, 7, 4, 0, 7, 11, 7, 4], [0, -1, 4, -1, 7, -1, 4, -1, 0, -1, 4, -1], { tempo: 275, type: 'triangle', vol: 0.045 }),
+      T(440, [0, 4, 7, 11, 16, 11, 7, 4, 0, 7, 12, 16, 12], [0, -1, 0, -1, 4, -1, 0, -1, 0, -1, 4, -1, 0], { tempo: 240, type: 'sawtooth', vol: 0.048, dur: 0.14 }),
+    ],
+    // 5 VALLE — folk tranquilo
+    [
+      T(349, [0, 2, 5, 7, 5, 2, 0, 5, 2, 0], [0, -1, 2, -1, 0, -1, 2, -1, 0, -1], { tempo: 335, type: 'triangle', vol: 0.043 }),
+      T(349, [0, 2, 5, 9, 5, 2, 0, 7, 5, 2, 0], [0, -1, 2, -1, 0, -1, 2, -1, 5, -1, 2, -1], { tempo: 310, type: 'triangle', vol: 0.045 }),
+      T(349, [0, 2, 5, 7, 12, 7, 5, 2, 0, 5, 9, 12, 9], [0, -1, 0, -1, 2, -1, 0, -1, 0, -1, 2, -1, 0], { tempo: 265, type: 'sawtooth', vol: 0.047, dur: 0.15 }),
+    ],
+    // 6 OCEAN — ondas, fluyente
+    [
+      T(330, [0, 3, 5, 8, 5, 3, 0, -1, 3, 5, 8], [0, -1, -1, 3, -1, -1, 0, -1, -1, 3, -1], { tempo: 315, type: 'sine', vol: 0.042, dur: 0.2 }),
+      T(330, [0, 3, 5, 8, 12, 8, 5, 3, 0, 5, 8], [0, -1, 3, -1, 5, -1, 3, -1, 0, -1, 3, -1], { tempo: 295, type: 'sine', vol: 0.044 }),
+      T(330, [0, 3, 7, 10, 14, 10, 7, 3, 0, 7, 10, 7, 3], [0, -1, 0, -1, 3, -1, 0, -1, 0, -1, 3, -1, 0], { tempo: 255, type: 'triangle', vol: 0.047, dur: 0.16 }),
+    ],
+    // 7 DESERT — mística, espaciada
+    [
+      T(262, [0, 2, 4, 2, 0, -1, 2, 4, 5, 4, 2], [0, -1, -1, -1, 0, -1, -1, 4, -1, -1, 2], { tempo: 355, type: 'triangle', vol: 0.04, dur: 0.21 }),
+      T(262, [0, 2, 5, 7, 5, 2, 0, 4, 7, 4, 2], [0, -1, 2, -1, 0, -1, 2, -1, 4, -1, 2], { tempo: 325, type: 'triangle', vol: 0.043 }),
+      T(247, [0, 2, 5, 9, 12, 9, 5, 2, 0, 5, 9, 5], [0, -1, 0, -1, 2, -1, 0, -1, 0, -1, 2, -1], { tempo: 280, type: 'sawtooth', vol: 0.046, dur: 0.15 }),
+    ],
+    // 8 CRYSTAL — brillante, arpegiada
+    [
+      T(415, [0, 4, 7, 4, 0, 7, 4, 0, 4, 7, 11], [0, -1, 4, -1, 0, -1, 4, -1, 0, -1, 4, -1], { tempo: 270, type: 'triangle', vol: 0.044 }),
+      T(415, [0, 4, 7, 11, 7, 4, 0, 11, 7, 4, 0, 7], [0, -1, 4, -1, 0, -1, 4, -1, 0, -1, 4, -1], { tempo: 250, type: 'triangle', vol: 0.046 }),
+      T(415, [0, 4, 7, 11, 16, 11, 7, 4, 0, 7, 11, 16, 11, 7], [0, -1, 0, -1, 4, -1, 0, -1, 0, -1, 4, -1, 0, -1], { tempo: 220, type: 'sawtooth', vol: 0.05, dur: 0.13 }),
+    ],
+    // 9 COSMOS — espacial, flotante
+    [
+      T(370, [0, 3, 7, 10, 7, 3, 0, -1, 7, 10], [0, -1, -1, 3, -1, -1, 0, -1, -1, 3], { tempo: 340, type: 'sine', vol: 0.039, dur: 0.24 }),
+      T(370, [0, 3, 7, 10, 14, 10, 7, 3, 0, 10, 14], [0, -1, 3, -1, 7, -1, 3, -1, 0, -1, 7, -1], { tempo: 300, type: 'sine', vol: 0.041, dur: 0.2 }),
+      T(370, [0, 3, 7, 10, 15, 10, 7, 3, 0, 7, 10, 15, 10], [0, -1, 0, -1, 3, -1, 0, -1, 0, -1, 3, -1, 0], { tempo: 260, type: 'triangle', vol: 0.045, dur: 0.17 }),
+    ],
+    // 10 POMERANIAN — juguetona, perruna
+    [
+      T(440, [0, 2, 5, 7, 5, 2, 0, 2, 5, 7, 9], [0, -1, 2, -1, 0, -1, 2, -1, 0, -1, 2, -1], { tempo: 290, type: 'triangle', vol: 0.045 }),
+      T(440, [0, 2, 5, 7, 9, 7, 5, 2, 0, 5, 9, 7], [0, -1, 2, -1, 0, -1, 2, -1, 0, -1, 2, -1], { tempo: 268, type: 'triangle', vol: 0.047 }),
+      T(440, [0, 2, 5, 7, 12, 7, 5, 2, 0, 2, 5, 9, 12, 9], [0, -1, 0, -1, 2, -1, 0, -1, 0, -1, 2, -1, 0, -1], { tempo: 225, type: 'sawtooth', vol: 0.05, dur: 0.13 }),
+    ],
+    // 11 BIKINI — tropical submarina, bouncy
+    [
+      T(349, [0, 4, 7, 11, 7, 4, 0, 4, 7, 4, 0], [0, -1, 4, -1, 0, -1, 4, -1, 0, -1, 4, -1], { tempo: 278, type: 'triangle', vol: 0.044 }),
+      T(349, [0, 4, 7, 11, 14, 11, 7, 4, 0, 7, 11, 7, 4], [0, -1, 4, -1, 7, -1, 4, -1, 0, -1, 4, -1, 0], { tempo: 258, type: 'triangle', vol: 0.046 }),
+      T(349, [0, 4, 7, 11, 16, 11, 7, 4, 0, 4, 7, 11, 16, 11, 7], [0, -1, 0, -1, 4, -1, 0, -1, 0, -1, 4, -1, 0, -1, 0], { tempo: 218, type: 'sawtooth', vol: 0.05, dur: 0.13 }),
+    ],
   ];
+
   const tracks = [];
   for (let w = 0; w < WORLD_COUNT; w++) {
-    const cfg = worlds[w] || worlds[0];
-    for (let l = 0; l < 3; l++) {
-      const shift = l * 2;
-      const melody = cfg.pat.map(s => musicNote(cfg.root, s + shift));
-      const tempo = l === 2 ? Math.max(200, cfg.tempo - 40) : cfg.tempo + l * 14;
-      tracks.push({
-        melody,
-        tempo,
-        type: l === 2 ? 'sawtooth' : cfg.type,
-        vol: 0.04 + l * 0.007,
-        dur: l === 2 ? 0.14 : 0.18,
-      });
-    }
+    const levels = themes[w] || themes[0];
+    for (let l = 0; l < 3; l++) tracks.push(levels[l] || levels[0]);
   }
   return tracks;
 }
@@ -1340,9 +1409,14 @@ function musicApplyTrack(track) {
   if (!audio.music) return;
   const tick = () => {
     if (!audio.music || !audio.ctx || !musicTrack) return;
-    const freq = musicTrack.melody[musicStep % musicTrack.melody.length];
+    const i = musicStep % musicTrack.melody.length;
+    const freq = musicTrack.melody[i];
     if (freq > 0) {
       beep(freq, musicTrack.dur || 0.18, musicTrack.type || 'triangle', musicTrack.vol || 0.05);
+    }
+    if (musicTrack.bass && musicTrack.bass[i] > 0) {
+      beep(musicTrack.bass[i], (musicTrack.dur || 0.18) * 1.05,
+        musicTrack.bassType || 'sine', (musicTrack.vol || 0.05) * 0.5);
     }
     musicStep++;
   };

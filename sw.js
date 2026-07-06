@@ -1,6 +1,6 @@
 // Service worker for Super Bear Adventure (PWA).
 // Network-first for game bundle so updates reach players; cache shell for offline.
-const CACHE = 'super-bear-v76';
+const CACHE = 'super-bear-v77';
 const SHELL = [
   './',
   './index.html',
