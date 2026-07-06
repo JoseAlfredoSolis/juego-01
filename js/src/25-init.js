@@ -20,4 +20,5 @@ resize();
   }
 })();
 
+gameTestInstall();
 requestAnimationFrame(loop);

@@ -1,0 +1,15 @@
+{
+  "name": "super-bear-adventure",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "python3 scripts/build-web-game.py",
+    "test": "npm run build && playwright test",
+    "test:2d": "npm run build && playwright test tests/view-2d.spec.mjs",
+    "test:3d": "npm run build && playwright test tests/view-3d.spec.mjs",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.1"
+  }
+}
