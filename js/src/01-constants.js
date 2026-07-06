@@ -1,11 +1,17 @@
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v72';
+const GAME_VERSION = 'v73';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 11;           // FOREST..COSMOS + POMERANIAN
 const LAST_WORLD = WORLD_COUNT-1;
-const WORLDS_PER_ROW = 5;
+// Cuadrícula del mapa: 4 + 4 + 3 (última fila centrada)
+const WORLD_MAP_LAYOUT = [
+  [0, 1, 2, 3],
+  [4, 5, 6, 7],
+  [8, 9, 10],
+];
+const WORLDS_PER_ROW = 4; // referencia legacy; usar WORLD_MAP_LAYOUT
 const GRAVITY = 1800, MAX_FALL = 900;
 const PLAYER_W = 36, PLAYER_H = 48;
 const PLAYER_SPEED = 290, JUMP_V = -700, DJUMP_V = -600;

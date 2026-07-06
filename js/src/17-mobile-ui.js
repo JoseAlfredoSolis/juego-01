@@ -318,10 +318,15 @@ function mobGetHtmlMenuConfig() {
     return { type: 'kartlobby', theme: 'purple', title: 'PISTA DE CARRERA', subtitle: tr.name, track: tr };
   }
   if (gs.scene === 'worldmap' && typeof worldNames !== 'undefined') {
+    const worldLbl = (i) => {
+      const sub = typeof worldSubtitles !== 'undefined' ? worldSubtitles[i] : '';
+      const tag = gs.worldUnlocked[i] ? '' : ' [bloq]';
+      return 'W' + (i + 1) + ' · ' + worldNames[i] + (sub ? ' — ' + sub : '') + tag;
+    };
     return {
       type: 'worldmap', theme: 'blue', title: 'MAPA DE MUNDOS',
-      subtitle: worldNames[wmSel] + ' · Nivel ' + (wmLvl + 1),
-      items: worldNames.map((n, i) => gs.worldUnlocked[i] ? n : n + ' 🔒'),
+      subtitle: 'W' + (wmSel + 1) + ' ' + worldNames[wmSel] + ' · Nivel ' + (wmLvl + 1),
+      items: worldNames.map((n, i) => worldLbl(i)),
       getSel: () => wmSel,
       setSel: v => { wmSel = v; },
       onPick: idx => {
