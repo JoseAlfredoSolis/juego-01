@@ -2,7 +2,7 @@
 const MOB_PLAY_SCENES = ['gameplay', 'kart'];
 const MOB_MENU_SCENES = [
   'menu', 'multimenu', 'kartmenu', 'kartselect', 'kartcup', 'kartcupresults',
-  'settings', 'shop', 'pause', 'worldmap', 'pomworld', 'gallery',
+  'settings', 'shop', 'pause', 'worldmap', 'pomworld', 'bikiworld', 'gallery',
   'charselect', 'achievements', 'kartlobby', 'kartresults', 'gameover',
   'levelcomplete', 'instructions', 'credits', 'mpcreate', 'kartcreate', 'victory',
 ];

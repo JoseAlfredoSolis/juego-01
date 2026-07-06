@@ -468,6 +468,50 @@ function drawChip(p, x, y) {
   ctx.fillStyle='#111'; ctx.fillRect(x+(f?18:10),y+10,4,4);
   ctx.fillStyle='#5a3818'; ctx.fillRect(x+(f?PLAYER_W:0),y+18,8,10);
 }
+function drawSpongeBob(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#f5e040'; ctx.fillRect(x+4,y+8,PLAYER_W-8,PLAYER_H-8);
+  ctx.fillStyle='#2a8a48'; ctx.fillRect(x+4,y+28,PLAYER_W-8,12);
+  ctx.fillStyle='#8a2020'; ctx.fillRect(x+6,y+36,PLAYER_W-12,8);
+  ctx.fillStyle='#f5e040'; ctx.fillRect(x+6,y+6,8,6); ctx.fillRect(x+PLAYER_W-14,y+6,8,6);
+  for (let i=0;i<4;i++) for (let j=0;j<3;j++) {
+    if ((i+j)%2===0) { ctx.fillStyle='#e8c830'; ctx.fillRect(x+8+i*6,y+12+j*5,3,3); }
+  }
+  ctx.fillStyle='#fff'; ctx.fillRect(x+10,y+14,7,7); ctx.fillRect(x+PLAYER_W-17,y+14,7,7);
+  ctx.fillStyle='#48f'; ctx.fillRect(x+12,y+16,4,4); ctx.fillRect(x+PLAYER_W-16,y+16,4,4);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?22:8),y+22,5,3);
+  ctx.fillStyle='#f5c040'; ctx.fillRect(x+(f?PLAYER_W-2:-6),y+24,8,10);
+}
+function drawPatrick(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ff90a8'; ctx.fillRect(x+2,y+18,PLAYER_W-4,PLAYER_H-18);
+  ctx.fillStyle='#ff7090'; ctx.fillRect(x+6,y+8,PLAYER_W-12,18);
+  ctx.fillStyle='#ff90a8'; ctx.fillRect(x,y+4,10,10); ctx.fillRect(x+PLAYER_W-10,y+4,10,10);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+12,8,8); ctx.fillRect(x+PLAYER_W-16,y+12,8,8);
+  ctx.fillStyle='#111'; ctx.fillRect(x+10,y+14,4,4); ctx.fillRect(x+PLAYER_W-14,y+14,4,4);
+  ctx.fillStyle='#5a4028'; ctx.fillRect(x+PLAYER_W/2-5,y+20,10,5);
+  ctx.fillStyle='#48c'; ctx.fillRect(x+PLAYER_W/2-8,y+32,16,8);
+}
+function drawSquidward(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#68c8b8'; ctx.fillRect(x+6,y+10,PLAYER_W-12,PLAYER_H-10);
+  ctx.fillStyle='#58b0a0'; ctx.fillRect(x+4,y+4,PLAYER_W-8,14);
+  ctx.fillStyle='#f5c8a8'; ctx.fillRect(x+PLAYER_W/2-5,y+16,10,14);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+8,7,7); ctx.fillRect(x+PLAYER_W-15,y+8,7,7);
+  ctx.fillStyle='#d22'; ctx.fillRect(x+10,y+10,4,4); ctx.fillRect(x+PLAYER_W-14,y+10,4,4);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?20:8),y+24,4,2);
+  ctx.fillStyle='#68c8b8'; ctx.fillRect(x+(f?PLAYER_W-4:-8),y+20,10,16);
+}
+function drawMrKrabs(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#c8102e'; ctx.fillRect(x+4,y+18,PLAYER_W-8,PLAYER_H-18);
+  ctx.fillStyle='#e83040'; ctx.fillRect(x+2,y+8,PLAYER_W-4,18);
+  ctx.fillStyle='#c8102e'; ctx.fillRect(x-4,y+22,10,8); ctx.fillRect(x+PLAYER_W-6,y+22,10,8);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+12,7,7); ctx.fillRect(x+PLAYER_W-15,y+12,7,7);
+  ctx.fillStyle='#111'; ctx.fillRect(x+10,y+14,4,4); ctx.fillRect(x+PLAYER_W-14,y+14,4,4);
+  ctx.fillStyle='#ffd700'; ctx.fillRect(x+PLAYER_W/2-6,y+28,12,6);
+  ctx.fillStyle='#8a1018'; ctx.fillRect(x+PLAYER_W/2-2,y+20,4,4);
+}
 
 // stat: speed/jump multipliers; special: {type,cd,fx,name}; unlock: worlds cleared needed
 const CHARACTERS = [
@@ -532,6 +576,15 @@ const CHARACTERS = [
     special:{ type:'rewind', cd:6.5,  fx:'#ffe880', name:'BRILLO' } },
   { name:'ARDILLA',     speed:1.24, jump:1.12, color:'#c08040', draw:drawChip,      unlock:99, shopPrice:260, desc:'Guarda nueces, corre más',
     special:{ type:'dash',   cd:0.78, fx:'#ffe8c0', name:'NUEZ GO' } },
+  // ── Mundo Bikini / Pecera (Bob Esponja) ───────────────────────────────────
+  { name:'BOB ESPONJA', speed:1.10, jump:1.18, color:'#f5e040', draw:drawSpongeBob, unlock:10, shopPrice:260, desc:'¡Listo! Absorbente y valiente',
+    special:{ type:'punch',  cd:1.1,  fx:'#f5e040', name:'ESPONJA SLAM' } },
+  { name:'PATRICIO',    speed:0.96, jump:1.26, color:'#ff90a8', draw:drawPatrick,  unlock:11, shopPrice:220, desc:'Estrella de mar huevón',
+    special:{ type:'thrust', cd:1.0,  fx:'#ff90a8', name:'BURBUJA' } },
+  { name:'CALAMARDO',   speed:1.08, jump:1.10, color:'#68c8b8', draw:drawSquidward, unlock:11, shopPrice:300, desc:'Clarinete y mala leche',
+    special:{ type:'dash',   cd:0.9,  fx:'#68c8b8', name:'PASO ARTSY' } },
+  { name:'DON CANGREJO',speed:1.14, jump:1.06, color:'#c8102e', draw:drawMrKrabs,  shopPrice:400, shopOnly:true, desc:'Dinero, dinero, dinero',
+    special:{ type:'punch',  cd:1.0,  fx:'#ffd700', name:'PINZA ORO' } },
 ];
 
 function charShopCost(c) {
@@ -568,6 +621,7 @@ const ACHIEVEMENTS = [
   { id:'allchars',  name:'Equipo completo', desc:'Desbloquea todos los personajes' },
   { id:'allworlds', name:'Leyenda',         desc:'Completa los 11 mundos' },
   { id:'pomworld',  name:'Amante pomerania', desc:'Visita el mundo Pomeranian' },
+  { id:'bikiworld', name:'Vecino de la pecera', desc:'Visita el mundo Bikini' },
   { id:'coop',      name:'Equipo online',   desc:'Juega con un amigo en linea' },
 ];
 function unlockAch(id){

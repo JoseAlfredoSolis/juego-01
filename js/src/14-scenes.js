@@ -141,16 +141,17 @@ function drawMpJoin(t) {
 
 // ── Menu Scene ─────────────────────────────────────────────────────────────
 let menuSel=0, menuT=0;
-const menuItems=['PLAY','KART RACE','POMERANIA','GALERIA','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
+const menuItems=['PLAY','KART RACE','POMERANIA','PECERA','GALERIA','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 const MENU_SECTIONS = [
   { label: 'JUGAR', start: 0 },
-  { label: 'TU PERFIL', start: 3 },
-  { label: 'MÁS OPCIONES', start: 8 },
+  { label: 'TU PERFIL', start: 4 },
+  { label: 'MÁS OPCIONES', start: 9 },
 ];
 const MENU_META = {
   'PLAY':          { title: 'AVENTURA',       desc: 'Mapa de mundos y niveles' },
   'KART RACE':     { title: 'KART RACE',      desc: 'Carreras arcade multijugador' },
   'POMERANIA':     { title: 'POMERANIA',      desc: 'Mundo especial de perros' },
+  'PECERA':        { title: 'BIKINI PECERA',  desc: 'Fondo del mar y casas de piña' },
   'GALERIA':       { title: 'GALERÍA',        desc: 'Todos los héroes del juego' },
   'MULTIJUGADOR':  { title: 'MULTIJUGADOR',   desc: 'Jugar en línea con amigos' },
   'CHARACTER':     { title: 'PERSONAJES',     desc: 'Elegir tu héroe' },
@@ -241,6 +242,7 @@ function updateMenu(dt) {
     if (it==='PLAY')             { gs.lives=startLives(); gs.score=0; gs.coins=0; changeScene('worldmap'); wmSel=gs.world; wmLvl=0; }
     else if (it==='KART RACE')   { kartMenuSel=0; mp.gameMode='kart'; changeScene('kartmenu'); }
     else if (it==='POMERANIA')   { pomT=0; changeScene('pomworld'); }
+    else if (it==='PECERA')      { bikiT=0; changeScene('bikiworld'); }
     else if (it==='GALERIA')     { gallerySel=0; galleryT=0; changeScene('gallery'); }
     else if (it==='MULTIJUGADOR'){ mp.menuSel=0; mp.gameMode='platformer'; mp.joinBuf=''; mp.errMsg=''; changeScene('multimenu'); }
     else if (it==='CHARACTER')   { changeScene('charselect'); charSel=gs.character; charT=0; }
@@ -342,8 +344,8 @@ function updatePomWorld(dt) {
     if (!gs.ach) gs.ach = {};
     gs.ach.pomworld = true;
     if (pomMenuSel === 0) {
-      if (gs.worldUnlocked[LAST_WORLD]) {
-        wmSel = LAST_WORLD; wmLvl = 0; gs.world = LAST_WORLD; gs.level = 0;
+      if (gs.worldUnlocked[POM_WORLD]) {
+        wmSel = POM_WORLD; wmLvl = 0; gs.world = POM_WORLD; gs.level = 0;
         gs.lives = startLives(); gs.score = 0; gs.coins = 0;
         startLevel(); changeScene('gameplay');
       } else {
@@ -399,8 +401,94 @@ function drawPomWorld(t) {
     hud(opts[i], W / 2, y + 4, sel ? '#ffd700' : UI.bright, portrait ? 14 : 18, 'center');
     mobRegisterRow(W / 2 - rw / 2, y - rh / 2, rw, rh, i);
   }
-  const unlocked = gs.worldUnlocked[LAST_WORLD];
+  const unlocked = gs.worldUnlocked[POM_WORLD];
   hud(unlocked ? 'Mundo desbloqueado — ¡listo para jugar!' : 'Bloqueado: completa el mundo COSMOS', W / 2, portrait ? H - 88 : 470, unlocked ? UI.green : UI.dim, portrait ? 12 : 15, 'center');
+  uiFooter(portrait ? 'Toca opcion · Desliza ▲▼' : 'Enter = elegir · Esc = volver');
+}
+
+// ── Bikini / Pecera World Screen ────────────────────────────────────────────
+let bikiT = 0, bikiMenuSel = 0;
+function updateBikiWorld(dt) {
+  bikiT += dt;
+  if (!gs.ach) gs.ach = {};
+  gs.ach.bikiworld = true;
+  mobBindMenu(() => bikiMenuSel, v => { bikiMenuSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'up') bikiMenuSel = (bikiMenuSel - 1 + 3) % 3;
+    if (dir === 'down') bikiMenuSel = (bikiMenuSel + 1) % 3;
+  });
+  if (pressed('ArrowUp') || pressed('KeyW')) { bikiMenuSel = (bikiMenuSel - 1 + 3) % 3; sfx.select(); }
+  if (pressed('ArrowDown') || pressed('KeyS')) { bikiMenuSel = (bikiMenuSel + 1) % 3; sfx.select(); }
+  if (pressed('Escape')) { changeScene('menu'); return; }
+  if (pressed('Enter') || pressed('Space')) {
+    sfx.select();
+    if (!gs.ach) gs.ach = {};
+    gs.ach.bikiworld = true;
+    if (bikiMenuSel === 0) {
+      if (gs.worldUnlocked[BIKI_WORLD]) {
+        wmSel = BIKI_WORLD; wmLvl = 0; gs.world = BIKI_WORLD; gs.level = 0;
+        gs.lives = startLives(); gs.score = 0; gs.coins = 0;
+        startLevel(); changeScene('gameplay');
+      } else {
+        showBanner('Completa POMERANIAN primero', '#48c8f0');
+      }
+    } else if (bikiMenuSel === 1) { gallerySel = 30; changeScene('gallery'); }
+    else changeScene('menu');
+  }
+}
+function drawBikiWorld(t) {
+  uiBgGrad('#0a5898', '#1a88c8');
+  const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 73 + t * 25) % W, y = 40 + (i * 61) % 560;
+    ctx.globalAlpha = 0.15 + 0.12 * Math.sin(t * 2.5 + i);
+    ctx.strokeStyle = '#bff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 3 + (i % 4) * 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  for (let i = 0; i < 6; i++) {
+    const hx = 80 + i * 200 + Math.sin(t + i) * 8, hy = portrait ? 118 : 140;
+    ctx.fillStyle = '#e8a820'; ctx.beginPath(); ctx.ellipse(hx, hy, 22, 32, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3aba48'; ctx.fillRect(hx - 16, hy - 42, 32, 12);
+    ctx.fillStyle = '#2a9a38'; ctx.fillRect(hx - 6, hy - 52, 12, 10);
+  }
+  uiTitle('BIKINI PECERA', portrait ? 52 : 70, portrait ? 34 : 44);
+  hud('Fondo del mar — casas de piña y roca', W / 2, portrait ? 88 : 108, '#bff', portrait ? 16 : 20, 'center');
+  uiPanel(W / 2 - (portrait ? 300 : 340), portrait ? 100 : 130, portrait ? 600 : 680, portrait ? 340 : 400, 22);
+  const bikiChars = [30, 31, 32, 33];
+  for (let i = 0; i < bikiChars.length; i++) {
+    const ci = bikiChars[i];
+    const c = CHARACTERS[ci];
+    const col = i % 2, row = Math.floor(i / 2);
+    const px = portrait ? W / 2 - 120 + col * 140 : W / 2 - 240 + i * 130;
+    const py = portrait ? 155 + row * 95 : 200;
+    fillRR(px - 50, py - 30, 100, portrait ? 100 : 120, 14, 'rgba(0,80,140,0.35)');
+    if (c?.draw) {
+      ctx.save();
+      ctx.translate(px, py + (portrait ? 12 : 20));
+      if (portrait) ctx.scale(0.85, 0.85);
+      c.draw({ facing: 1 }, 0, 0);
+      ctx.restore();
+    }
+    ctx.fillStyle = isCharUnlocked(ci) ? UI.bright : UI.dim;
+    ctx.font = 'bold ' + (portrait ? 11 : 13) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(c?.name || '?', px, py + (portrait ? 58 : 72));
+  }
+  hud('4 vecinos del fondo · 3 niveles submarinos', W / 2, portrait ? 268 : 310, UI.cyan, portrait ? 13 : 16, 'center');
+  const opts = ['JUGAR MUNDO PECERA', 'VER EN GALERIA', 'VOLVER AL MENU'];
+  const lay = mobMenuLayout(opts.length);
+  for (let i = 0; i < opts.length; i++) {
+    const y = (portrait ? 290 : lay.startY) + i * (portrait ? 32 : lay.rowH);
+    const sel = i === bikiMenuSel;
+    const rw = portrait ? Math.min(lay.rw, W - 48) : lay.rw;
+    const rh = portrait ? 28 : lay.rh;
+    fillRR(W / 2 - rw / 2, y - rh / 2, rw, rh, 12, sel ? 'rgba(72,200,240,0.35)' : 'rgba(0,0,0,0.25)');
+    if (sel) strokeRR(W / 2 - rw / 2, y - rh / 2, rw, rh, 12, '#48c8f0', 2);
+    hud(opts[i], W / 2, y + 4, sel ? '#ffd700' : UI.bright, portrait ? 14 : 18, 'center');
+    mobRegisterRow(W / 2 - rw / 2, y - rh / 2, rw, rh, i);
+  }
+  const unlocked = gs.worldUnlocked[BIKI_WORLD];
+  hud(unlocked ? 'Mundo desbloqueado — ¡Estoy listo!' : 'Bloqueado: completa POMERANIAN', W / 2, portrait ? H - 88 : 470, unlocked ? UI.green : UI.dim, portrait ? 12 : 15, 'center');
   uiFooter(portrait ? 'Toca opcion · Desliza ▲▼' : 'Enter = elegir · Esc = volver');
 }
 
@@ -473,15 +561,15 @@ function drawGallery(t) {
 
 // ── World Map ──────────────────────────────────────────────────────────────
 let wmSel=0, wmLvl=0;
-const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS','POMERANIAN'];
-const worldSubtitles=['Bosque','Cueva','Nieve','Lava','Cielo','Valle','Océano','Desierto','Cristal','Cosmos','Pomerania'];
+const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS','POMERANIAN','BIKINI'];
+const worldSubtitles=['Bosque','Cueva','Nieve','Lava','Cielo','Valle','Océano','Desierto','Cristal','Cosmos','Pomerania','Pecera'];
 const worldColors=[
   ['#2d6e1a','#1a4010'],['#2a3f5a','#0d1b2a'],['#6090b0','#3060a0'],
   ['#7a2418','#3a0d08'],['#5a86c0','#2b4f7a'],['#a08030','#6a5018'],
   ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#6a70c0','#2a3068'],
-  ['#ffb870','#e87830']
+  ['#ffb870','#e87830'],['#48c8f0','#2088c0']
 ];
-const worldHints=['','','','','','Valle: exploración tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos láser','Cosmos: gravedad baja','Pomeranian: jardines peludos'];
+const worldHints=['','','','','','Valle: exploración tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos láser','Cosmos: gravedad baja','Pomeranian: jardines peludos','Bikini: casas de piña y burbujas'];
 
 function worldMapCardRect(wi) {
   const cardW = 192, cardH = 130, gapX = 14, gapY = 14, startY = 112;
@@ -545,7 +633,12 @@ function drawWorldIcon(wi, cx, cy, s) {
   else if (wi === 7) { ctx.fillStyle = '#e8c060'; ctx.fillRect(cx - s * 1.1, cy, s * 2.2, s * 0.35); ctx.fillStyle = c1; ctx.fillRect(cx - s * 0.2, cy - s * 0.7, s * 0.4, s * 0.75); }
   else if (wi === 8) { ctx.fillStyle = '#c8f'; ctx.fillRect(cx - s * 0.15, cy - s, s * 0.3, s * 1.1); ctx.fillRect(cx - s * 0.65, cy - s * 0.35, s * 0.3, s * 0.75); ctx.fillRect(cx + s * 0.35, cy - s * 0.55, s * 0.3, s * 0.95); }
   else if (wi === 9) { ctx.fillStyle = '#aaf'; for (let i = 0; i < 5; i++) { const a = i * 1.25; ctx.fillRect(cx + Math.cos(a) * s - 2, cy + Math.sin(a) * s * 0.5 - 2, 4, 4); } ctx.fillStyle = c1; ctx.beginPath(); ctx.arc(cx, cy, s * 0.45, 0, Math.PI * 2); ctx.fill(); }
-  else { ctx.fillStyle = '#ffe8c8'; ctx.fillRect(cx - s * 0.55, cy - s * 0.15, s * 1.1, s * 0.55); ctx.fillStyle = c1; ctx.fillRect(cx - s * 0.35, cy - s * 0.65, s * 0.7, s * 0.55); ctx.fillStyle = '#111'; ctx.fillRect(cx - s * 0.12, cy - s * 0.45, 4, 4); }
+  else if (wi === 10) { ctx.fillStyle = '#ffe8c8'; ctx.fillRect(cx - s * 0.55, cy - s * 0.15, s * 1.1, s * 0.55); ctx.fillStyle = c1; ctx.fillRect(cx - s * 0.35, cy - s * 0.65, s * 0.7, s * 0.55); ctx.fillStyle = '#111'; ctx.fillRect(cx - s * 0.12, cy - s * 0.45, 4, 4); }
+  else if (wi === 11) {
+    ctx.fillStyle = '#1a88c8'; ctx.fillRect(cx - s, cy + s * 0.15, s * 2, s * 0.35);
+    ctx.fillStyle = '#e8a820'; ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.05, s * 0.38, s * 0.52, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3aba48'; ctx.fillRect(cx - s * 0.28, cy - s * 0.58, s * 0.56, s * 0.18);
+  }
 }
 
 function drawWorldMapCard(wi, t) {
@@ -671,7 +764,7 @@ function drawWorldMap(t) {
       { label: 'Región inicial', worlds: [0, 1, 2, 3] },
       { label: 'Región avanzada', worlds: [4, 5, 6, 7] },
       { label: 'Región final', worlds: [8, 9] },
-      { label: '★ Mundo especial', worlds: [10] },
+      { label: '★ Mundos especiales', worlds: [10, 11] },
     ];
     let y = startY;
     for (const sec of sections) {

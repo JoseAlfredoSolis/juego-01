@@ -178,6 +178,7 @@ function gameTestInstall() {
     goKartLobby: gameTestGoKartLobby,
     goKartRace: gameTestGoKartRace,
     goPomWorld: () => changeScene('pomworld', true),
+    goBikiWorld: () => changeScene('bikiworld', true),
     goGallery: () => { if (typeof gallerySel !== 'undefined') gallerySel = 0; changeScene('gallery', true); },
     goCharSelect: () => { if (typeof charSel !== 'undefined') charSel = 0; changeScene('charselect', true); },
     goShop: () => { if (typeof shopSel !== 'undefined') shopSel = 0; changeScene('shop', true); },

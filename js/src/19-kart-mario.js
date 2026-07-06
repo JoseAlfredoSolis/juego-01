@@ -14,6 +14,7 @@ const KART_CHAR_CLASS = {
   17: 'light', 18: 'light', 19: 'balanced', 20: 'light',
   21: 'light', 22: 'heavy', 23: 'medium', 24: 'medium', 25: 'light',
   26: 'balanced', 27: 'light', 28: 'medium', 29: 'light',
+  30: 'balanced', 31: 'heavy', 32: 'medium', 33: 'medium',
 };
 const KART_CHASSIS = [
   { name: 'ESTANDAR', accel: 1.0, topSpeed: 1.0, handling: 1.0 },

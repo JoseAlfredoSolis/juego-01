@@ -186,6 +186,7 @@ function loop(ts) {
       case 'shop':       updateShop(dt); break;
       case 'achievements': updateAchievements(dt); break;
       case 'pomworld':   updatePomWorld(dt); break;
+      case 'bikiworld':  updateBikiWorld(dt); break;
       case 'gallery':    updateGallery(dt); break;
       case 'multimenu':  updateMultiMenu(dt); break;
       case 'mpcreate':   updateMpCreate(dt); break;
@@ -218,6 +219,7 @@ function loop(ts) {
     case 'shop':          drawShop(); break;
     case 'achievements':  drawAchievements(); break;
     case 'pomworld':      drawPomWorld(t); break;
+    case 'bikiworld':     drawBikiWorld(t); break;
     case 'gallery':       drawGallery(t); break;
     case 'multimenu':     drawMultiMenu(t); break;
     case 'mpcreate':      drawMpCreate(t); break;

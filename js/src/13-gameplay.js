@@ -44,7 +44,7 @@ function drawBg(bg, levelW) {
       const sx=((i*190+50)-off*0.5%levelW+levelW)%levelW-cam.x, sy=40+((i*67)%600);
       if (sx>-10&&sx<W+10) { ctx.fillStyle=['#c8f','#8af','#f8f'][i%3]; ctx.globalAlpha=0.5; ctx.fillRect(sx,sy,4,14); ctx.globalAlpha=1; }
     }
-  } else if (w===LAST_WORLD) {
+  } else if (w===10) {
     for (let i=0;i<22;i++) {
       const bx=((i*280+60)-off%levelW+levelW)%levelW-cam.x, by=70+((i*47)%420);
       if (bx>-50&&bx<W+50) {
@@ -58,11 +58,36 @@ function drawBg(bg, levelW) {
       ctx.fillStyle='#5a9a40'; ctx.fillRect(fx,H-120,8,50);
       ctx.fillStyle='#3a7828'; ctx.beginPath(); ctx.arc(fx+4,H-125,18,0,Math.PI*2); ctx.fill();
     }
-  } else if (w===10) {
-    for (let i=0;i<80;i++) {
-      const sx=(i*97+(i*13)%200)%W, sy=(i*61)%H;
-      ctx.fillStyle=i%5===0?'#fff':'#ccc'; ctx.globalAlpha=0.35+(i%5)*0.1;
-      ctx.fillRect(sx,sy,2,2); ctx.globalAlpha=1;
+  } else if (w===11) {
+    const tm = typeof gameTimer !== 'undefined' ? gameTimer : 0;
+    ctx.fillStyle='rgba(0,60,100,0.2)'; ctx.fillRect(0,0,W,H);
+    for (let i=0;i<35;i++) {
+      const bx=((i*210+40)-off*0.4%levelW+levelW)%levelW-cam.x;
+      const by=60+((i*83)%520);
+      if (bx>-20&&bx<W+20) {
+        ctx.globalAlpha=0.2+0.15*Math.sin(tm*2+i);
+        ctx.strokeStyle='#bff'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(bx,by,4+((i*3)%6),0,Math.PI*2); ctx.stroke();
+        ctx.globalAlpha=1;
+      }
+    }
+    for (let i=0;i<10;i++) {
+      const hx=((i*480+80)-off*0.25%levelW+levelW)%levelW-cam.x;
+      const hy=H-200-((i*17)%40);
+      if (hx<-120||hx>W+120) continue;
+      const kind=i%3;
+      if (kind===0) {
+        ctx.fillStyle='#e8a820'; ctx.beginPath(); ctx.ellipse(hx,hy,28,38,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#2a9a38'; ctx.fillRect(hx-20,hy-48,40,14);
+        ctx.fillStyle='#3aba48'; ctx.fillRect(hx-8,hy-58,16,12);
+      } else if (kind===1) {
+        ctx.fillStyle='#7a8898'; ctx.beginPath(); ctx.arc(hx,hy,32,Math.PI,0); ctx.fill();
+        ctx.fillStyle='#5a6878'; ctx.fillRect(hx-34,hy,68,24);
+      } else {
+        ctx.fillStyle='#9a8878'; ctx.fillRect(hx-22,hy-20,44,50);
+        ctx.fillStyle='#6a5848'; ctx.fillRect(hx-18,hy-36,36,18);
+        ctx.fillStyle='#111'; ctx.fillRect(hx-6,hy-28,12,10);
+      }
     }
   } else {
     ctx.fillStyle='rgba(255,255,255,0.15)';
@@ -80,7 +105,7 @@ function drawPlatforms(plats, world) {
     ['#3d7a2a','#2d5a1b'],['#4a3520','#2d1f0f'],['#b0c8e0','#8aaac0'],
     ['#8a3320','#5a1e10'],['#dfeaf6','#a9c4e0'],['#d4b860','#9a7830'],
     ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#4a5080','#1a2048'],
-    ['#ffd4a8','#e89050']
+    ['#ffd4a8','#e89050'],['#48c8f0','#2088c0']
   ];
   const [top,side] = cols[world]||cols[0];
   for (const [px,py,pw,ph] of plats) {
@@ -121,12 +146,20 @@ function startLevel() {
       : 'Flechas mover · Q/E cámara · Espacio saltar';
     showBanner(hint, '#5dd4ff');
   }
-  if (gs.world === LAST_WORLD) {
+  if (gs.world === 10) {
     if (!gs.ach) gs.ach = {};
     gs.ach.pomworld = true;
     if (!gs._hintPom) {
       gs._hintPom = true;
       showBanner('MUNDO POMERANIAN — ¡Auuuu!', '#ff9a40');
+    }
+  }
+  if (gs.world === LAST_WORLD) {
+    if (!gs.ach) gs.ach = {};
+    gs.ach.bikiworld = true;
+    if (!gs._hintBiki) {
+      gs._hintBiki = true;
+      showBanner('BIKINI PECERA — ¡Estoy listo!', '#f5e040');
     }
   }
 }

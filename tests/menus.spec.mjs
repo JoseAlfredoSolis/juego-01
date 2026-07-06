@@ -21,12 +21,16 @@ test.describe('Menús y pantallas', () => {
     expect(pixels).toBe(true);
   });
 
-  test('pantallas Pomerania y galería cargan', async ({ page }) => {
+  test('pantallas Pomerania, Pecera y galería cargan', async ({ page }) => {
     await waitGameTest(page);
 
     await page.evaluate(() => window.__GAME_TEST__.goPomWorld());
     await waitForSnapshot(page, 'pomworld');
     expect((await getSnapshot(page)).scene).toBe('pomworld');
+
+    await page.evaluate(() => window.__GAME_TEST__.goBikiWorld());
+    await waitForSnapshot(page, 'bikiworld');
+    expect((await getSnapshot(page)).scene).toBe('bikiworld');
 
     await page.evaluate(() => window.__GAME_TEST__.goGallery());
     await waitForSnapshot(page, 'gallery');
@@ -52,7 +56,8 @@ test.describe('Menús y pantallas', () => {
 
     const meta = await getMeta(page);
     expect(meta.worldCount).toBeGreaterThanOrEqual(6);
-    expect(meta.characterCount).toBeGreaterThanOrEqual(30);
+    expect(meta.characterCount).toBeGreaterThanOrEqual(34);
+    expect(meta.worldCount).toBeGreaterThanOrEqual(12);
     expect(meta.kartTracks).toBeGreaterThanOrEqual(8);
     expect(meta.threeAvailable).toBe(true);
   });

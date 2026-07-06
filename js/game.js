@@ -178,6 +178,7 @@ function gameTestInstall() {
     goKartLobby: gameTestGoKartLobby,
     goKartRace: gameTestGoKartRace,
     goPomWorld: () => changeScene('pomworld', true),
+    goBikiWorld: () => changeScene('bikiworld', true),
     goGallery: () => { if (typeof gallerySel !== 'undefined') gallerySel = 0; changeScene('gallery', true); },
     goCharSelect: () => { if (typeof charSel !== 'undefined') charSel = 0; changeScene('charselect', true); },
     goShop: () => { if (typeof shopSel !== 'undefined') shopSel = 0; changeScene('shop', true); },
@@ -208,16 +209,18 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v74';
+const GAME_VERSION = 'v75';
 const W = 1280, H = 720;
 let threeCtx = null;
-const WORLD_COUNT = 11;           // FOREST..COSMOS + POMERANIAN
+const WORLD_COUNT = 12;           // FOREST..COSMOS + POMERANIAN + BIKINI
 const LAST_WORLD = WORLD_COUNT-1;
-// Cuadrícula del mapa: 4 + 4 + 3 (última fila centrada)
+const POM_WORLD = 10;
+const BIKI_WORLD = LAST_WORLD;
+// Cuadrícula del mapa: 4 + 4 + 4
 const WORLD_MAP_LAYOUT = [
   [0, 1, 2, 3],
   [4, 5, 6, 7],
-  [8, 9, 10],
+  [8, 9, 10, 11],
 ];
 const WORLDS_PER_ROW = 4; // referencia legacy; usar WORLD_MAP_LAYOUT
 const GRAVITY = 1800, MAX_FALL = 900;
@@ -851,7 +854,62 @@ function mkLevel(world, lvl) {
       goal:[3880,540]
     }
   ];
-  return [W1,W2,W3,W4,W5,W6,W7,W8,W9,W10,W11][world][lvl];
+  const W12=[
+    // BIKINI 1 — Fondo de la pecera
+    { levelW:4000, bg:['#1a88c8','#0a5898'],
+      platforms:[
+        [0,640,920,80],[980,640,740,80],[1820,640,700,80],[2620,640,640,80],[3340,640,660,80],
+        [200,520,130,18],[440,470,120,18],[680,520,130,18],[920,480,110,18],
+        [1120,510,130,18],[1360,460,110,18],[1600,500,140,18],[1840,460,120,18],
+        [2080,520,130,18],[2320,470,110,18],[2560,510,140,18],[2800,460,100,18],
+        [3040,520,140,18],[3280,470,130,18],[3520,510,160,18]
+      ],
+      enemies:[[340,615,'patrol',170],[720,615,'patrol',190],[1120,615,'flyer',280],
+               [1580,615,'chaser',220],[2040,615,'patrol',180],[2480,615,'flyer',300],
+               [2920,615,'patrol',200],[3380,615,'chaser',230]],
+      coins:[[240,490],[460,440],[700,500],[920,450],[1140,480],[1380,430],
+             [1620,470],[1860,440],[2100,500],[2340,440],[2580,480],[2820,430],
+             [3060,490],[3300,440],[3540,480]],
+      stars:[[1320,430],[2760,480]],
+      powerups:[[800,470,'djump'],[2180,440,'speed']],
+      goal:[3860,555]
+    },
+    // BIKINI 2 — Calle de las casas
+    { levelW:4100, bg:['#28a0d8','#1068a0'],
+      platforms:[
+        [0,640,760,80],[820,640,540,80],[1420,640,480,80],[1980,640,540,80],[2600,640,660,80],[3340,640,760,80],
+        [160,520,120,18],[360,470,110,18],[560,530,130,18],[760,480,100,18],
+        [900,520,120,18],[1100,460,110,18],[1340,510,130,18],[1500,460,100,18],
+        [1740,530,120,18],[1940,470,110,18],[2160,510,140,18],[2360,460,100,18],
+        [2620,520,130,18],[2820,470,120,18],[3070,510,140,18],[3320,460,130,18]
+      ],
+      enemies:[[300,615,'patrol',170],[760,615,'chaser',210],[1100,615,'flyer',290],
+               [1640,615,'patrol',190],[2060,615,'chaser',230],[2720,615,'flyer',310],[3420,615,'chaser',210]],
+      coins:[[220,490],[420,440],[620,500],[820,450],[970,490],[1170,430],
+             [1420,480],[1570,430],[1820,500],[2020,440],[2220,480],[2420,430],
+             [2720,490],[2920,440],[3170,480],[3420,430]],
+      stars:[[1120,430],[2920,440]],
+      powerups:[[600,500,'inv'],[2220,480,'djump']],
+      goal:[3960,555]
+    },
+    // BIKINI 3 — Jefe del Crustáceo (jefe)
+    { levelW:4200, bg:['#38b8e8','#1878b0'],
+      platforms:[
+        [0,640,940,80],[1020,640,760,80],[1860,640,720,80],[2660,640,680,80],[3420,630,780,10],
+        [220,530,130,18],[480,470,120,18],[740,520,130,18],[1000,480,110,18],
+        [1220,510,130,18],[1480,460,110,18],[1730,510,130,18],[1980,470,120,18],
+        [2220,510,130,18],[2480,460,110,18],[2740,500,130,18],[3000,460,120,18]
+      ],
+      enemies:[[360,615,'patrol',170],[800,615,'patrol',190],[1260,615,'chaser',230],
+               [1760,615,'flyer',300],[2260,615,'chaser',250],[3700,555,'boss',320]],
+      coins:[[260,500],[520,440],[780,490],[1040,450],[1240,480],[1490,430],
+             [1740,480],[1990,440],[2190,480],[2440,430],[2690,470],[2940,430]],
+      stars:[[1480,430],[2740,460]],
+      powerups:[[840,490,'speed'],[2480,430,'inv']],
+      goal:[4080,540]
+    }
+  ];
+  return [W1,W2,W3,W4,W5,W6,W7,W8,W9,W10,W11,W12][world][lvl];
 }
 
 // ── Hazards / obstacles ─────────────────────────────────────────────────────
@@ -913,6 +971,11 @@ function hazardData(world, lvl) {
       [[480,620,'spikes',100],[1150,540,'saw',200],[2050,620,'quicksand',120],[2850,540,'saw',220]],
       [[620,620,'spikes',110],[1400,540,'saw',210],[2200,620,'quicksand',130],[3000,540,'saw',230]],
     ],
+    [ // BIKINI — burbujas y anémonas
+      [[500,620,'coral',100],[1180,540,'saw',200],[2000,620,'coral',110],[2820,540,'saw',220]],
+      [[480,620,'coral',110],[1140,540,'saw',210],[2080,620,'coral',120],[2880,540,'saw',230]],
+      [[620,620,'coral',120],[1380,540,'saw',220],[2220,620,'coral',130],[3020,540,'saw',240]],
+    ],
   ];
   return D[world]?.[lvl] || [];
 }
@@ -971,6 +1034,11 @@ function extraEnemies(world, lvl) {
       [[880,490,'flyer',300],[1620,600,'jumper',0],[2550,600,'spitter',0],[1480,600,'armor',150]],
       [[720,480,'flyer',310],[1680,600,'jumper',0],[2850,600,'spitter',0],[1420,460,'hunter',0],[1100,560,'miniboss',210]],
       [[1280,500,'flyer',330],[2050,600,'jumper',0],[2750,600,'spitter',0],[1580,600,'armor',150],[2350,460,'hunter',0]],
+    ],
+    [ // BIKINI — medusas y cangrejos
+      [[900,490,'flyer',310],[1640,600,'jumper',0],[2580,600,'spitter',0],[1520,600,'armor',160]],
+      [[740,480,'flyer',320],[1720,600,'jumper',0],[2880,600,'spitter',0],[1460,460,'hunter',0],[1120,560,'miniboss',220]],
+      [[1300,500,'flyer',340],[2100,600,'jumper',0],[2780,600,'spitter',0],[1620,600,'armor',160],[2380,460,'hunter',0]],
     ],
   ];
   return E[world]?.[lvl] || [];
@@ -2463,6 +2531,50 @@ function drawChip(p, x, y) {
   ctx.fillStyle='#111'; ctx.fillRect(x+(f?18:10),y+10,4,4);
   ctx.fillStyle='#5a3818'; ctx.fillRect(x+(f?PLAYER_W:0),y+18,8,10);
 }
+function drawSpongeBob(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#f5e040'; ctx.fillRect(x+4,y+8,PLAYER_W-8,PLAYER_H-8);
+  ctx.fillStyle='#2a8a48'; ctx.fillRect(x+4,y+28,PLAYER_W-8,12);
+  ctx.fillStyle='#8a2020'; ctx.fillRect(x+6,y+36,PLAYER_W-12,8);
+  ctx.fillStyle='#f5e040'; ctx.fillRect(x+6,y+6,8,6); ctx.fillRect(x+PLAYER_W-14,y+6,8,6);
+  for (let i=0;i<4;i++) for (let j=0;j<3;j++) {
+    if ((i+j)%2===0) { ctx.fillStyle='#e8c830'; ctx.fillRect(x+8+i*6,y+12+j*5,3,3); }
+  }
+  ctx.fillStyle='#fff'; ctx.fillRect(x+10,y+14,7,7); ctx.fillRect(x+PLAYER_W-17,y+14,7,7);
+  ctx.fillStyle='#48f'; ctx.fillRect(x+12,y+16,4,4); ctx.fillRect(x+PLAYER_W-16,y+16,4,4);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?22:8),y+22,5,3);
+  ctx.fillStyle='#f5c040'; ctx.fillRect(x+(f?PLAYER_W-2:-6),y+24,8,10);
+}
+function drawPatrick(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#ff90a8'; ctx.fillRect(x+2,y+18,PLAYER_W-4,PLAYER_H-18);
+  ctx.fillStyle='#ff7090'; ctx.fillRect(x+6,y+8,PLAYER_W-12,18);
+  ctx.fillStyle='#ff90a8'; ctx.fillRect(x,y+4,10,10); ctx.fillRect(x+PLAYER_W-10,y+4,10,10);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+12,8,8); ctx.fillRect(x+PLAYER_W-16,y+12,8,8);
+  ctx.fillStyle='#111'; ctx.fillRect(x+10,y+14,4,4); ctx.fillRect(x+PLAYER_W-14,y+14,4,4);
+  ctx.fillStyle='#5a4028'; ctx.fillRect(x+PLAYER_W/2-5,y+20,10,5);
+  ctx.fillStyle='#48c'; ctx.fillRect(x+PLAYER_W/2-8,y+32,16,8);
+}
+function drawSquidward(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#68c8b8'; ctx.fillRect(x+6,y+10,PLAYER_W-12,PLAYER_H-10);
+  ctx.fillStyle='#58b0a0'; ctx.fillRect(x+4,y+4,PLAYER_W-8,14);
+  ctx.fillStyle='#f5c8a8'; ctx.fillRect(x+PLAYER_W/2-5,y+16,10,14);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+8,7,7); ctx.fillRect(x+PLAYER_W-15,y+8,7,7);
+  ctx.fillStyle='#d22'; ctx.fillRect(x+10,y+10,4,4); ctx.fillRect(x+PLAYER_W-14,y+10,4,4);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?20:8),y+24,4,2);
+  ctx.fillStyle='#68c8b8'; ctx.fillRect(x+(f?PLAYER_W-4:-8),y+20,10,16);
+}
+function drawMrKrabs(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#c8102e'; ctx.fillRect(x+4,y+18,PLAYER_W-8,PLAYER_H-18);
+  ctx.fillStyle='#e83040'; ctx.fillRect(x+2,y+8,PLAYER_W-4,18);
+  ctx.fillStyle='#c8102e'; ctx.fillRect(x-4,y+22,10,8); ctx.fillRect(x+PLAYER_W-6,y+22,10,8);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+12,7,7); ctx.fillRect(x+PLAYER_W-15,y+12,7,7);
+  ctx.fillStyle='#111'; ctx.fillRect(x+10,y+14,4,4); ctx.fillRect(x+PLAYER_W-14,y+14,4,4);
+  ctx.fillStyle='#ffd700'; ctx.fillRect(x+PLAYER_W/2-6,y+28,12,6);
+  ctx.fillStyle='#8a1018'; ctx.fillRect(x+PLAYER_W/2-2,y+20,4,4);
+}
 
 // stat: speed/jump multipliers; special: {type,cd,fx,name}; unlock: worlds cleared needed
 const CHARACTERS = [
@@ -2527,6 +2639,15 @@ const CHARACTERS = [
     special:{ type:'rewind', cd:6.5,  fx:'#ffe880', name:'BRILLO' } },
   { name:'ARDILLA',     speed:1.24, jump:1.12, color:'#c08040', draw:drawChip,      unlock:99, shopPrice:260, desc:'Guarda nueces, corre más',
     special:{ type:'dash',   cd:0.78, fx:'#ffe8c0', name:'NUEZ GO' } },
+  // ── Mundo Bikini / Pecera (Bob Esponja) ───────────────────────────────────
+  { name:'BOB ESPONJA', speed:1.10, jump:1.18, color:'#f5e040', draw:drawSpongeBob, unlock:10, shopPrice:260, desc:'¡Listo! Absorbente y valiente',
+    special:{ type:'punch',  cd:1.1,  fx:'#f5e040', name:'ESPONJA SLAM' } },
+  { name:'PATRICIO',    speed:0.96, jump:1.26, color:'#ff90a8', draw:drawPatrick,  unlock:11, shopPrice:220, desc:'Estrella de mar huevón',
+    special:{ type:'thrust', cd:1.0,  fx:'#ff90a8', name:'BURBUJA' } },
+  { name:'CALAMARDO',   speed:1.08, jump:1.10, color:'#68c8b8', draw:drawSquidward, unlock:11, shopPrice:300, desc:'Clarinete y mala leche',
+    special:{ type:'dash',   cd:0.9,  fx:'#68c8b8', name:'PASO ARTSY' } },
+  { name:'DON CANGREJO',speed:1.14, jump:1.06, color:'#c8102e', draw:drawMrKrabs,  shopPrice:400, shopOnly:true, desc:'Dinero, dinero, dinero',
+    special:{ type:'punch',  cd:1.0,  fx:'#ffd700', name:'PINZA ORO' } },
 ];
 
 function charShopCost(c) {
@@ -2563,6 +2684,7 @@ const ACHIEVEMENTS = [
   { id:'allchars',  name:'Equipo completo', desc:'Desbloquea todos los personajes' },
   { id:'allworlds', name:'Leyenda',         desc:'Completa los 11 mundos' },
   { id:'pomworld',  name:'Amante pomerania', desc:'Visita el mundo Pomeranian' },
+  { id:'bikiworld', name:'Vecino de la pecera', desc:'Visita el mundo Bikini' },
   { id:'coop',      name:'Equipo online',   desc:'Juega con un amigo en linea' },
 ];
 function unlockAch(id){
@@ -2978,7 +3100,7 @@ function drawBg(bg, levelW) {
       const sx=((i*190+50)-off*0.5%levelW+levelW)%levelW-cam.x, sy=40+((i*67)%600);
       if (sx>-10&&sx<W+10) { ctx.fillStyle=['#c8f','#8af','#f8f'][i%3]; ctx.globalAlpha=0.5; ctx.fillRect(sx,sy,4,14); ctx.globalAlpha=1; }
     }
-  } else if (w===LAST_WORLD) {
+  } else if (w===10) {
     for (let i=0;i<22;i++) {
       const bx=((i*280+60)-off%levelW+levelW)%levelW-cam.x, by=70+((i*47)%420);
       if (bx>-50&&bx<W+50) {
@@ -2992,11 +3114,36 @@ function drawBg(bg, levelW) {
       ctx.fillStyle='#5a9a40'; ctx.fillRect(fx,H-120,8,50);
       ctx.fillStyle='#3a7828'; ctx.beginPath(); ctx.arc(fx+4,H-125,18,0,Math.PI*2); ctx.fill();
     }
-  } else if (w===10) {
-    for (let i=0;i<80;i++) {
-      const sx=(i*97+(i*13)%200)%W, sy=(i*61)%H;
-      ctx.fillStyle=i%5===0?'#fff':'#ccc'; ctx.globalAlpha=0.35+(i%5)*0.1;
-      ctx.fillRect(sx,sy,2,2); ctx.globalAlpha=1;
+  } else if (w===11) {
+    const tm = typeof gameTimer !== 'undefined' ? gameTimer : 0;
+    ctx.fillStyle='rgba(0,60,100,0.2)'; ctx.fillRect(0,0,W,H);
+    for (let i=0;i<35;i++) {
+      const bx=((i*210+40)-off*0.4%levelW+levelW)%levelW-cam.x;
+      const by=60+((i*83)%520);
+      if (bx>-20&&bx<W+20) {
+        ctx.globalAlpha=0.2+0.15*Math.sin(tm*2+i);
+        ctx.strokeStyle='#bff'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(bx,by,4+((i*3)%6),0,Math.PI*2); ctx.stroke();
+        ctx.globalAlpha=1;
+      }
+    }
+    for (let i=0;i<10;i++) {
+      const hx=((i*480+80)-off*0.25%levelW+levelW)%levelW-cam.x;
+      const hy=H-200-((i*17)%40);
+      if (hx<-120||hx>W+120) continue;
+      const kind=i%3;
+      if (kind===0) {
+        ctx.fillStyle='#e8a820'; ctx.beginPath(); ctx.ellipse(hx,hy,28,38,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#2a9a38'; ctx.fillRect(hx-20,hy-48,40,14);
+        ctx.fillStyle='#3aba48'; ctx.fillRect(hx-8,hy-58,16,12);
+      } else if (kind===1) {
+        ctx.fillStyle='#7a8898'; ctx.beginPath(); ctx.arc(hx,hy,32,Math.PI,0); ctx.fill();
+        ctx.fillStyle='#5a6878'; ctx.fillRect(hx-34,hy,68,24);
+      } else {
+        ctx.fillStyle='#9a8878'; ctx.fillRect(hx-22,hy-20,44,50);
+        ctx.fillStyle='#6a5848'; ctx.fillRect(hx-18,hy-36,36,18);
+        ctx.fillStyle='#111'; ctx.fillRect(hx-6,hy-28,12,10);
+      }
     }
   } else {
     ctx.fillStyle='rgba(255,255,255,0.15)';
@@ -3014,7 +3161,7 @@ function drawPlatforms(plats, world) {
     ['#3d7a2a','#2d5a1b'],['#4a3520','#2d1f0f'],['#b0c8e0','#8aaac0'],
     ['#8a3320','#5a1e10'],['#dfeaf6','#a9c4e0'],['#d4b860','#9a7830'],
     ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#4a5080','#1a2048'],
-    ['#ffd4a8','#e89050']
+    ['#ffd4a8','#e89050'],['#48c8f0','#2088c0']
   ];
   const [top,side] = cols[world]||cols[0];
   for (const [px,py,pw,ph] of plats) {
@@ -3055,12 +3202,20 @@ function startLevel() {
       : 'Flechas mover · Q/E cámara · Espacio saltar';
     showBanner(hint, '#5dd4ff');
   }
-  if (gs.world === LAST_WORLD) {
+  if (gs.world === 10) {
     if (!gs.ach) gs.ach = {};
     gs.ach.pomworld = true;
     if (!gs._hintPom) {
       gs._hintPom = true;
       showBanner('MUNDO POMERANIAN — ¡Auuuu!', '#ff9a40');
+    }
+  }
+  if (gs.world === LAST_WORLD) {
+    if (!gs.ach) gs.ach = {};
+    gs.ach.bikiworld = true;
+    if (!gs._hintBiki) {
+      gs._hintBiki = true;
+      showBanner('BIKINI PECERA — ¡Estoy listo!', '#f5e040');
     }
   }
 }
@@ -3439,16 +3594,17 @@ function drawMpJoin(t) {
 
 // ── Menu Scene ─────────────────────────────────────────────────────────────
 let menuSel=0, menuT=0;
-const menuItems=['PLAY','KART RACE','POMERANIA','GALERIA','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
+const menuItems=['PLAY','KART RACE','POMERANIA','PECERA','GALERIA','MULTIJUGADOR','CHARACTER','TIENDA','LOGROS','INSTRUCTIONS','SETTINGS','CREDITS'];
 const MENU_SECTIONS = [
   { label: 'JUGAR', start: 0 },
-  { label: 'TU PERFIL', start: 3 },
-  { label: 'MÁS OPCIONES', start: 8 },
+  { label: 'TU PERFIL', start: 4 },
+  { label: 'MÁS OPCIONES', start: 9 },
 ];
 const MENU_META = {
   'PLAY':          { title: 'AVENTURA',       desc: 'Mapa de mundos y niveles' },
   'KART RACE':     { title: 'KART RACE',      desc: 'Carreras arcade multijugador' },
   'POMERANIA':     { title: 'POMERANIA',      desc: 'Mundo especial de perros' },
+  'PECERA':        { title: 'BIKINI PECERA',  desc: 'Fondo del mar y casas de piña' },
   'GALERIA':       { title: 'GALERÍA',        desc: 'Todos los héroes del juego' },
   'MULTIJUGADOR':  { title: 'MULTIJUGADOR',   desc: 'Jugar en línea con amigos' },
   'CHARACTER':     { title: 'PERSONAJES',     desc: 'Elegir tu héroe' },
@@ -3539,6 +3695,7 @@ function updateMenu(dt) {
     if (it==='PLAY')             { gs.lives=startLives(); gs.score=0; gs.coins=0; changeScene('worldmap'); wmSel=gs.world; wmLvl=0; }
     else if (it==='KART RACE')   { kartMenuSel=0; mp.gameMode='kart'; changeScene('kartmenu'); }
     else if (it==='POMERANIA')   { pomT=0; changeScene('pomworld'); }
+    else if (it==='PECERA')      { bikiT=0; changeScene('bikiworld'); }
     else if (it==='GALERIA')     { gallerySel=0; galleryT=0; changeScene('gallery'); }
     else if (it==='MULTIJUGADOR'){ mp.menuSel=0; mp.gameMode='platformer'; mp.joinBuf=''; mp.errMsg=''; changeScene('multimenu'); }
     else if (it==='CHARACTER')   { changeScene('charselect'); charSel=gs.character; charT=0; }
@@ -3640,8 +3797,8 @@ function updatePomWorld(dt) {
     if (!gs.ach) gs.ach = {};
     gs.ach.pomworld = true;
     if (pomMenuSel === 0) {
-      if (gs.worldUnlocked[LAST_WORLD]) {
-        wmSel = LAST_WORLD; wmLvl = 0; gs.world = LAST_WORLD; gs.level = 0;
+      if (gs.worldUnlocked[POM_WORLD]) {
+        wmSel = POM_WORLD; wmLvl = 0; gs.world = POM_WORLD; gs.level = 0;
         gs.lives = startLives(); gs.score = 0; gs.coins = 0;
         startLevel(); changeScene('gameplay');
       } else {
@@ -3697,8 +3854,94 @@ function drawPomWorld(t) {
     hud(opts[i], W / 2, y + 4, sel ? '#ffd700' : UI.bright, portrait ? 14 : 18, 'center');
     mobRegisterRow(W / 2 - rw / 2, y - rh / 2, rw, rh, i);
   }
-  const unlocked = gs.worldUnlocked[LAST_WORLD];
+  const unlocked = gs.worldUnlocked[POM_WORLD];
   hud(unlocked ? 'Mundo desbloqueado — ¡listo para jugar!' : 'Bloqueado: completa el mundo COSMOS', W / 2, portrait ? H - 88 : 470, unlocked ? UI.green : UI.dim, portrait ? 12 : 15, 'center');
+  uiFooter(portrait ? 'Toca opcion · Desliza ▲▼' : 'Enter = elegir · Esc = volver');
+}
+
+// ── Bikini / Pecera World Screen ────────────────────────────────────────────
+let bikiT = 0, bikiMenuSel = 0;
+function updateBikiWorld(dt) {
+  bikiT += dt;
+  if (!gs.ach) gs.ach = {};
+  gs.ach.bikiworld = true;
+  mobBindMenu(() => bikiMenuSel, v => { bikiMenuSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'up') bikiMenuSel = (bikiMenuSel - 1 + 3) % 3;
+    if (dir === 'down') bikiMenuSel = (bikiMenuSel + 1) % 3;
+  });
+  if (pressed('ArrowUp') || pressed('KeyW')) { bikiMenuSel = (bikiMenuSel - 1 + 3) % 3; sfx.select(); }
+  if (pressed('ArrowDown') || pressed('KeyS')) { bikiMenuSel = (bikiMenuSel + 1) % 3; sfx.select(); }
+  if (pressed('Escape')) { changeScene('menu'); return; }
+  if (pressed('Enter') || pressed('Space')) {
+    sfx.select();
+    if (!gs.ach) gs.ach = {};
+    gs.ach.bikiworld = true;
+    if (bikiMenuSel === 0) {
+      if (gs.worldUnlocked[BIKI_WORLD]) {
+        wmSel = BIKI_WORLD; wmLvl = 0; gs.world = BIKI_WORLD; gs.level = 0;
+        gs.lives = startLives(); gs.score = 0; gs.coins = 0;
+        startLevel(); changeScene('gameplay');
+      } else {
+        showBanner('Completa POMERANIAN primero', '#48c8f0');
+      }
+    } else if (bikiMenuSel === 1) { gallerySel = 30; changeScene('gallery'); }
+    else changeScene('menu');
+  }
+}
+function drawBikiWorld(t) {
+  uiBgGrad('#0a5898', '#1a88c8');
+  const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 73 + t * 25) % W, y = 40 + (i * 61) % 560;
+    ctx.globalAlpha = 0.15 + 0.12 * Math.sin(t * 2.5 + i);
+    ctx.strokeStyle = '#bff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 3 + (i % 4) * 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  for (let i = 0; i < 6; i++) {
+    const hx = 80 + i * 200 + Math.sin(t + i) * 8, hy = portrait ? 118 : 140;
+    ctx.fillStyle = '#e8a820'; ctx.beginPath(); ctx.ellipse(hx, hy, 22, 32, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3aba48'; ctx.fillRect(hx - 16, hy - 42, 32, 12);
+    ctx.fillStyle = '#2a9a38'; ctx.fillRect(hx - 6, hy - 52, 12, 10);
+  }
+  uiTitle('BIKINI PECERA', portrait ? 52 : 70, portrait ? 34 : 44);
+  hud('Fondo del mar — casas de piña y roca', W / 2, portrait ? 88 : 108, '#bff', portrait ? 16 : 20, 'center');
+  uiPanel(W / 2 - (portrait ? 300 : 340), portrait ? 100 : 130, portrait ? 600 : 680, portrait ? 340 : 400, 22);
+  const bikiChars = [30, 31, 32, 33];
+  for (let i = 0; i < bikiChars.length; i++) {
+    const ci = bikiChars[i];
+    const c = CHARACTERS[ci];
+    const col = i % 2, row = Math.floor(i / 2);
+    const px = portrait ? W / 2 - 120 + col * 140 : W / 2 - 240 + i * 130;
+    const py = portrait ? 155 + row * 95 : 200;
+    fillRR(px - 50, py - 30, 100, portrait ? 100 : 120, 14, 'rgba(0,80,140,0.35)');
+    if (c?.draw) {
+      ctx.save();
+      ctx.translate(px, py + (portrait ? 12 : 20));
+      if (portrait) ctx.scale(0.85, 0.85);
+      c.draw({ facing: 1 }, 0, 0);
+      ctx.restore();
+    }
+    ctx.fillStyle = isCharUnlocked(ci) ? UI.bright : UI.dim;
+    ctx.font = 'bold ' + (portrait ? 11 : 13) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(c?.name || '?', px, py + (portrait ? 58 : 72));
+  }
+  hud('4 vecinos del fondo · 3 niveles submarinos', W / 2, portrait ? 268 : 310, UI.cyan, portrait ? 13 : 16, 'center');
+  const opts = ['JUGAR MUNDO PECERA', 'VER EN GALERIA', 'VOLVER AL MENU'];
+  const lay = mobMenuLayout(opts.length);
+  for (let i = 0; i < opts.length; i++) {
+    const y = (portrait ? 290 : lay.startY) + i * (portrait ? 32 : lay.rowH);
+    const sel = i === bikiMenuSel;
+    const rw = portrait ? Math.min(lay.rw, W - 48) : lay.rw;
+    const rh = portrait ? 28 : lay.rh;
+    fillRR(W / 2 - rw / 2, y - rh / 2, rw, rh, 12, sel ? 'rgba(72,200,240,0.35)' : 'rgba(0,0,0,0.25)');
+    if (sel) strokeRR(W / 2 - rw / 2, y - rh / 2, rw, rh, 12, '#48c8f0', 2);
+    hud(opts[i], W / 2, y + 4, sel ? '#ffd700' : UI.bright, portrait ? 14 : 18, 'center');
+    mobRegisterRow(W / 2 - rw / 2, y - rh / 2, rw, rh, i);
+  }
+  const unlocked = gs.worldUnlocked[BIKI_WORLD];
+  hud(unlocked ? 'Mundo desbloqueado — ¡Estoy listo!' : 'Bloqueado: completa POMERANIAN', W / 2, portrait ? H - 88 : 470, unlocked ? UI.green : UI.dim, portrait ? 12 : 15, 'center');
   uiFooter(portrait ? 'Toca opcion · Desliza ▲▼' : 'Enter = elegir · Esc = volver');
 }
 
@@ -3771,15 +4014,15 @@ function drawGallery(t) {
 
 // ── World Map ──────────────────────────────────────────────────────────────
 let wmSel=0, wmLvl=0;
-const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS','POMERANIAN'];
-const worldSubtitles=['Bosque','Cueva','Nieve','Lava','Cielo','Valle','Océano','Desierto','Cristal','Cosmos','Pomerania'];
+const worldNames=['FOREST','CAVE','SNOW','LAVA','SKY','VALLE','OCEAN','DESERT','CRYSTAL','COSMOS','POMERANIAN','BIKINI'];
+const worldSubtitles=['Bosque','Cueva','Nieve','Lava','Cielo','Valle','Océano','Desierto','Cristal','Cosmos','Pomerania','Pecera'];
 const worldColors=[
   ['#2d6e1a','#1a4010'],['#2a3f5a','#0d1b2a'],['#6090b0','#3060a0'],
   ['#7a2418','#3a0d08'],['#5a86c0','#2b4f7a'],['#a08030','#6a5018'],
   ['#2a8a9a','#145a70'],['#d4a850','#a07828'],['#9a60e0','#5a28a0'],['#6a70c0','#2a3068'],
-  ['#ffb870','#e87830']
+  ['#ffb870','#e87830'],['#48c8f0','#2088c0']
 ];
-const worldHints=['','','','','','Valle: exploración tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos láser','Cosmos: gravedad baja','Pomeranian: jardines peludos'];
+const worldHints=['','','','','','Valle: exploración tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos láser','Cosmos: gravedad baja','Pomeranian: jardines peludos','Bikini: casas de piña y burbujas'];
 
 function worldMapCardRect(wi) {
   const cardW = 192, cardH = 130, gapX = 14, gapY = 14, startY = 112;
@@ -3843,7 +4086,12 @@ function drawWorldIcon(wi, cx, cy, s) {
   else if (wi === 7) { ctx.fillStyle = '#e8c060'; ctx.fillRect(cx - s * 1.1, cy, s * 2.2, s * 0.35); ctx.fillStyle = c1; ctx.fillRect(cx - s * 0.2, cy - s * 0.7, s * 0.4, s * 0.75); }
   else if (wi === 8) { ctx.fillStyle = '#c8f'; ctx.fillRect(cx - s * 0.15, cy - s, s * 0.3, s * 1.1); ctx.fillRect(cx - s * 0.65, cy - s * 0.35, s * 0.3, s * 0.75); ctx.fillRect(cx + s * 0.35, cy - s * 0.55, s * 0.3, s * 0.95); }
   else if (wi === 9) { ctx.fillStyle = '#aaf'; for (let i = 0; i < 5; i++) { const a = i * 1.25; ctx.fillRect(cx + Math.cos(a) * s - 2, cy + Math.sin(a) * s * 0.5 - 2, 4, 4); } ctx.fillStyle = c1; ctx.beginPath(); ctx.arc(cx, cy, s * 0.45, 0, Math.PI * 2); ctx.fill(); }
-  else { ctx.fillStyle = '#ffe8c8'; ctx.fillRect(cx - s * 0.55, cy - s * 0.15, s * 1.1, s * 0.55); ctx.fillStyle = c1; ctx.fillRect(cx - s * 0.35, cy - s * 0.65, s * 0.7, s * 0.55); ctx.fillStyle = '#111'; ctx.fillRect(cx - s * 0.12, cy - s * 0.45, 4, 4); }
+  else if (wi === 10) { ctx.fillStyle = '#ffe8c8'; ctx.fillRect(cx - s * 0.55, cy - s * 0.15, s * 1.1, s * 0.55); ctx.fillStyle = c1; ctx.fillRect(cx - s * 0.35, cy - s * 0.65, s * 0.7, s * 0.55); ctx.fillStyle = '#111'; ctx.fillRect(cx - s * 0.12, cy - s * 0.45, 4, 4); }
+  else if (wi === 11) {
+    ctx.fillStyle = '#1a88c8'; ctx.fillRect(cx - s, cy + s * 0.15, s * 2, s * 0.35);
+    ctx.fillStyle = '#e8a820'; ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.05, s * 0.38, s * 0.52, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3aba48'; ctx.fillRect(cx - s * 0.28, cy - s * 0.58, s * 0.56, s * 0.18);
+  }
 }
 
 function drawWorldMapCard(wi, t) {
@@ -3969,7 +4217,7 @@ function drawWorldMap(t) {
       { label: 'Región inicial', worlds: [0, 1, 2, 3] },
       { label: 'Región avanzada', worlds: [4, 5, 6, 7] },
       { label: 'Región final', worlds: [8, 9] },
-      { label: '★ Mundo especial', worlds: [10] },
+      { label: '★ Mundos especiales', worlds: [10, 11] },
     ];
     let y = startY;
     for (const sec of sections) {
@@ -4666,6 +4914,7 @@ function loop(ts) {
       case 'shop':       updateShop(dt); break;
       case 'achievements': updateAchievements(dt); break;
       case 'pomworld':   updatePomWorld(dt); break;
+      case 'bikiworld':  updateBikiWorld(dt); break;
       case 'gallery':    updateGallery(dt); break;
       case 'multimenu':  updateMultiMenu(dt); break;
       case 'mpcreate':   updateMpCreate(dt); break;
@@ -4698,6 +4947,7 @@ function loop(ts) {
     case 'shop':          drawShop(); break;
     case 'achievements':  drawAchievements(); break;
     case 'pomworld':      drawPomWorld(t); break;
+    case 'bikiworld':     drawBikiWorld(t); break;
     case 'gallery':       drawGallery(t); break;
     case 'multimenu':     drawMultiMenu(t); break;
     case 'mpcreate':      drawMpCreate(t); break;
@@ -6473,7 +6723,7 @@ function drawKartLobby(t) {
 const MOB_PLAY_SCENES = ['gameplay', 'kart'];
 const MOB_MENU_SCENES = [
   'menu', 'multimenu', 'kartmenu', 'kartselect', 'kartcup', 'kartcupresults',
-  'settings', 'shop', 'pause', 'worldmap', 'pomworld', 'gallery',
+  'settings', 'shop', 'pause', 'worldmap', 'pomworld', 'bikiworld', 'gallery',
   'charselect', 'achievements', 'kartlobby', 'kartresults', 'gameover',
   'levelcomplete', 'instructions', 'credits', 'mpcreate', 'kartcreate', 'victory',
 ];
@@ -7433,6 +7683,7 @@ const KART_CHAR_CLASS = {
   17: 'light', 18: 'light', 19: 'balanced', 20: 'light',
   21: 'light', 22: 'heavy', 23: 'medium', 24: 'medium', 25: 'light',
   26: 'balanced', 27: 'light', 28: 'medium', 29: 'light',
+  30: 'balanced', 31: 'heavy', 32: 'medium', 33: 'medium',
 };
 const KART_CHASSIS = [
   { name: 'ESTANDAR', accel: 1.0, topSpeed: 1.0, handling: 1.0 },
