@@ -52,7 +52,23 @@ test.describe('Menús y pantallas', () => {
 
     const meta = await getMeta(page);
     expect(meta.worldCount).toBeGreaterThanOrEqual(6);
+    expect(meta.characterCount).toBeGreaterThanOrEqual(30);
     expect(meta.kartTracks).toBeGreaterThanOrEqual(8);
     expect(meta.threeAvailable).toBe(true);
+  });
+
+  test('tienda lista personajes comprables originales', async ({ page }) => {
+    await waitGameTest(page);
+
+    await page.evaluate(() => window.__GAME_TEST__.goShop());
+    await waitForSnapshot(page, 'shop');
+    expect((await getSnapshot(page)).scene).toBe('shop');
+
+    const shop = await page.evaluate(() => window.__GAME_TEST__.shopInfo());
+    expect(shop.chars.length).toBeGreaterThanOrEqual(9);
+    const exclusives = shop.chars.filter(c => c.shopOnly);
+    expect(exclusives.length).toBeGreaterThanOrEqual(3);
+    expect(exclusives.some(c => c.name.includes('ASTRO'))).toBe(true);
+    expect(await page.evaluate(() => window.__GAME_TEST__.canvasHasContent('c'))).toBe(true);
   });
 });

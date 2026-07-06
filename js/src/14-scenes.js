@@ -368,7 +368,11 @@ function drawGallery(t) {
   const st = 'Vel ' + Math.round((c?.speed || 1) * 100) + '% · Salto ' + Math.round((c?.jump || 1) * 100) + '%';
   hud(st, W / 2, portrait ? 400 : 430, UI.cyan, portrait ? 13 : 15, 'center');
   if (c?.special) hud('Especial: ' + c.special.name, W / 2, portrait ? 425 : 455, c.color || UI.cyan, portrait ? 12 : 14, 'center');
-  hud(unlocked ? 'DESBLOQUEADO' : 'Mundos: ' + (c?.unlock || 0) + '+ o comprar en tienda', W / 2, portrait ? 450 : 485, unlocked ? UI.green : UI.red, portrait ? 12 : 14, 'center');
+  hud(unlocked ? 'DESBLOQUEADO' : (
+    c?.shopOnly ? '★ Tienda · ' + charShopCost(c) + ' monedas' :
+    charInShop(gallerySel) ? 'Tienda · ' + charShopCost(c) + ' monedas' :
+    'Mundos: ' + (c?.unlock || 0) + '+ o tienda · ' + charShopCost(c) + ' mon'
+  ), W / 2, portrait ? 450 : 485, unlocked ? UI.green : UI.red, portrait ? 12 : 14, 'center');
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
   ctx.font = 'bold ' + (portrait ? 22 : 28) + 'px monospace'; ctx.textAlign = 'center';
   ctx.fillText('◀', 60, H / 2); ctx.fillText('▶', W - 60, H / 2);
@@ -745,8 +749,10 @@ function drawCharSelect() {
   ctx.save();
   ctx.translate(W/2, 270+bob);
   ctx.scale(5.5,5.5);
-  if (unlocked) {
+  const showSilhouette = !unlocked && !ch.shopOnly && !ch.shopPrice;
+  if (!showSilhouette) {
     ch.draw({facing:1,power:null,invTimer:0}, -PLAYER_W/2, -PLAYER_H/2);
+    if (!unlocked) { ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(-PLAYER_W/2,-PLAYER_H/2,PLAYER_W,PLAYER_H); }
   } else {
     ctx.fillStyle='#2b3240'; ctx.fillRect(-PLAYER_W/2,-PLAYER_H/2,PLAYER_W,PLAYER_H);
     ctx.fillStyle='#566'; ctx.font='bold 30px monospace'; ctx.textAlign='center'; ctx.fillText('?',0,12);
@@ -755,11 +761,19 @@ function drawCharSelect() {
 
   // Name
   ctx.fillStyle=unlocked?UI.bright:UI.dim; ctx.font='bold 36px monospace'; ctx.textAlign='center';
-  ctx.fillText(unlocked?ch.name:'???', W/2, 470);
+  ctx.fillText(unlocked ? ch.name : (ch.shopOnly || ch.shopPrice ? ch.name : '???'), W/2, 470);
 
   if (!unlocked) {
     hud('BLOQUEADO', W/2, 515, UI.red, 22, 'center');
-    hud('Completa '+ch.unlock+' mundo(s)', W/2, 548, UI.dim, 18, 'center');
+    if (ch.shopOnly) {
+      hud('★ Exclusivo TIENDA · ' + charShopCost(ch) + ' monedas', W/2, 548, UI.gold, 18, 'center');
+    } else if (ch.shopPrice) {
+      hud('Compra en TIENDA · ' + charShopCost(ch) + ' monedas', W/2, 548, UI.gold, 18, 'center');
+    } else if (charInShop(charSel)) {
+      hud('Mundos: ' + ch.unlock + '+ · O tienda ' + charShopCost(ch) + ' mon', W/2, 548, UI.dim, 18, 'center');
+    } else {
+      hud('Completa ' + ch.unlock + ' mundo(s)', W/2, 548, UI.dim, 18, 'center');
+    }
   } else {
     const bx=W/2-180, bw=360;
     drawStatBar(bx, 495, bw, ch.speed, 'SPD', UI.green);
@@ -783,10 +797,15 @@ function buildShop(){
   if(!gs.magnet) list.push({key:'magnet', label:'Iman de monedas', desc:'Atrae monedas cercanas', cost:300});
   if(gs.bonusLives<3) list.push({key:'life', label:'Vida extra inicial', desc:`Empiezas con +1 vida  (${gs.bonusLives}/3)`, cost:200*(gs.bonusLives+1)});
   for(let i=0;i<CHARACTERS.length;i++){
+    if(!charInShop(i)) continue;
     const c=CHARACTERS[i];
-    if((c.unlock||0)>0 && !(gs.bought&&gs.bought[i]) && worldsCleared()<c.unlock){
-      list.push({key:'char', idx:i, label:'Personaje: '+c.name, desc:c.desc, cost:150*c.unlock});
-    }
+    const tag = c.shopOnly ? '★ ' : '';
+    list.push({
+      key:'char', idx:i,
+      label: tag + c.name,
+      desc: c.desc + (c.shopOnly ? ' · Exclusivo tienda' : ' · Desbloqueo anticipado'),
+      cost: charShopCost(c),
+    });
   }
   return list;
 }

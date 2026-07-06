@@ -98,11 +98,24 @@ function gameTestKartInfo() {
 function gameTestMeta() {
   return {
     worldCount: typeof WORLD_COUNT !== 'undefined' ? WORLD_COUNT : 0,
+    characterCount: typeof CHARACTERS !== 'undefined' ? CHARACTERS.length : 0,
     kartTracks: typeof KART_TRACKS !== 'undefined' ? KART_TRACKS.length : 0,
     threeAvailable: typeof threeCanUse === 'function' && threeCanUse(),
     gameplay: gameTestGameplayInfo(),
     kart: gameTestKartInfo(),
   };
+}
+
+function gameTestShopInfo() {
+  if (typeof buildShop !== 'function') return { count: 0, chars: [] };
+  const list = buildShop();
+  const chars = list.filter(it => it.key === 'char').map(it => ({
+    idx: it.idx,
+    name: it.label,
+    cost: it.cost,
+    shopOnly: !!(CHARACTERS[it.idx] && CHARACTERS[it.idx].shopOnly),
+  }));
+  return { count: list.length, chars };
 }
 
 async function gameTestHoldKey(code, ms) {
@@ -166,6 +179,8 @@ function gameTestInstall() {
     goKartRace: gameTestGoKartRace,
     goPomWorld: () => changeScene('pomworld', true),
     goGallery: () => { if (typeof gallerySel !== 'undefined') gallerySel = 0; changeScene('gallery', true); },
+    goCharSelect: () => { if (typeof charSel !== 'undefined') charSel = 0; changeScene('charselect', true); },
+    goShop: () => { if (typeof shopSel !== 'undefined') shopSel = 0; changeScene('shop', true); },
     goSettings: () => { if (typeof setSel !== 'undefined') setSel = 0; changeScene('settings', true); },
     press: gameTestPress,
     release: gameTestRelease,
@@ -175,6 +190,7 @@ function gameTestInstall() {
     meta: gameTestMeta,
     gameplayInfo: gameTestGameplayInfo,
     kartInfo: gameTestKartInfo,
+    shopInfo: gameTestShopInfo,
     canvasHasContent: gameTestCanvasHasContent,
     wait: (ms) => new Promise(r => setTimeout(r, ms)),
     waitUntil: async (fn, timeout = 8000, step = 40) => {
@@ -192,7 +208,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v70';
+const GAME_VERSION = 'v71';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 11;           // FOREST..COSMOS + POMERANIAN
@@ -2279,6 +2295,88 @@ function drawTinyPom(p, x, y) {
   ctx.fillStyle='#111'; ctx.fillRect(x+(f?18:10),y+12,4,4);
   ctx.fillStyle='#ff6040'; ctx.fillRect(x+PLAYER_W/2-1,y+16,2,2);
 }
+function drawFox(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#e87020'; ctx.fillRect(x+4,y+14,PLAYER_W-8,PLAYER_H-14);
+  ctx.fillStyle='#f09030'; ctx.fillRect(x+8,y+24,PLAYER_W-16,12);
+  ctx.fillStyle='#e87020'; ctx.fillRect(x+2,y+4,PLAYER_W-4,18);
+  ctx.fillStyle='#e87020'; ctx.fillRect(x-2,y-2,10,12); ctx.fillRect(x+PLAYER_W-8,y-2,10,12);
+  ctx.fillStyle='#fff8e8'; ctx.fillRect(x+PLAYER_W/2-3,y+16,6,5);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?20:8),y+8,5,5);
+  ctx.fillStyle='#e87020'; ctx.fillRect(x+(f?PLAYER_W-2:-8),y+22,10,8);
+}
+function drawFrog(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#2a9a48'; ctx.fillRect(x+6,y+18,PLAYER_W-12,PLAYER_H-18);
+  ctx.fillStyle='#3aba5a'; ctx.fillRect(x+4,y+8,PLAYER_W-8,16);
+  ctx.fillStyle='#1f7a38'; ctx.fillRect(x+2,y+2,10,10); ctx.fillRect(x+PLAYER_W-12,y+2,10,10);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+10,y+10,6,6); ctx.fillRect(x+PLAYER_W-16,y+10,6,6);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?20:10),y+12,4,4);
+  ctx.fillStyle='#ff8da1'; ctx.fillRect(x+PLAYER_W/2-2,y+18,4,3);
+}
+function drawOwl(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#6a5038'; ctx.fillRect(x+4,y+16,PLAYER_W-8,PLAYER_H-16);
+  ctx.fillStyle='#8a6848'; ctx.fillRect(x+2,y+6,PLAYER_W-4,18);
+  ctx.fillStyle='#f5e6c8'; ctx.fillRect(x+8,y+10,8,8); ctx.fillRect(x+PLAYER_W-16,y+10,8,8);
+  ctx.fillStyle='#111'; ctx.fillRect(x+10,y+12,4,4); ctx.fillRect(x+PLAYER_W-14,y+12,4,4);
+  ctx.fillStyle='#f5c040'; ctx.fillRect(x+PLAYER_W/2-4,y+18,8,5);
+  ctx.fillStyle='#5a4028'; ctx.fillRect(x+PLAYER_W/2-6,y-4,12,8);
+}
+function drawPenguin(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#1a1a22'; ctx.fillRect(x+4,y+12,PLAYER_W-8,PLAYER_H-12);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+10,y+18,PLAYER_W-20,PLAYER_H-22);
+  ctx.fillStyle='#1a1a22'; ctx.fillRect(x+4,y+2,PLAYER_W-8,16);
+  ctx.fillStyle='#f5a030'; ctx.fillRect(x+PLAYER_W/2-3,y+14,6,8);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+8,y+6,6,5); ctx.fillRect(x+PLAYER_W-14,y+6,6,5);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?20:8),y+8,4,4);
+}
+function drawBunny(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#fff5f8'; ctx.fillRect(x+4,y+14,PLAYER_W-8,PLAYER_H-14);
+  ctx.fillStyle='#ffe8f0'; ctx.fillRect(x+6,y+22,PLAYER_W-12,12);
+  ctx.fillStyle='#fff'; ctx.fillRect(x+4,y+6,PLAYER_W-8,16);
+  ctx.fillStyle='#ffb0c8'; ctx.fillRect(x+6,y-10,7,18); ctx.fillRect(x+PLAYER_W-13,y-10,7,18);
+  ctx.fillStyle='#333'; ctx.fillRect(x+10,y+10,5,5); ctx.fillRect(x+PLAYER_W-15,y+10,5,5);
+  ctx.fillStyle='#f88'; ctx.fillRect(x+PLAYER_W/2-2,y+16,4,3);
+}
+function drawAstroBear(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#4a2088'; ctx.fillRect(x,y+12,PLAYER_W,PLAYER_H-12);
+  ctx.fillStyle='#6a38b8'; ctx.fillRect(x+2,y,PLAYER_W-4,20);
+  ctx.fillStyle='#8a58d8'; ctx.fillRect(x+10,y+22,16,12);
+  ctx.fillStyle='#4a2088'; ctx.fillRect(x,y-6,10,10); ctx.fillRect(x+PLAYER_W-10,y-6,10,10);
+  ctx.fillStyle='#c8f'; ctx.fillRect(x+(f?20:6),y+5,6,5);
+  ctx.fillStyle='#ffd700'; ctx.fillRect(x+12,y-4,4,4); ctx.fillRect(x+22,y-8,3,3);
+}
+function drawShadow(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#1a1428'; ctx.fillRect(x+2,y+10,PLAYER_W-4,PLAYER_H-10);
+  ctx.fillStyle='#2a2040'; ctx.fillRect(x+4,y+20,PLAYER_W-8,10);
+  ctx.fillStyle='#0a0814'; ctx.fillRect(x+6,y,PLAYER_W-12,14);
+  ctx.fillStyle='#a060ff'; ctx.fillRect(x+(f?20:8),y+4,6,4);
+  ctx.fillStyle='rgba(160,96,255,0.5)'; ctx.fillRect(x-4,y+14,8,20); ctx.fillRect(x+PLAYER_W-4,y+14,8,20);
+}
+function drawLumi(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#fffae8'; ctx.fillRect(x+6,y+16,PLAYER_W-12,PLAYER_H-16);
+  ctx.fillStyle='#fff8d0'; ctx.fillRect(x+8,y+4,PLAYER_W-16,18);
+  ctx.fillStyle='#ffe880'; ctx.fillRect(x+2,y-6,8,12); ctx.fillRect(x+PLAYER_W-10,y-6,8,12);
+  ctx.fillStyle='#88f'; ctx.fillRect(x+10,y+8,5,5); ctx.fillRect(x+PLAYER_W-15,y+8,5,5);
+  ctx.fillStyle='#fd4'; ctx.fillRect(x+PLAYER_W/2-3,y+14,6,4);
+  ctx.fillStyle='rgba(255,240,120,0.35)'; ctx.fillRect(x-6,y+8,PLAYER_W+12,PLAYER_H-4);
+}
+function drawChip(p, x, y) {
+  const f = p.facing>0;
+  ctx.fillStyle='#a06830'; ctx.fillRect(x+8,y+20,PLAYER_W-16,PLAYER_H-20);
+  ctx.fillStyle='#c08040'; ctx.fillRect(x+6,y+10,PLAYER_W-12,14);
+  ctx.fillStyle='#a06830'; ctx.fillRect(x+4,y+2,PLAYER_W-8,12);
+  ctx.fillStyle='#5a3818'; ctx.fillRect(x+2,y-2,6,8); ctx.fillRect(x+PLAYER_W-8,y-2,6,8);
+  ctx.fillStyle='#ffe8c0'; ctx.fillRect(x+PLAYER_W/2-4,y+8,8,6);
+  ctx.fillStyle='#111'; ctx.fillRect(x+(f?18:10),y+10,4,4);
+  ctx.fillStyle='#5a3818'; ctx.fillRect(x+(f?PLAYER_W:0),y+18,8,10);
+}
 
 // stat: speed/jump multipliers; special: {type,cd,fx,name}; unlock: worlds cleared needed
 const CHARACTERS = [
@@ -2324,14 +2422,48 @@ const CHARACTERS = [
     special:{ type:'punch',  cd:1.2, fx:'#ffd700', name:'ROYAL BARK' } },
   { name:'TINY POM',  speed:1.26, jump:1.10, color:'#ff8040', draw:drawTinyPom,  unlock:8, desc:'Pequeño pero imparable',
     special:{ type:'dash',   cd:0.75, fx:'#ffa060', name:'ZOOM ZOOM' } },
+  // ── Personajes originales (comprables en tienda) ─────────────────────────
+  { name:'ZORRO',       speed:1.20, jump:1.08, color:'#e87020', draw:drawFox,      unlock:99, shopPrice:220, desc:'Astuto y rapidísimo',
+    special:{ type:'dash',   cd:0.82, fx:'#ffb040', name:'COLA VELOZ' } },
+  { name:'RANA',        speed:1.06, jump:1.30, color:'#2a9a48', draw:drawFrog,     unlock:99, shopPrice:180, desc:'Salta como ninguno',
+    special:{ type:'thrust', cd:1.0,  fx:'#5efa80', name:'LENGUAZO' } },
+  { name:'BUHO',        speed:0.98, jump:1.18, color:'#8a6848', draw:drawOwl,      unlock:99, shopPrice:240, desc:'Vuela en silencio',
+    special:{ type:'thrust', cd:1.15, fx:'#f5c040', name:'PLANEO' } },
+  { name:'PINGU',       speed:1.14, jump:1.06, color:'#1a1a22', draw:drawPenguin, unlock:99, shopPrice:200, desc:'Desliz sobre el hielo',
+    special:{ type:'dash',   cd:0.88, fx:'#8af',   name:'TOBOGAN' } },
+  { name:'CONEJO',      speed:1.22, jump:1.20, color:'#ffb0c8', draw:drawBunny,    unlock:99, shopPrice:160, desc:'Orejas largas, saltos altos',
+    special:{ type:'thrust', cd:0.95, fx:'#ffc8e0', name:'BRINCO' } },
+  { name:'ASTRO OSO',   speed:1.08, jump:1.16, color:'#6a38b8', draw:drawAstroBear, shopPrice:380, shopOnly:true, desc:'Oso galáctico exclusivo',
+    special:{ type:'punch',  cd:1.2,  fx:'#c8f',   name:'METEORO' } },
+  { name:'SOMBRA',      speed:1.30, jump:1.04, color:'#2a2040', draw:drawShadow,   shopPrice:340, shopOnly:true, desc:'Solo sombra y velocidad',
+    special:{ type:'dash',   cd:0.65, fx:'#a060ff', name:'PARPADEO' } },
+  { name:'LUMI',        speed:1.04, jump:1.24, color:'#fff8d0', draw:drawLumi,     shopPrice:420, shopOnly:true, desc:'Hada de luz sanadora',
+    special:{ type:'rewind', cd:6.5,  fx:'#ffe880', name:'BRILLO' } },
+  { name:'ARDILLA',     speed:1.24, jump:1.12, color:'#c08040', draw:drawChip,      unlock:99, shopPrice:260, desc:'Guarda nueces, corre más',
+    special:{ type:'dash',   cd:0.78, fx:'#ffe8c0', name:'NUEZ GO' } },
 ];
 
+function charShopCost(c) {
+  if (c.shopPrice != null) return c.shopPrice;
+  return 150 * Math.max(1, c.unlock || 1);
+}
+function charInShop(i) {
+  if (gs.bought && gs.bought[i]) return false;
+  if (isCharUnlocked(i)) return false;
+  const c = CHARACTERS[i];
+  return !!(c.shopOnly || c.shopPrice != null || (c.unlock || 0) > 0);
+}
 function worldsCleared(){
   let c=0;
   for(let w=0;w<WORLD_COUNT;w++) if(gs.levelDone[w].every(Boolean)) c++;
   return c;
 }
-function isCharUnlocked(i){ return (gs.bought&&gs.bought[i]) || worldsCleared() >= (CHARACTERS[i].unlock||0); }
+function isCharUnlocked(i){
+  if (gs.bought && gs.bought[i]) return true;
+  const c = CHARACTERS[i];
+  if (c.shopOnly) return false;
+  return worldsCleared() >= (c.unlock || 0);
+}
 function maxLives(){ return 5 + (gs.bonusLives||0); }
 
 // ── Achievements ────────────────────────────────────────────────────────────
@@ -3448,7 +3580,11 @@ function drawGallery(t) {
   const st = 'Vel ' + Math.round((c?.speed || 1) * 100) + '% · Salto ' + Math.round((c?.jump || 1) * 100) + '%';
   hud(st, W / 2, portrait ? 400 : 430, UI.cyan, portrait ? 13 : 15, 'center');
   if (c?.special) hud('Especial: ' + c.special.name, W / 2, portrait ? 425 : 455, c.color || UI.cyan, portrait ? 12 : 14, 'center');
-  hud(unlocked ? 'DESBLOQUEADO' : 'Mundos: ' + (c?.unlock || 0) + '+ o comprar en tienda', W / 2, portrait ? 450 : 485, unlocked ? UI.green : UI.red, portrait ? 12 : 14, 'center');
+  hud(unlocked ? 'DESBLOQUEADO' : (
+    c?.shopOnly ? '★ Tienda · ' + charShopCost(c) + ' monedas' :
+    charInShop(gallerySel) ? 'Tienda · ' + charShopCost(c) + ' monedas' :
+    'Mundos: ' + (c?.unlock || 0) + '+ o tienda · ' + charShopCost(c) + ' mon'
+  ), W / 2, portrait ? 450 : 485, unlocked ? UI.green : UI.red, portrait ? 12 : 14, 'center');
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
   ctx.font = 'bold ' + (portrait ? 22 : 28) + 'px monospace'; ctx.textAlign = 'center';
   ctx.fillText('◀', 60, H / 2); ctx.fillText('▶', W - 60, H / 2);
@@ -3825,8 +3961,10 @@ function drawCharSelect() {
   ctx.save();
   ctx.translate(W/2, 270+bob);
   ctx.scale(5.5,5.5);
-  if (unlocked) {
+  const showSilhouette = !unlocked && !ch.shopOnly && !ch.shopPrice;
+  if (!showSilhouette) {
     ch.draw({facing:1,power:null,invTimer:0}, -PLAYER_W/2, -PLAYER_H/2);
+    if (!unlocked) { ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(-PLAYER_W/2,-PLAYER_H/2,PLAYER_W,PLAYER_H); }
   } else {
     ctx.fillStyle='#2b3240'; ctx.fillRect(-PLAYER_W/2,-PLAYER_H/2,PLAYER_W,PLAYER_H);
     ctx.fillStyle='#566'; ctx.font='bold 30px monospace'; ctx.textAlign='center'; ctx.fillText('?',0,12);
@@ -3835,11 +3973,19 @@ function drawCharSelect() {
 
   // Name
   ctx.fillStyle=unlocked?UI.bright:UI.dim; ctx.font='bold 36px monospace'; ctx.textAlign='center';
-  ctx.fillText(unlocked?ch.name:'???', W/2, 470);
+  ctx.fillText(unlocked ? ch.name : (ch.shopOnly || ch.shopPrice ? ch.name : '???'), W/2, 470);
 
   if (!unlocked) {
     hud('BLOQUEADO', W/2, 515, UI.red, 22, 'center');
-    hud('Completa '+ch.unlock+' mundo(s)', W/2, 548, UI.dim, 18, 'center');
+    if (ch.shopOnly) {
+      hud('★ Exclusivo TIENDA · ' + charShopCost(ch) + ' monedas', W/2, 548, UI.gold, 18, 'center');
+    } else if (ch.shopPrice) {
+      hud('Compra en TIENDA · ' + charShopCost(ch) + ' monedas', W/2, 548, UI.gold, 18, 'center');
+    } else if (charInShop(charSel)) {
+      hud('Mundos: ' + ch.unlock + '+ · O tienda ' + charShopCost(ch) + ' mon', W/2, 548, UI.dim, 18, 'center');
+    } else {
+      hud('Completa ' + ch.unlock + ' mundo(s)', W/2, 548, UI.dim, 18, 'center');
+    }
   } else {
     const bx=W/2-180, bw=360;
     drawStatBar(bx, 495, bw, ch.speed, 'SPD', UI.green);
@@ -3863,10 +4009,15 @@ function buildShop(){
   if(!gs.magnet) list.push({key:'magnet', label:'Iman de monedas', desc:'Atrae monedas cercanas', cost:300});
   if(gs.bonusLives<3) list.push({key:'life', label:'Vida extra inicial', desc:`Empiezas con +1 vida  (${gs.bonusLives}/3)`, cost:200*(gs.bonusLives+1)});
   for(let i=0;i<CHARACTERS.length;i++){
+    if(!charInShop(i)) continue;
     const c=CHARACTERS[i];
-    if((c.unlock||0)>0 && !(gs.bought&&gs.bought[i]) && worldsCleared()<c.unlock){
-      list.push({key:'char', idx:i, label:'Personaje: '+c.name, desc:c.desc, cost:150*c.unlock});
-    }
+    const tag = c.shopOnly ? '★ ' : '';
+    list.push({
+      key:'char', idx:i,
+      label: tag + c.name,
+      desc: c.desc + (c.shopOnly ? ' · Exclusivo tienda' : ' · Desbloqueo anticipado'),
+      cost: charShopCost(c),
+    });
   }
   return list;
 }
@@ -6864,6 +7015,8 @@ const KART_CHAR_CLASS = {
   6: 'medium', 7: 'light', 8: 'medium', 9: 'heavy', 10: 'medium', 11: 'light',
   12: 'medium', 13: 'light', 14: 'light', 15: 'medium', 16: 'balanced',
   17: 'light', 18: 'light', 19: 'balanced', 20: 'light',
+  21: 'light', 22: 'heavy', 23: 'medium', 24: 'medium', 25: 'light',
+  26: 'balanced', 27: 'light', 28: 'medium', 29: 'light',
 };
 const KART_CHASSIS = [
   { name: 'ESTANDAR', accel: 1.0, topSpeed: 1.0, handling: 1.0 },

@@ -98,11 +98,24 @@ function gameTestKartInfo() {
 function gameTestMeta() {
   return {
     worldCount: typeof WORLD_COUNT !== 'undefined' ? WORLD_COUNT : 0,
+    characterCount: typeof CHARACTERS !== 'undefined' ? CHARACTERS.length : 0,
     kartTracks: typeof KART_TRACKS !== 'undefined' ? KART_TRACKS.length : 0,
     threeAvailable: typeof threeCanUse === 'function' && threeCanUse(),
     gameplay: gameTestGameplayInfo(),
     kart: gameTestKartInfo(),
   };
+}
+
+function gameTestShopInfo() {
+  if (typeof buildShop !== 'function') return { count: 0, chars: [] };
+  const list = buildShop();
+  const chars = list.filter(it => it.key === 'char').map(it => ({
+    idx: it.idx,
+    name: it.label,
+    cost: it.cost,
+    shopOnly: !!(CHARACTERS[it.idx] && CHARACTERS[it.idx].shopOnly),
+  }));
+  return { count: list.length, chars };
 }
 
 async function gameTestHoldKey(code, ms) {
@@ -166,6 +179,8 @@ function gameTestInstall() {
     goKartRace: gameTestGoKartRace,
     goPomWorld: () => changeScene('pomworld', true),
     goGallery: () => { if (typeof gallerySel !== 'undefined') gallerySel = 0; changeScene('gallery', true); },
+    goCharSelect: () => { if (typeof charSel !== 'undefined') charSel = 0; changeScene('charselect', true); },
+    goShop: () => { if (typeof shopSel !== 'undefined') shopSel = 0; changeScene('shop', true); },
     goSettings: () => { if (typeof setSel !== 'undefined') setSel = 0; changeScene('settings', true); },
     press: gameTestPress,
     release: gameTestRelease,
@@ -175,6 +190,7 @@ function gameTestInstall() {
     meta: gameTestMeta,
     gameplayInfo: gameTestGameplayInfo,
     kartInfo: gameTestKartInfo,
+    shopInfo: gameTestShopInfo,
     canvasHasContent: gameTestCanvasHasContent,
     wait: (ms) => new Promise(r => setTimeout(r, ms)),
     waitUntil: async (fn, timeout = 8000, step = 40) => {
