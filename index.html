@@ -109,13 +109,14 @@ body.touch #touch { display: block; pointer-events: auto; }
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v20';
+const GAME_VERSION = 'v21';
 const W = 1280, H = 720;
 const WORLD_COUNT = 6;            // FOREST, CAVE, SNOW, LAVA, SKY, VALLE
 const LAST_WORLD = WORLD_COUNT-1; // index of the final world
 const GRAVITY = 1800, MAX_FALL = 900;
 const PLAYER_W = 36, PLAYER_H = 48;
 const PLAYER_SPEED = 290, JUMP_V = -700, DJUMP_V = -600;
+const COYOTE_TIME = 0.11, JUMP_BUFFER = 0.14, JUMP_CUT = 0.48;
 const STOMP_BOUNCE = -420;
 const COIN_PTS = 50, STAR_PTS = 200, ENEMY_PTS = 100, BOSS_PTS = 1000, LEVEL_PTS = 500, MINIBOSS_PTS = 500;
 
@@ -1158,8 +1159,13 @@ function mkPlayer() {
     power:null, powerTimer:0,
     facing:1,
     respawnX:80, respawnY:570,   // updated by checkpoints
-    sp:0, attackTimer:0, dashTimer:0, shieldTimer:0   // special-ability state
+    sp:0, attackTimer:0, dashTimer:0, shieldTimer:0,
+    coyoteTimer:0, jumpBuffer:0, jumpCut:false
   };
+}
+function playerProtected(p) {
+  return p.invTimer > 0 || p.respawnTimer > 0 || p.shieldTimer > 0
+    || p.dashTimer > 0 || p.attackTimer > 0 || p.power === 'inv';
 }
 function doSpecial(p, ch) {
   const t = ch.special; if (!t) return;
@@ -1198,7 +1204,10 @@ function doSpecial(p, ch) {
   }
 }
 function updatePlayer(p, dt, plats, levelW) {
-  if (p.respawnTimer > 0) { p.respawnTimer -= dt; return; }
+  if (p.respawnTimer > 0) {
+    p.respawnTimer -= dt;
+    if (p.respawnTimer > 0.55) return;
+  }
 
   const ch = CHARACTERS[gs.character] || CHARACTERS[0];
 
@@ -1210,28 +1219,37 @@ function updatePlayer(p, dt, plats, levelW) {
   const spKey = pressed('KeyJ')||pressed('ShiftLeft')||pressed('ShiftRight')||pressed('KeyK');
   if (spKey && p.sp<=0) doSpecial(p, ch);
 
-  // Brief invulnerability while a special is active (lets you plow through enemies)
-  if (p.attackTimer>0 || p.dashTimer>0) p.invTimer = Math.max(p.invTimer, 0.06);
-  // Motion trail while dashing
+  // Invulnerability while specials are active (dash lasts the full burst)
+  if (p.dashTimer > 0) p.invTimer = Math.max(p.invTimer, p.dashTimer);
+  else if (p.attackTimer > 0) p.invTimer = Math.max(p.invTimer, 0.12);
+  if (p.shieldTimer > 0) p.invTimer = Math.max(p.invTimer, 0.08);
   if (p.dashTimer>0) spawnAfterimage(p, ch.special?.fx || '#fff');
 
   // Input (speed/jump scaled by the chosen character's stats)
   const spd = (p.power==='speed' ? PLAYER_SPEED*1.65 : PLAYER_SPEED) * ch.speed;
+  const airMul = p.onGround ? 1 : 0.92;
   let ax = 0;
-  if (held('ArrowLeft')||held('KeyA'))  { ax=-spd; p.facing=-1; }
-  if (held('ArrowRight')||held('KeyD')) { ax=spd;  p.facing=1; }
+  if (held('ArrowLeft')||held('KeyA'))  { ax=-spd*airMul; p.facing=-1; }
+  if (held('ArrowRight')||held('KeyD')) { ax=spd*airMul;  p.facing=1; }
   // Special movement overrides
   if (p.dashTimer>0)   ax = p.facing * 660;
   if (p.attackTimer>0) ax = p.facing * PLAYER_SPEED * 1.15;
 
+  const jumpHeld = held('Space')||held('ArrowUp')||held('KeyW');
   const jumpKey = pressed('Space')||pressed('ArrowUp')||pressed('KeyW');
-  if (jumpKey && p.onGround) {
-    p.vy = JUMP_V * ch.jump; p.onGround = false; sfx.jump();
-    spawnDust(p.x+p.w/2, p.y+p.h, 7);                 // jump puff
+  if (jumpKey) p.jumpBuffer = JUMP_BUFFER;
+  else if (p.jumpBuffer > 0) p.jumpBuffer -= dt;
+
+  const canJump = p.onGround || p.coyoteTimer > 0;
+  if (p.jumpBuffer > 0 && canJump) {
+    p.vy = JUMP_V * ch.jump; p.onGround = false; p.coyoteTimer = 0; p.jumpBuffer = 0;
+    p.jumpCut = false; sfx.jump();
+    spawnDust(p.x+p.w/2, p.y+p.h, 7);
     if (p.power==='djump') p.djumpUsed = false;
-  } else if (jumpKey && !p.onGround && p.power==='djump' && !p.djumpUsed) {
-    p.vy = DJUMP_V * ch.jump; p.djumpUsed = true; sfx.djump();
-    spawnRing(p.x+p.w/2, p.y+p.h/2, '#7df', 40, 0.3); // mid-air double-jump ring
+  } else if (p.jumpBuffer > 0 && !p.onGround && p.power==='djump' && !p.djumpUsed) {
+    p.vy = DJUMP_V * ch.jump; p.djumpUsed = true; p.jumpBuffer = 0; p.jumpCut = false;
+    sfx.djump();
+    spawnRing(p.x+p.w/2, p.y+p.h/2, '#7df', 40, 0.3);
     spawnSparks(p.x+p.w/2, p.y+p.h, '#7df', 8, 200);
   }
 
@@ -1240,11 +1258,18 @@ function updatePlayer(p, dt, plats, levelW) {
   const fallSpeed = p.vy;
   p.vx = ax;
   p.vy = Math.min(p.vy + GRAVITY*dt, MAX_FALL);
+  if (p.vy < 0 && !jumpHeld && !p.jumpCut) { p.vy *= JUMP_CUT; p.jumpCut = true; }
   p.x += p.vx*dt; p.x = Math.max(0, Math.min(levelW-p.w, p.x));
   resolveX(p, plats);
   p.y += p.vy*dt;
   resolveY(p, plats);
-  if (p.onGround && p.power==='djump') p.djumpUsed = false;
+  if (p.onGround) {
+    p.coyoteTimer = COYOTE_TIME;
+    p.jumpCut = false;
+    if (p.power==='djump') p.djumpUsed = false;
+  } else if (p.coyoteTimer > 0) {
+    p.coyoteTimer -= dt;
+  }
   // Landing puff (only after a meaningful fall)
   if (!wasGround && p.onGround && fallSpeed > 280) {
     spawnDust(p.x+p.w/2, p.y+p.h, Math.min(14, 6+Math.floor(fallSpeed/120)));
@@ -1937,12 +1962,12 @@ function updateGameplay(dt) {
   }
 
   // Enemy collisions
-  if (player.invTimer<=0 && player.respawnTimer<=0 && (player.power!=='inv')) {
+  if (!playerProtected(player) && player.respawnTimer<=0) {
     for (const e of enemies) {
       if (!e.active) continue;
       if (!rectOverlap(player.x,player.y,player.w,player.h, e.x,e.y,e.w,e.h)) continue;
       // Stomp?
-      const stomp = player.vy>=6 && (player.y+player.h) <= e.y+(e.h/2+12);
+      const stomp = player.vy>=4 && (player.y+player.h) <= e.y+(e.h/2+16);
       const ecx=e.x+e.w/2, ecy=e.y+e.h/2;
       if (stomp) {
         player.vy = STOMP_BOUNCE; sfx.stomp();
@@ -1975,9 +2000,8 @@ function updateGameplay(dt) {
     }
   }
 
-  // Hazard collisions (spikes / saws). Special i-frames, the Inv power and the
-  // Rewind shield all protect you, so dashing through is briefly safe.
-  if (player.invTimer<=0 && player.respawnTimer<=0 && player.power!=='inv') {
+  // Hazard collisions (spikes / saws). Shield, dash and inv power all protect you.
+  if (!playerProtected(player)) {
     for (const h of hazards) {
       let hx=h.x, hy=h.y, hw=h.w, hh=h.h;
       if (h.type==='spikes') { hy+=6; hh-=6; }   // a bit forgiving at the base
@@ -1998,7 +2022,7 @@ function updateGameplay(dt) {
     if (!rectOverlap(player.x,player.y,player.w,player.h, pr.x,pr.y,pr.w,pr.h)) continue;
     const cxp=pr.x+pr.w/2, cyp=pr.y+pr.h/2;
     projectiles.splice(i,1);
-    const protectedNow = player.invTimer>0 || player.respawnTimer>0 || player.power==='inv';
+    const protectedNow = playerProtected(player);
     if (protectedNow) { spawnSparks(cxp,cyp,'#b06bff',8,220); continue; }
     sfx.hurt(); gs.lives--; player.lives=gs.lives; runNoHit=false;
     addFlash('#ff2b2b',0.22); addShake(0.18);
@@ -2056,7 +2080,8 @@ function gameOver(){
 
 function respawnPlayer() {
   player.x=player.respawnX||80; player.y=player.respawnY||570; player.vx=0; player.vy=0;
-  player.invTimer=2; player.respawnTimer=1.5;
+  player.invTimer=1.8; player.respawnTimer=1.0;
+  player.coyoteTimer=0; player.jumpBuffer=0; player.jumpCut=false;
   camUpdate(player.x, player.y, levelData.levelW, true);
 }
 
@@ -2388,10 +2413,10 @@ function updatePause(dt) {
   }
 }
 
-function drawPause() {
+function drawPause(t) {
   drawBg(levelData.bg, levelData.levelW);
   drawPlatforms(levelData.platforms, gs.world);
-  for (const it of items) drawCollectible(it, gameTimer);
+  for (const it of items) drawCollectible(it, t);
   drawGoal(...goalPos, t);
   for (const e of enemies) drawEnemy(e);
   drawPlayer(player);
@@ -2696,7 +2721,9 @@ function touchPress(code)   { if (!keys[code]) keyDown[code] = true; keys[code] 
 function touchRelease(code) { keys[code] = false; keyUp[code] = true; }
 
 function setupTouch() {
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const noHover = window.matchMedia('(hover: none)').matches;
+  const isTouch = coarse || (noHover && ('ontouchstart' in window));
   if (isTouch) document.body.classList.add('touch');
 
   document.querySelectorAll('#touch .tbtn').forEach(btn => {
@@ -2787,7 +2814,7 @@ function loop(ts) {
     case 'instructions':  drawInstructions(); break;
     case 'worldmap':      drawWorldMap(t); break;
     case 'gameplay':      drawGameplay(t); break;
-    case 'pause':         drawPause(); break;
+    case 'pause':         drawPause(t); break;
     case 'gameover':      drawGameOver(); break;
     case 'levelcomplete': drawLevelComplete(); break;
     case 'victory':       drawVictory(); break;
