@@ -7,6 +7,9 @@
     "test": "npm run build && playwright test",
     "test:2d": "npm run build && playwright test tests/view-2d.spec.mjs",
     "test:3d": "npm run build && playwright test tests/view-3d.spec.mjs",
+    "test:menus": "npm run build && playwright test tests/menus.spec.mjs",
+    "test:gameplay": "npm run build && playwright test tests/gameplay.spec.mjs",
+    "test:kart": "npm run build && playwright test tests/kart.spec.mjs",
     "test:ui": "playwright test --ui"
   },
   "devDependencies": {

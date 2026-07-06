@@ -46,6 +46,72 @@ function gameTestGoKartLobby(trackIdx) {
   changeScene('kartlobby', true);
 }
 
+function gameTestGoScene(scene) {
+  changeScene(scene, true);
+}
+
+function gameTestGoKartMenu() {
+  if (typeof kartMenuSel !== 'undefined') kartMenuSel = 0;
+  if (typeof mp !== 'undefined') mp.gameMode = 'kart';
+  changeScene('kartmenu', true);
+}
+
+function gameTestGoKartRace(trackIdx) {
+  if (typeof kartRaceMode !== 'undefined') kartRaceMode = 'single';
+  if (typeof kartTrackSel !== 'undefined') kartTrackSel = trackIdx ?? 0;
+  startKartRace(true);
+  changeScene('kart', true);
+}
+
+function gameTestGameplayInfo() {
+  if (gs.scene !== 'gameplay' || typeof player === 'undefined' || !player) return null;
+  return {
+    world: gs.world,
+    level: gs.level,
+    lives: gs.lives,
+    x: Math.round(player.x),
+    y: Math.round(player.y),
+    onGround: !!player.onGround,
+    enemies: typeof enemies !== 'undefined' ? enemies.filter(e => e.active).length : 0,
+    hazards: hazards?.length ?? 0,
+    levelW: levelData?.levelW ?? 0,
+    coins: items?.filter(it => !it.taken && it.type === 'coin').length ?? 0,
+  };
+}
+
+function gameTestKartInfo() {
+  const tr = typeof KART_TRACKS !== 'undefined' ? KART_TRACKS[kartTrackSel] : null;
+  const me = race?.karts?.[0];
+  return {
+    trackCount: typeof KART_TRACKS !== 'undefined' ? KART_TRACKS.length : 0,
+    trackSel: typeof kartTrackSel !== 'undefined' ? kartTrackSel : -1,
+    trackName: tr?.name ?? null,
+    trackLength: tr?.length ?? 0,
+    raceActive: !!race,
+    phase: race?.phase ?? null,
+    kartCount: race?.karts?.length ?? 0,
+    playerSpeed: me ? Math.abs(me.speed || 0) : 0,
+    playerX: me ? Math.round(me.x) : 0,
+  };
+}
+
+function gameTestMeta() {
+  return {
+    worldCount: typeof WORLD_COUNT !== 'undefined' ? WORLD_COUNT : 0,
+    kartTracks: typeof KART_TRACKS !== 'undefined' ? KART_TRACKS.length : 0,
+    threeAvailable: typeof threeCanUse === 'function' && threeCanUse(),
+    gameplay: gameTestGameplayInfo(),
+    kart: gameTestKartInfo(),
+  };
+}
+
+async function gameTestHoldKey(code, ms) {
+  gameTestPress(code);
+  await new Promise(r => setTimeout(r, ms));
+  gameTestRelease(code);
+  gameTestClearInput();
+}
+
 function gameTestSnapshot() {
   const threeEl = document.getElementById('three-c');
   const threeVisible = !!(threeEl && threeEl.style.display !== 'none' && threeEl.width > 0);
@@ -92,12 +158,23 @@ function gameTestInstall() {
     enabled: true,
     setViewMode: gameTestSetViewMode,
     goMenu: () => changeScene('menu', true),
+    goScene: gameTestGoScene,
+    goWorldMap: () => changeScene('worldmap', true),
+    goKartMenu: gameTestGoKartMenu,
     goGameplay: gameTestGoGameplay,
     goKartLobby: gameTestGoKartLobby,
+    goKartRace: gameTestGoKartRace,
+    goPomWorld: () => changeScene('pomworld', true),
+    goGallery: () => { if (typeof gallerySel !== 'undefined') gallerySel = 0; changeScene('gallery', true); },
+    goSettings: () => { if (typeof setSel !== 'undefined') setSel = 0; changeScene('settings', true); },
     press: gameTestPress,
     release: gameTestRelease,
     clearInput: gameTestClearInput,
+    holdKey: gameTestHoldKey,
     snapshot: gameTestSnapshot,
+    meta: gameTestMeta,
+    gameplayInfo: gameTestGameplayInfo,
+    kartInfo: gameTestKartInfo,
     canvasHasContent: gameTestCanvasHasContent,
     wait: (ms) => new Promise(r => setTimeout(r, ms)),
     waitUntil: async (fn, timeout = 8000, step = 40) => {
@@ -115,7 +192,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v69';
+const GAME_VERSION = 'v70';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 11;           // FOREST..COSMOS + POMERANIAN
