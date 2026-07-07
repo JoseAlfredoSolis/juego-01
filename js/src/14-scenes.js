@@ -570,8 +570,40 @@ const worldColors=[
   ['#ffb870','#e87830'],['#48c8f0','#2088c0']
 ];
 const worldHints=['','','','','','Valle: exploración tranquila','Ocean: corales y corrientes','Desert: arenas movedizas','Crystal: rayos láser','Cosmos: gravedad baja','Pomeranian: jardines peludos','Bikini: casas de piña y burbujas'];
+const WORLD_MAP_ROW_LABELS = [
+  { title: 'Región inicial', sub: 'W1 – W4' },
+  { title: 'Región avanzada', sub: 'W5 – W8' },
+  { title: 'Finales y especiales', sub: 'W9 – W12' },
+];
+
+function worldMapUseDesktopLayout() {
+  return !(document.body.classList.contains('touch') && !mobUseDesktopMenu()) && W >= 1100;
+}
+
+function worldMapDesktopMetrics() {
+  const px = 20, py = 98, pw = 792, ph = 556;
+  const pad = 16, gapX = 10, gapY = 14, labelH = 22;
+  const cols = 4;
+  const cardW = Math.floor((pw - pad * 2 - gapX * (cols - 1)) / cols);
+  const cardH = 108;
+  return { px, py, pw, ph, pad, gapX, gapY, labelH, cols, cardW, cardH };
+}
+
+function worldMapDesktopCardRect(wi) {
+  const m = worldMapDesktopMetrics();
+  let row = 0, col = 0;
+  for (let r = 0; r < WORLD_MAP_LAYOUT.length; r++) {
+    const c = WORLD_MAP_LAYOUT[r].indexOf(wi);
+    if (c >= 0) { row = r; col = c; break; }
+  }
+  const rowBlock = m.labelH + m.gapY + m.cardH + 18;
+  const x = m.px + m.pad + col * (m.cardW + m.gapX);
+  const y = m.py + m.pad + 28 + row * rowBlock;
+  return { x, y, w: m.cardW, h: m.cardH, cx: x + m.cardW / 2, cy: y + m.cardH / 2, row, col };
+}
 
 function worldMapCardRect(wi) {
+  if (worldMapUseDesktopLayout()) return worldMapDesktopCardRect(wi);
   const cardW = 192, cardH = 130, gapX = 14, gapY = 14, startY = 112;
   let row = 0, col = 0, cols = 4;
   for (let r = 0; r < WORLD_MAP_LAYOUT.length; r++) {
@@ -642,6 +674,10 @@ function drawWorldIcon(wi, cx, cy, s) {
 }
 
 function drawWorldMapCard(wi, t) {
+  if (worldMapUseDesktopLayout()) {
+    drawWorldMapDesktopTile(wi, t);
+    return;
+  }
   const { x, y, w, h, cx, cy, row } = worldMapCardRect(wi);
   const locked = !gs.worldUnlocked[wi], sel = wi === wmSel;
   const [c1, c2] = worldColors[wi];
@@ -677,7 +713,138 @@ function drawWorldMapCard(wi, t) {
   }
 }
 
+function drawWorldMapDesktopTile(wi, t) {
+  const { x, y, w, h, cx, cy } = worldMapDesktopCardRect(wi);
+  const locked = !gs.worldUnlocked[wi], sel = wi === wmSel;
+  const [c1, c2] = worldColors[wi];
+  const bob = sel ? Math.sin(t * 4) * 2 : 0;
+
+  if (sel) { ctx.shadowColor = 'rgba(255,215,0,0.5)'; ctx.shadowBlur = 22; }
+  fillRR(x, y + bob, w, h, 16, locked ? '#1a2030' : c2);
+  if (!locked) {
+    const cg = ctx.createLinearGradient(x, y, x + w, y + h);
+    cg.addColorStop(0, c1); cg.addColorStop(1, c2);
+    fillRR(x, y + bob, w, h, 16, cg);
+  }
+  ctx.shadowBlur = 0;
+  strokeRR(x, y + bob, w, h, 16, sel ? UI.gold : 'rgba(255,255,255,0.12)', sel ? 3 : 1);
+  if (sel) fillRR(x, y + bob, 5, h, 3, UI.gold);
+
+  uiBadge(x + 32, y + bob + 16, 'W' + (wi + 1), sel ? UI.gold : 'rgba(255,255,255,0.85)', 'rgba(0,0,0,0.55)');
+  drawWorldIcon(wi, cx, cy + bob - 10, 18);
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillStyle = locked ? '#666' : UI.bright;
+  ctx.fillText(worldNames[wi], cx, y + bob + h - 36);
+  ctx.font = '11px monospace';
+  ctx.fillStyle = locked ? '#555' : 'rgba(255,255,255,0.78)';
+  ctx.fillText(locked ? 'Bloqueado' : worldSubtitles[wi], cx, y + bob + h - 22);
+
+  if (locked) {
+    ctx.font = '18px monospace'; ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('🔒', cx, cy + bob + 14);
+  } else {
+    for (let lv = 0; lv < 3; lv++) {
+      const dx = cx - 22 + lv * 22, dy = y + bob + h - 10;
+      const done = gs.levelDone[wi][lv], lvsel = sel && lv === wmLvl;
+      ctx.beginPath(); ctx.arc(dx, dy, lvsel ? 7 : 5, 0, Math.PI * 2);
+      ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : 'rgba(255,255,255,0.3)';
+      ctx.fill();
+      if (lvsel) { ctx.strokeStyle = UI.gold; ctx.lineWidth = 2; ctx.stroke(); }
+      if (done) {
+        ctx.fillStyle = '#111'; ctx.font = 'bold 9px monospace';
+        ctx.fillText('★', dx, dy + 3);
+      }
+    }
+  }
+}
+
+function drawWorldMapDesktopGrid(t) {
+  const m = worldMapDesktopMetrics();
+  uiPanel(m.px, m.py, m.pw, m.ph, 20);
+  hud('MUNDOS', m.px + 24, m.py + 28, UI.gold, 15, 'left');
+
+  for (let r = 0; r < WORLD_MAP_LAYOUT.length; r++) {
+    const rowBlock = m.labelH + m.gapY + m.cardH + 18;
+    const ly = m.py + m.pad + 28 + r * rowBlock;
+    const info = WORLD_MAP_ROW_LABELS[r] || { title: 'Región', sub: '' };
+    uiSectionLabel(m.px + m.pad, ly, info.title + (info.sub ? '  ·  ' + info.sub : ''));
+    for (const wi of WORLD_MAP_LAYOUT[r]) drawWorldMapDesktopTile(wi, t);
+  }
+}
+
+function drawWorldMapDesktopDetail(t) {
+  const rx = 824, ry = 98, rw = 436, rh = 556;
+  const locked = !gs.worldUnlocked[wmSel];
+  const [c1, c2] = worldColors[wmSel];
+  const doneCount = gs.levelDone[wmSel].filter(Boolean).length;
+
+  uiPanel(rx, ry, rw, rh, 20);
+  hud('DETALLE', rx + rw / 2, ry + 28, UI.cyan, 15, 'center');
+
+  const previewY = ry + 200 + Math.sin(t * 2.5) * 5;
+  uiGlowCircle(rx + rw / 2, previewY, 72, locked ? '#445' : c1, t);
+  if (!locked) {
+    const pg = ctx.createRadialGradient(rx + rw / 2, previewY, 10, rx + rw / 2, previewY, 100);
+    pg.addColorStop(0, c1 + '55'); pg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath(); ctx.arc(rx + rw / 2, previewY, 100, 0, Math.PI * 2); ctx.fill();
+  }
+  drawWorldIcon(wmSel, rx + rw / 2, previewY, 36);
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 28px monospace';
+  ctx.fillStyle = locked ? UI.dim : UI.bright;
+  ctx.fillText(worldNames[wmSel], rx + rw / 2, ry + 72);
+  ctx.font = '18px monospace';
+  ctx.fillStyle = locked ? '#666' : c1;
+  ctx.fillText(worldSubtitles[wmSel], rx + rw / 2, ry + 98);
+
+  uiBadge(rx + rw / 2, ry + 128, 'Mundo ' + (wmSel + 1), UI.gold, 'rgba(0,0,0,0.45)');
+
+  const progY = ry + 300;
+  hud('Progreso del mundo', rx + 36, progY, UI.dim, 14, 'left');
+  uiBar(rx + 36, progY + 10, rw - 72, 10, doneCount / 3, doneCount === 3 ? UI.gold : UI.cyan);
+  hud(doneCount + ' / 3 niveles', rx + rw - 36, progY + 8, UI.bright, 14, 'right');
+
+  const hint = worldHints[wmSel];
+  if (hint) {
+    fillRR(rx + 24, ry + 328, rw - 48, 44, 12, 'rgba(0,0,0,0.35)');
+    hud(hint, rx + rw / 2, ry + 354, c1, 14, 'center');
+  }
+
+  if (locked) {
+    fillRR(rx + 24, ry + 392, rw - 48, 56, 14, 'rgba(80,20,20,0.35)');
+    strokeRR(rx + 24, ry + 392, rw - 48, 56, 14, UI.red, 1);
+    hud('Completa el mundo anterior para desbloquear', rx + rw / 2, ry + 424, UI.red, 15, 'center');
+  } else {
+    hud('Elige nivel', rx + 36, ry + 388, UI.dim, 14, 'left');
+    const lw = 118, lh = 52, gap = 12;
+    const startX = rx + (rw - (lw * 3 + gap * 2)) / 2;
+    for (let lv = 0; lv < 3; lv++) {
+      const bx = startX + lv * (lw + gap), by = ry + 408;
+      const lvsel = lv === wmLvl, done = gs.levelDone[wmSel][lv];
+      fillRR(bx, by, lw, lh, 14, lvsel ? 'rgba(255,215,0,0.22)' : 'rgba(255,255,255,0.06)');
+      strokeRR(bx, by, lw, lh, 14, lvsel ? UI.gold : 'rgba(255,255,255,0.12)', lvsel ? 2 : 1);
+      ctx.textAlign = 'center'; ctx.font = 'bold 17px monospace';
+      ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : UI.bright;
+      ctx.fillText('NIVEL ' + (lv + 1), bx + lw / 2, by + 24);
+      ctx.font = '12px monospace';
+      ctx.fillStyle = done ? UI.gold : UI.dim;
+      ctx.fillText(done ? '★ Completado' : lvsel ? 'Seleccionado' : 'Pulsa ' + (lv + 1), bx + lw / 2, by + 42);
+      mobRegisterRow(bx, by, lw, lh, lv);
+    }
+    fillRR(rx + 24, ry + 478, rw - 48, 52, 14, 'rgba(255,215,0,0.12)');
+    strokeRR(rx + 24, ry + 478, rw - 48, 52, 14, 'rgba(255,215,0,0.35)', 1);
+    hud('Enter · Jugar W' + (wmSel + 1) + '-' + (wmLvl + 1), rx + rw / 2, ry + 510, UI.gold, 17, 'center');
+  }
+
+  uiWalletBadge(rx + rw - 90, ry + rh - 36, gs.wallet);
+}
+
 function drawWorldMapDetail() {
+  if (worldMapUseDesktopLayout()) return;
   const py = H - 148, ph = 108;
   uiPanel(24, py, W - 48, ph, 16);
   const locked = !gs.worldUnlocked[wmSel];
@@ -748,13 +915,15 @@ function updateWorldMap(dt) {
 
 function drawWorldMap(t) {
   uiBgGrad('#080c14', '#141e2e'); uiSparkles(t * 0.5, 20);
-  uiTitle('MAPA DE MUNDOS', 46, 36);
+  const desktop = worldMapUseDesktopLayout();
+  uiTitle('MAPA DE MUNDOS', desktop ? 42 : 46, desktop ? 32 : 36);
 
   const unlocked = worldsUnlockedCount();
   let cleared = 0;
   for (let w = 0; w < WORLD_COUNT; w++) if (gs.levelDone[w].every(Boolean)) cleared++;
-  hud(unlocked + ' / ' + WORLD_COUNT + ' desbloqueados · ' + cleared + ' completados', W / 2, 78, UI.dim, 15, 'center');
-  uiPager(W / 2, 94, wmSel, WORLD_COUNT);
+  const statsY = desktop ? 72 : 78;
+  hud(unlocked + ' / ' + WORLD_COUNT + ' desbloqueados · ' + cleared + ' completados', W / 2, statsY, UI.dim, 15, 'center');
+  if (!desktop) uiPager(W / 2, 94, wmSel, WORLD_COUNT);
 
   const touchList = document.body.classList.contains('touch') && !mobUseDesktopMenu();
 
@@ -801,16 +970,21 @@ function drawWorldMap(t) {
       }
       y += 8;
     }
+  } else if (worldMapUseDesktopLayout()) {
+    drawWorldMapDesktopGrid(t);
+    drawWorldMapDesktopDetail(t);
   } else {
     const row2 = worldMapCardRect(8);
-    hud('Regiones finales · W9–W11', W / 2, row2.y - 10, '#c8a0ff', 13, 'center');
+    hud('Regiones finales · W9–W12', W / 2, row2.y - 10, '#c8a0ff', 13, 'center');
     for (let wi = 0; wi < WORLD_COUNT; wi++) drawWorldMapCard(wi, t);
     drawWorldMapDetail();
   }
 
   fillRR(0, H - 36, W, 36, 0, 'rgba(0,0,0,0.55)');
   hud('Vidas:' + gs.lives + '  Monedas:' + gs.coins + '  Score:' + gs.score, W / 2, H - 12, UI.bright, 16, 'center');
-  uiFooter(touchList ? 'Toca mundo · 1/2/3 nivel · OK jugar' : 'Flechas=mundo · 1/2/3=nivel · Enter=jugar · Esc=Menú');
+  uiFooter(touchList ? 'Toca mundo · 1/2/3 nivel · OK jugar' :
+    desktop ? 'Flechas · mundo · Teclas 1/2/3 · nivel · Enter jugar · Esc menú' :
+    'Flechas=mundo · 1/2/3=nivel · Enter=jugar · Esc=Menú');
   if (mp.active && mp.role === 'guest') {
     uiBadge(W / 2, H - 56, 'Esperando al anfitrión...', '#7df', 'rgba(0,80,140,0.65)');
   } else if (mp.active && mp.role === 'host' && mp.connected) {
