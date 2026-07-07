@@ -1024,14 +1024,14 @@ function threeSyncRaceKarts(ctx, tr, t) {
     const aheadP = kartPathSample(tr, lookU);
     const aw = threeGameToWorld(aheadP.x, aheadP.y, local.z, tr);
     const aheadH = threeTrackHeightAt(tr, aheadP.x, aheadP.y, curve);
-    const bearing = (race.camAngle || 0) + Math.PI / 2 + camOrbit.yaw * 0.42;
-    const dist = 13 + (race.camZoom || 1) * 5.5 + speedFactor * 11 + boostFactor * 7 + camOrbit.dist * 0.42;
-    const h = 7 + Math.min(9, (local.z || 0) * 0.055) + speedFactor * 3 + camOrbit.pitch * 15;
+    const bearing = (race.camAngle || 0) + Math.PI / 2 + camOrbit.yaw * 0.2;
+    const dist = 14 + (race.camZoom || 1) * 5 + speedFactor * 10 + boostFactor * 6 + camOrbit.dist * 0.25;
+    const h = 8 + Math.min(8, (local.z || 0) * 0.05) + speedFactor * 2.5 + camOrbit.pitch * 8;
     const cx = w.x - Math.cos(bearing) * dist;
     const cz = w.z - Math.sin(bearing) * dist;
     const camY = roadH + w.y + h;
     const lookH = aheadH + 2.8 + Math.min(2, (local.speed || 0) * 0.004);
-    const camLerp = 0.1 + speedFactor * 0.08 + boostFactor * 0.04;
+    const camLerp = 0.14 + speedFactor * 0.1 + boostFactor * 0.05;
     ctx.camera.position.lerp(new THREE.Vector3(cx, camY, cz), camLerp);
     ctx.camera.lookAt(aw.x, lookH, aw.z);
     const targetFov = 52 + speedFactor * 10 + boostFactor * 8 + (local.z > 30 ? 4 : 0);

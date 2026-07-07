@@ -1,10 +1,10 @@
 // ── Kart Racing (Need for Speed / Gran Turismo road circuits) ────────────────
 const KART_LAPS = 3;
-const KART_MAX_SPEED = 620;
-const KART_ACCEL = 920;
-const KART_BRAKE = 1050;
-const KART_FRICTION = 245;
-const KART_TURN = 4.0;
+const KART_MAX_SPEED = 580;
+const KART_ACCEL = 980;
+const KART_BRAKE = 900;
+const KART_FRICTION = 210;
+const KART_TURN = 4.8;
 const KART_DRIFT_BOOST = 255;
 const KART_DRIFT_SUPER = 340;
 
@@ -485,39 +485,43 @@ function kartWorldToScreen(x, y) {
   }
   return { x: dx + W / 2, y: dy + H / 2 };
 }
+let kartPtrSteer = 0;
+
 function kartCamLookAngle(me, tr) {
   const samples = tr.mega ? 160 : tr.huge ? 110 : 72;
   const near = kartNearestPath(tr, me.x, me.y, samples);
   const spd = Math.abs(me.speed || 0);
-  const speedFactor = Math.min(1, spd / 420);
+  const speedFactor = Math.min(1, spd / 380);
+  const pathAngle = kartPathTangent(tr, near.u).angle;
+  if (spd < 60) {
+    return me.angle + kartAngleDiff(pathAngle, me.angle) * 0.25;
+  }
   const lookU = (near.u + (tr.mega ? 0.028 : tr.huge ? 0.038 : 0.048) + speedFactor * 0.065) % 1;
   const ahead = kartPathSample(tr, lookU);
-  const pathAngle = Math.atan2(ahead.y - me.y, ahead.x - me.x);
-  if (spd > 90) {
-    const blend = 0.28 + speedFactor * 0.22;
-    return me.angle + kartAngleDiff(pathAngle, me.angle) * blend;
-  }
-  return kartPathTangent(tr, near.u).angle;
+  const aheadAngle = Math.atan2(ahead.y - me.y, ahead.x - me.x);
+  const blend = 0.32 + speedFactor * 0.28;
+  return me.angle + kartAngleDiff(aheadAngle, me.angle) * blend;
 }
 function kartUpdateRaceCamera(me, tr) {
-  const tierMul = tr.mega ? 2.4 : tr.huge ? 1.7 : 1;
+  const tierMul = tr.mega ? 2.2 : tr.huge ? 1.55 : 1;
   const touch = document.body.classList.contains('touch');
   const look = kartCamLookAngle(me, tr);
-  const speedFactor = Math.min(1, Math.abs(me.speed) / 420);
+  const speedFactor = Math.min(1, Math.abs(me.speed) / 380);
   const boostFactor = Math.min(1, (me.boost || 0) / 200);
-  const lookAhead = (68 + speedFactor * 140 + boostFactor * 45) * tierMul * (touch ? 1.1 : 1);
-  const camLerp = 0.09 + speedFactor * 0.11 + boostFactor * 0.05;
-  const orbitX = Math.sin(camOrbit.yaw) * (touch ? 52 : 42);
-  const orbitY = camOrbit.pitch * (touch ? 36 : 30);
+  const lookAhead = (58 + speedFactor * 120 + boostFactor * 40) * tierMul * (touch ? 1.05 : 1);
+  const camLerp = 0.14 + speedFactor * 0.14 + boostFactor * 0.06;
+  const orbitMul = touch ? 0.55 : 0.28;
+  const orbitX = Math.sin(camOrbit.yaw) * (touch ? 36 : 22) * orbitMul;
+  const orbitY = camOrbit.pitch * (touch ? 24 : 16) * orbitMul;
   race.camX = lerp(race.camX, me.x - Math.cos(look) * lookAhead + orbitX, camLerp);
   race.camY = lerp(race.camY, me.y - Math.sin(look) * lookAhead + orbitY, camLerp);
   let targetA = look - Math.PI / 2;
   targetA += kartAntigravCamTilt(me, tr);
-  const rotLerp = 0.055 + speedFactor * 0.07;
+  const rotLerp = 0.08 + speedFactor * 0.09;
   race.camAngle = (race.camAngle || 0) + kartAngleDiff(targetA, race.camAngle || 0) * rotLerp;
-  const jumpZoom = (me.z || 0) > 25 ? 0.06 : 0;
-  const zoomTarget = 1 + Math.min(0.18, Math.abs(me.speed) / 4800) + (me.boost > 70 ? 0.07 : 0) - jumpZoom;
-  race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.085);
+  const jumpZoom = (me.z || 0) > 25 ? 0.05 : 0;
+  const zoomTarget = 0.9 + Math.min(0.14, Math.abs(me.speed) / 5200) + (me.boost > 70 ? 0.06 : 0) - jumpZoom;
+  race.camZoom = lerp(race.camZoom || 1, zoomTarget, 0.1);
 }
 function kartRoadHalf(tr, mini) {
   return (tr.roadWidth || 100) * (mini ? (mini.scale || 0.35) : 1) * 0.5;
@@ -849,7 +853,7 @@ function kartCpPos(tr, i) {
 }
 function kartInTrack(tr, x, y) {
   const near = kartNearestOnAnyPath(tr, x, y);
-  const half = (near.onShortcut ? (near.shortcut?.width || 76) : tr.roadWidth) * 0.55;
+  const half = (near.onShortcut ? (near.shortcut?.width || 76) : tr.roadWidth) * 0.68;
   return near.dist <= half;
 }
 function kartPushToTrack(tr, k) {
@@ -857,9 +861,13 @@ function kartPushToTrack(tr, k) {
   const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.mega ? 160 : tr.huge ? 140 : 80);
   k.x = near.x;
   k.y = near.y;
-  k.speed *= 0.72;
-  if (!k._offTrackGrace) k._offTrackGrace = 0.35;
-  spawnParticles(k.x, k.y, '#ccc', 8, 220);
+  k.angle = lerpAngle(k.angle, near.angle, 0.35);
+  k.speed *= 0.84;
+  if (!k._offTrackGrace) k._offTrackGrace = 0.55;
+  spawnParticles(k.x, k.y, '#ccc', 6, 180);
+}
+function lerpAngle(a, b, t) {
+  return a + kartAngleDiff(b, a) * t;
 }
 function mkKart(idx, tr, cfg) {
   const st = tr.starts[idx] || tr.starts[0];
@@ -951,11 +959,20 @@ function startKartRace(solo) {
   };
   for (let i = 0; i < roster.length; i++) race.karts.push(mkKart(i, tr, roster[i]));
   kartInitRaceExtras(tr);
+  if (typeof camOrbitReset === 'function') camOrbitReset();
+  const me = race.karts[kartLocalIdx()];
+  if (me) {
+    const look = kartCamLookAngle(me, tr);
+    race.camAngle = look - Math.PI / 2;
+    race.camX = me.x - Math.cos(look) * 72;
+    race.camY = me.y - Math.sin(look) * 72;
+    race.camZoom = 0.88;
+  }
   if (!gs._hintKart) {
     gs._hintKart = true;
     showBanner(document.body.classList.contains('touch')
-      ? 'D-pad conducir · Deriva=Space · Arrastra derecha=cámara'
-      : 'WASD/Flechas · Espacio deriva · Q/E cámara', '#ff8020');
+      ? '◀▶ girar · ▲ acelera · ▼ freno · JUMP=deriva · Arrastra derecha=cámara'
+      : '←→ girar · ↓ freno · Espacio deriva · Aceleración automática · Q/E cámara', '#ff8020');
   }
   kartResultsT = 0;
   sfx.select();
@@ -1043,11 +1060,12 @@ function kartAIStuckRecovery(k, tr, dt) {
 function kartReadInput(k) {
   const left = held('ArrowLeft') || held('KeyA');
   const right = held('ArrowRight') || held('KeyD');
-  const up = held('ArrowUp') || held('KeyW');
   const down = held('ArrowDown') || held('KeyS');
-  k.input.steer = (right ? 1 : 0) - (left ? 1 : 0);
-  k.input.accel = up ? 1 : 0;
+  let steer = (right ? 1 : 0) - (left ? 1 : 0);
+  if (!steer && kartPtrSteer) steer = kartPtrSteer;
+  k.input.steer = clamp(steer, -1, 1);
   k.input.brake = down ? 1 : 0;
+  k.input.accel = down ? 0 : 1;
   k.input.drift = held('Space');
   k.input.useItem = pressed('KeyJ') || pressed('ShiftLeft');
 }
@@ -1115,7 +1133,7 @@ function kartSimKart(k, dt, tr) {
     spawnText(k.x, k.y - 18, surf.label, '#48f', 13);
   }
   if (k._surfWarn > 0) k._surfWarn -= dt;
-  let turn = KART_TURN * grip * (st.handling || 1) * (0.4 + 0.6 * Math.min(1, Math.abs(k.speed) / 260));
+  let turn = KART_TURN * grip * (st.handling || 1) * (0.72 + 0.28 * Math.min(1, Math.abs(k.speed) / 180));
   if (inp.drift && inp.steer) turn *= 1.55;
   if (inp.brake && inp.steer) turn *= 1.12;
   if (inp.steer) k.angle += inp.steer * turn * dt;
@@ -1130,7 +1148,7 @@ function kartSimKart(k, dt, tr) {
   const accel = KART_ACCEL * (st.accel || 1) * (0.7 + grip * 0.3) * (inp.accel ? 1 : 0.85);
   if (k.speed < target) k.speed = Math.min(target, k.speed + accel * dt);
   else k.speed = Math.max(target, k.speed - (inp.brake ? KART_BRAKE : KART_FRICTION * (1.05 - grip * 0.2)) * dt);
-  if (inp.drift && inp.steer && Math.abs(k.speed) > 140) {
+  if (inp.drift && inp.steer && Math.abs(k.speed) > 110) {
     k.driftCharge = Math.min(1.15, k.driftCharge + dt * 1.18);
     k.speed *= 0.991;
     if (!k._drifting) { k._drifting = true; k.vz = Math.max(k.vz || 0, 18); }
@@ -1524,7 +1542,7 @@ function drawKart(t) {
     hud(Math.round(spd * 2.6) + ' km/h', 22, H - 16, UI.cyan, 16);
     if (me.boost > 50) hud('BOOST', 100, H - 34, '#ff0', 10);
   }
-  uiFooter('↑↓ Girar · Espacio=Drift turbo · J=Usar objeto · Esc=Salir');
+  uiFooter('←→ Girar · ↓ Freno · Espacio=Deriva · J=Objeto · Esc=Salir');
   drawBanner();
 }
 function updateKartResults(dt) {

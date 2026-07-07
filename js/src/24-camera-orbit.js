@@ -65,8 +65,14 @@ function camOrbitScreenCoords(e) {
 
 function camOrbitPointerMode(e, cx) {
   if (e.button === 2 || e.button === 1 || (e.buttons & 2) || (e.buttons & 4)) return 'camera';
-  if (e.shiftKey || e.altKey) return 'camera';
+  if (e.shiftKey || e.altKey || e.ctrlKey) return 'camera';
   if (camOrbit.pointers.size >= 2) return 'camera';
+  if (gs.scene === 'kart') {
+    if (document.body.classList.contains('touch') && document.body.classList.contains('playing')) {
+      return cx < W * 0.55 ? 'move' : 'camera';
+    }
+    return cx > W * 0.9 ? 'camera' : 'move';
+  }
   if (cx < W * 0.34) return 'move';
   if (document.body.classList.contains('touch') && document.body.classList.contains('playing')) return 'camera';
   return 'camera';

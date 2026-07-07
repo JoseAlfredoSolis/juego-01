@@ -24,20 +24,25 @@ function ptrReleaseAll() {
 
 function ptrApplyAxes(cx, cy) {
   if (!ptrGameActive()) return;
-  const deadX = 42;
-  const midX = W * 0.5;
 
   ptrReleaseAll();
 
+  const midX = W * 0.5;
+  if (gs.scene === 'kart') {
+    const steerNorm = clamp((cx - midX) / (W * 0.38), -1, 1);
+    kartPtrSteer = Math.abs(steerNorm) > 0.1 ? steerNorm : 0;
+    if (kartPtrSteer < -0.1) touchPress('ArrowLeft');
+    else if (kartPtrSteer > 0.1) touchPress('ArrowRight');
+    if (cy > H * 0.76) touchPress('ArrowDown');
+    else touchPress('ArrowUp');
+    return;
+  }
+
+  const deadX = 42;
   if (cx < midX - deadX) touchPress('ArrowLeft');
   else if (cx > midX + deadX) touchPress('ArrowRight');
 
-  if (gs.scene === 'kart') {
-    if (cy < H * 0.4) touchPress('ArrowUp');
-    else if (cy > H * 0.68) touchPress('ArrowDown');
-  } else if (cy < H * 0.52) {
-    touchPress('Space');
-  }
+  if (cy < H * 0.52) touchPress('Space');
 }
 
 function ptrCtlOnDown(e, p) {
@@ -71,6 +76,7 @@ function ptrCtlFrameSync() {
     ptrCtl.id = null;
     ptrReleaseAll();
   }
+  if (!ptrCtl.active) kartPtrSteer = 0;
   if (typeof camOrbitFrameSync === 'function') camOrbitFrameSync();
 }
 
