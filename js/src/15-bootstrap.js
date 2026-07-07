@@ -135,21 +135,34 @@ function tryImmersive() {
 })();
 
 // ── Service worker (offline / installable PWA) ──────────────────────────────
+function swActivateUpdate(reg) {
+  if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+  if (reg.installing) {
+    reg.installing.addEventListener('statechange', () => {
+      if (reg.installing.state === 'installed' && navigator.serviceWorker.controller) {
+        reg.installing.postMessage('SKIP_WAITING');
+      }
+    });
+  }
+}
+
 if ('serviceWorker' in navigator && location.protocol !== 'file:' && !gameTestEnabled()) {
-  // Reload once the new service worker takes control so the phone always runs
-  // the freshly cached build instead of a stale one.
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (reloaded) return;
     reloaded = true;
     location.reload();
   });
-  window.addEventListener('load', () =>
-    navigator.serviceWorker.register('sw.js').then(reg => {
+  window.addEventListener('load', () => {
+    const build = (typeof window.__APP_BUILD__ === 'string' && window.__APP_BUILD__) ||
+      (typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : 'dev');
+    navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(build)).then(reg => {
+      swActivateUpdate(reg);
       reg.update();
-      // Periodically check for a newer build while the game is open.
+      reg.addEventListener('updatefound', () => swActivateUpdate(reg));
       setInterval(() => reg.update(), 60 * 1000);
-    }).catch(() => {}));
+    }).catch(() => {});
+  });
 }
 
 let lastTime = 0;

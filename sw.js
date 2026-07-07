@@ -1,6 +1,7 @@
 // Service worker for Super Bear Adventure (PWA).
-// Network-first for game bundle so updates reach players; cache shell for offline.
-const CACHE = 'super-bear-v78';
+// Network-first for HTML/JS so PC and mobile always pick up new builds.
+const SW_VERSION = 'v79';
+const CACHE = 'super-bear-v79';
 const SHELL = [
   './',
   './index.html',
@@ -10,8 +11,22 @@ const SHELL = [
   './icon.svg'
 ];
 
-function swIsGameAsset(url) {
-  return url.includes('/js/game.js');
+function swIsFreshAsset(url) {
+  return url.includes('/js/game.js') ||
+    url.includes('/sw.js') ||
+    url.endsWith('/index.html') ||
+    url.endsWith('/') ||
+    url.includes('index.html?');
+}
+
+function swNetworkFirst(request) {
+  return fetch(request, { cache: 'no-store' }).then(resp => {
+    if (resp && resp.status === 200) {
+      const copy = resp.clone();
+      caches.open(CACHE).then(cache => cache.put(request, copy));
+    }
+    return resp;
+  }).catch(() => caches.match(request));
 }
 
 self.addEventListener('install', event => {
@@ -28,19 +43,15 @@ self.addEventListener('activate', event => {
   );
 });
 
+self.addEventListener('message', event => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = event.request.url;
-  if (swIsGameAsset(url) || url.endsWith('/index.html') || url.endsWith('/')) {
-    event.respondWith(
-      fetch(event.request).then(resp => {
-        if (resp && resp.status === 200) {
-          const copy = resp.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, copy));
-        }
-        return resp;
-      }).catch(() => caches.match(event.request))
-    );
+  if (swIsFreshAsset(url)) {
+    event.respondWith(swNetworkFirst(event.request));
     return;
   }
   event.respondWith(
