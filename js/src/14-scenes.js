@@ -303,25 +303,29 @@ function drawBearSil(x,y,s) {
 }
 
 // ── Instructions ───────────────────────────────────────────────────────────
+function updateInstructions() {
+  if (pressed('Enter') || pressed('Escape')) changeScene('menu');
+}
 function drawInstructions() {
   if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#0a180a','#0d2b0d', false);
   uiTitle('INSTRUCCIONES', 72, 40);
   uiPanel(W/2-340, 95, 680, 560, 18);
   const lines=[
-    ['MOVE','← → / A D'],['JUMP','Space / W / ↑'],['DOUBLE JUMP','Double Jump power-up + Space'],
-    ['SPECIAL','J / Shift  (boton SP)  — unico por personaje'],
-    ['STOMP','Jump on enemies to defeat them'],
-    ['CHECKPOINT','Bandera verde: reapareces ahi al morir'],
-    ['PELIGROS','Evita pinchos y sierras (el dash/escudo te protege)'],
-    ['PAUSE','Esc / P'],['',''],
-    ['COINS','50 pts  ★ Stars: 200 pts'],['ENEMIES','100 pts  Boss: 1000 pts'],
-    ['TIPOS','Patrulla, perseguidor, volador, saltarin, escupidor'],
-    ['+ TIPOS','Cazador  ·  Blindado (embiste)  ·  Mini-jefe (dispara/invoca)'],
-    ['GOAL','Reach the green flag → 500 pts'],['',''],
-    ['ONLINE','Menu MULTIJUGADOR: crea sala o unete con codigo de 6 letras'],
-    ['INVITAR','Copia el enlace y envialo — ambos juegan el mismo nivel'],
-    ['POWER-UPS','2x=Double Jump  →→=Speed  ★=Invincible'],
+    ['MOVER','← → / A D'],['SALTAR','Espacio / W / ↑'],
+    ['DOBLE SALTO','Power-up Doble Salto + Espacio'],
+    ['ESPECIAL','J / Shift — único por personaje'],
+    ['PISAR','Salta sobre enemigos para eliminarlos'],
+    ['CHECKPOINT','Bandera verde: reapareces ahí'],
+    ['PELIGROS','Pinchos y sierras (dash/escudo protege)'],
+    ['PAUSA','Esc / P'],['',''],
+    ['MONEDAS','50 pts · Estrellas 200 pts'],['ENEMIGOS','100 pts · Jefe 1000 pts'],
+    ['TIPOS','Patrulla, perseguidor, volador, saltarín'],
+    ['+ TIPOS','Cazador · Blindado · Mini-jefe'],
+    ['META','Bandera verde → 500 pts'],['',''],
+    ['ONLINE','Multijugador: sala o código 6 letras'],
+    ['INVITAR','Copia el enlace — mismo nivel'],
+    ['POWER-UPS','2x=Doble salto · →→=Velocidad · ★=Invencible'],
   ];
   ctx.textAlign='left'; ctx.font='18px monospace';
   lines.forEach(([k,v],i)=>{
@@ -330,7 +334,6 @@ function drawInstructions() {
     ctx.fillStyle=UI.bright; ctx.fillText(v,W/2-60,118+i*34);
   });
   uiFooter('Enter / Esc para volver');
-  if (pressed('Enter')||pressed('Escape')) changeScene('menu');
 }
 
 // ── Pomeranian World Screen ─────────────────────────────────────────────────
@@ -1165,8 +1168,10 @@ function drawGameOver() {
   hud('Score: '+gs.score+'    Monedas: '+gs.coins, W/2, H/2+10, UI.bright, 22, 'center');
   hud('Record: '+gs.highScore, W/2, H/2+44, UI.cyan, 20, 'center');
   uiBtn(W/2-200,H/2+80,180,48,'REINTENTAR',goSel===0);
-  uiBtn(W/2+20,H/2+80,180,48,'MENU',goSel===1);
-  uiFooter('Flechas + Enter');
+  mobRegisterRow(W/2-200,H/2+80,180,48,0);
+  uiBtn(W/2+20,H/2+80,180,48,'MENÚ',goSel===1);
+  mobRegisterRow(W/2+20,H/2+80,180,48,1);
+  uiFooter('← → elegir · Enter confirmar · Clic en botón');
 }
 
 // ── Level Complete Scene ────────────────────────────────────────────────────

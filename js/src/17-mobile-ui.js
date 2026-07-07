@@ -122,12 +122,22 @@ function mobProcessNav() {
 }
 
 function mobUiSync() {
-  if (!document.body.classList.contains('touch')) {
-    document.body.classList.remove('playing', 'mob-menu', 'mob-join', 'mob-nav-wide', 'kart-race', 'portrait', 'mob-menu-html');
-    return;
-  }
   const s = gs.scene;
   if (s !== 'settings') mobSettingsResetArm = 0;
+  const isTouch = document.body.classList.contains('touch');
+
+  if (!isTouch) {
+    document.body.classList.toggle('mob-menu', MOB_MENU_SCENES.includes(s));
+    document.body.classList.toggle('playing', MOB_PLAY_SCENES.includes(s));
+    document.body.classList.remove('mob-join', 'mob-nav-wide', 'kart-race', 'portrait', 'landscape');
+    if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s)
+      && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
+      if (typeof threeEnsure === 'function') threeEnsure();
+    }
+    mobMenuHtmlSync();
+    if (typeof resize === 'function') resize();
+    return;
+  }
   const playing = MOB_PLAY_SCENES.includes(s);
   const menu = MOB_MENU_SCENES.includes(s);
   const join = MOB_JOIN_SCENES.includes(s);
@@ -308,9 +318,17 @@ function mobMenuDesc(key) {
   return '';
 }
 
+function htmlMenuCanvasScenes() {
+  if (typeof mobUseDesktopMenu !== 'function' || !mobUseDesktopMenu()) return [];
+  return [
+    'menu', 'worldmap', 'shop', 'gallery', 'charselect', 'settings', 'achievements',
+    'kartmenu', 'kartcup', 'kartselect', 'kartlobby',
+  ];
+}
+
 function mobGetHtmlMenuConfig() {
-  if (!document.body.classList.contains('touch')) return null;
   if (!MOB_MENU_SCENES.includes(gs.scene)) return null;
+  if (htmlMenuCanvasScenes().includes(gs.scene)) return null;
 
   if (gs.scene === 'menu' && typeof menuItems !== 'undefined') {
     return {
@@ -650,7 +668,12 @@ function mobMenuHtmlSync() {
   }
 
   if (titleEl) titleEl.textContent = cfg.title || '';
-  if (subEl) subEl.textContent = cfg.subtitle || '';
+  if (subEl) {
+    const hint = document.body.classList.contains('touch')
+      ? (cfg.subtitle || '')
+      : ((cfg.subtitle || '') + (cfg.items ? ' · ↑↓ Enter · Clic' : ''));
+    subEl.textContent = hint;
+  }
   if (detail) detail.textContent = cfg.detail || '';
   if (cfg.type === 'kartlobby' && subEl && typeof KART_TRACKS !== 'undefined') {
     subEl.textContent = KART_TRACKS[kartTrackSel].name;

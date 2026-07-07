@@ -239,7 +239,7 @@ function loop(ts) {
 
   switch(scene) {
     case 'menu':          drawMenu(t); break;
-    case 'instructions':  drawInstructions(); break;
+    case 'instructions':  updateInstructions(); drawInstructions(); break;
     case 'worldmap':      drawWorldMap(t); break;
     case 'gameplay':      drawGameplay(t); break;
     case 'pause':         drawPause(); break;

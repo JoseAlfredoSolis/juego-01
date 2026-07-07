@@ -279,15 +279,45 @@ body.touch.mob-nav-wide #mobRight { display: flex; }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
-body.touch.mob-menu-html #mobMenuHtml {
+body.mob-menu-html #mobMenuHtml {
   display: flex;
   animation: mmhIn 0.22s ease;
+}
+body:not(.touch).mob-menu-html #mobMenuHtml {
+  inset: 0;
+  bottom: 0;
+  max-width: 760px;
+  margin: 0 auto;
+  left: 0;
+  right: 0;
+}
+body.mob-menu-html canvas#c {
+  visibility: hidden;
+  pointer-events: none;
+}
+body.mob-menu-html.three-menu canvas#c,
+body.mob-menu-html.three-menu canvas#three-c {
+  visibility: visible;
+  pointer-events: auto;
+}
+body.mob-menu-html.three-menu #mobMenuHtml {
+  background: linear-gradient(180deg, rgba(10,32,16,0.92) 0%, rgba(13,48,16,0.88) 100%);
 }
 @keyframes mmhIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
-body.touch.mob-menu-html canvas { visibility: hidden; pointer-events: none; }
+body:not(.touch).mob-menu-html #mobMenuHtmlList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+body:not(.touch) .mmh-item { cursor: pointer; }
+.mmh-item:hover:not(.sel) {
+  background: rgba(255,255,255,0.11);
+  border-color: rgba(255,255,255,0.28);
+}
 #mobMenuHtml.theme-purple {
   background: linear-gradient(180deg, #1a0830 0%, #301858 55%, #180828 100%);
 }
@@ -525,7 +555,7 @@ body.touch.mob-join #mobNav { display: none !important; }
   <button id="mpJoinBtn" type="button">UNIRSE</button>
 </div>
 
-<script>window.__APP_BUILD__='v88';</script>
+<script>window.__APP_BUILD__='v89';</script>
 <script src="vendor/peer.min.js"></script>
 <script>
 if (typeof Peer === 'undefined') {
@@ -538,6 +568,6 @@ if (typeof THREE === 'undefined') {
   document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
 }
 </script>
-<script src="js/game.js?v=88"></script>
+<script src="js/game.js?v=89"></script>
 </body>
 </html>
