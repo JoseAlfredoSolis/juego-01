@@ -136,6 +136,34 @@ function threeTexChecker() {
   }, [6, 6]);
 }
 
+function threeTexDirt() {
+  return threeProcTex('dirt', 128, 128, (g, w, h) => {
+    g.fillStyle = '#5a5040';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 350; i++) {
+      const v = 70 + Math.random() * 40;
+      g.fillStyle = `rgba(${v},${55 + Math.random() * 25},${35 + Math.random() * 20},0.35)`;
+      g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+  }, [10, 10]);
+}
+
+function threeTexWater() {
+  return threeProcTex('water', 128, 128, (g, w, h) => {
+    g.fillStyle = '#1a4888';
+    g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 6) {
+      g.strokeStyle = `rgba(120,200,255,${0.12 + (y % 12) * 0.01})`;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      for (let x = 0; x <= w; x += 8) {
+        g.lineTo(x, y + Math.sin(x * 0.08) * 2);
+      }
+      g.stroke();
+    }
+  }, [6, 6]);
+}
+
 function threeTexSky(top, bottom) {
   const key = 'sky_' + top + '_' + bottom;
   return threeProcTex(key, 4, 256, (g, w, h) => {
@@ -520,16 +548,39 @@ function threeTrackHeightAt(tr, gx, gy, curve) {
   return curve.getPointAt(near.u).y;
 }
 
-function threeBuildRollingGround(tr, b, sc) {
+function threeShortcutPathPoint(px, py, tr) {
+  const near = kartNearestPath(tr, px, py, 80);
+  return threeTrackPathPoint({ x: px, y: py }, near.u, tr);
+}
+
+function threeSampleShortcutPath(path, frac, tr) {
+  const idx = Math.min(path.length - 2, Math.floor(frac * (path.length - 1)));
+  const p0 = path[idx];
+  const p1 = path[idx + 1];
+  const f = frac * (path.length - 1) - idx;
+  const px = p0.x + (p1.x - p0.x) * f;
+  const py = p0.y + (p1.y - p0.y) * f;
+  return threeShortcutPathPoint(px, py, tr);
+}
+
+function threeBuildAlignedGround(tr, b, sc, curve) {
+  const { tcx, tcy } = threeTrackScale(tr);
   const gw = (b.maxX - b.minX) * sc + 55;
   const gh = (b.maxY - b.minY) * sc + 55;
-  const geo = new THREE.PlaneGeometry(gw, gh, 36, 36);
+  const geo = new THREE.PlaneGeometry(gw, gh, 44, 44);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
+  const pathSamples = tr.mega ? 100 : tr.huge ? 72 : 56;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
-    const h = Math.sin(x * 0.065) * 2.2 + Math.cos(z * 0.055) * 1.6
-      + Math.sin((x + z) * 0.038) * 0.9 - 1.8;
+    const gx = x / sc + tcx;
+    const gy = z / sc + tcy;
+    const near = kartNearestPath(tr, gx, gy, pathSamples);
+    const pathY = curve.getPointAt(near.u).y;
+    const dist = near.dist * sc;
+    const shoulder = Math.min(1, Math.max(0, (dist - 3.5) / 13));
+    const noise = Math.sin(gx * 0.05 + gy * 0.03) * 0.35 + Math.sin(gx * 0.11 - gy * 0.07) * 0.18;
+    const h = pathY - 0.55 - shoulder * 1.05 + noise * (0.22 + shoulder * 0.32);
     pos.setY(i, h);
   }
   geo.computeVertexNormals();
@@ -707,6 +758,106 @@ function threeAddTrackObstacles(group, tr, curve) {
   }
 }
 
+function threeAddWaterZones(group, tr, curve) {
+  if (!tr.surfaces?.length) return;
+  const roadW = Math.max(5.4, (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.78);
+  const halfW = roadW * 0.52;
+  const waterMat = new THREE.MeshStandardMaterial({
+    map: threeTexWater(),
+    color: 0x3080d0,
+    transparent: true,
+    opacity: 0.74,
+    metalness: 0.7,
+    roughness: 0.1,
+    emissive: 0x1040a0,
+    emissiveIntensity: 0.22,
+    side: THREE.DoubleSide,
+  });
+  for (const s of tr.surfaces) {
+    if (s.type !== 'water') continue;
+    const segs = 28;
+    const u0 = s.uStart;
+    const u1 = s.uEnd;
+    const pts = [];
+    for (let i = 0; i <= segs; i++) {
+      const u = u0 + (u1 - u0) * (i / segs);
+      const p = kartPathSample(tr, u);
+      pts.push(threeTrackPathPoint(p, u, tr));
+    }
+    const wcurve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35);
+    const geo = threeBuildPathRibbon(wcurve, segs, halfW, -0.18);
+    const mesh = new THREE.Mesh(geo, waterMat.clone());
+    mesh.userData.waterZone = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+}
+
+function threeAddShortcutPaths(group, tr, curve) {
+  if (!tr.shortcuts?.length) return;
+  const sc = threeTrackScale(tr).sc;
+  const dirtMat = new THREE.MeshStandardMaterial({
+    map: threeTexDirt(),
+    color: 0x6a6048,
+    roughness: 0.95,
+    metalness: 0,
+    side: THREE.DoubleSide,
+  });
+  const edgeMat = new THREE.MeshStandardMaterial({
+    color: 0xffd040,
+    emissive: 0xaa8800,
+    emissiveIntensity: 0.35,
+    roughness: 0.6,
+    side: THREE.DoubleSide,
+  });
+  for (const shortcut of tr.shortcuts) {
+    const path = shortcut.path;
+    if (!path?.length) continue;
+    const segs = Math.max(28, path.length * 10);
+    const pts = [];
+    for (let i = 0; i <= segs; i++) {
+      pts.push(threeSampleShortcutPath(path, i / segs, tr));
+    }
+    const scurve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35);
+    const hw = Math.max(2.6, (shortcut.width || 72) * sc * 0.38);
+    const geo = threeBuildPathRibbon(scurve, segs, hw, 0.04);
+    const mesh = new THREE.Mesh(geo, dirtMat);
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    const edgeGeo = threeBuildPathRibbon(scurve, segs, hw + 0.22, 0.05);
+    const edge = new THREE.Mesh(edgeGeo, edgeMat);
+    edge.userData.shortcutEdge = true;
+    group.add(edge);
+    const mid = path[Math.floor(path.length / 2)];
+    const mw = threeGameToWorld(mid.x, mid.y, 0, tr);
+    const mh = threeTrackHeightAt(tr, mid.x, mid.y, curve) + 2.4;
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.14, 2.6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4a4030, roughness: 0.92 })
+    );
+    post.position.set(mw.x, mh + 1.3, mw.z);
+    post.castShadow = true;
+    group.add(post);
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(2.2, 1.0, 0.14),
+      new THREE.MeshStandardMaterial({
+        color: 0xffd700,
+        emissive: 0xaa8800,
+        emissiveIntensity: 0.5,
+        metalness: 0.2,
+        roughness: 0.45,
+      })
+    );
+    board.position.set(mw.x, mh + 2.7, mw.z);
+    board.userData.shortcutSign = true;
+    board.castShadow = true;
+    group.add(board);
+    const glow = new THREE.PointLight(0xffd040, 0.35, 10);
+    glow.position.set(mw.x, mh + 2.8, mw.z);
+    group.add(glow);
+  }
+}
+
 function threeBuildTrackMesh(tr) {
   const group = new THREE.Group();
   const pts = [];
@@ -769,7 +920,7 @@ function threeBuildTrackMesh(tr) {
   const b = kartTrackBounds(tr);
   const sc = threeTrackScale(tr).sc;
   const ground = new THREE.Mesh(
-    threeBuildRollingGround(tr, b, sc),
+    threeBuildAlignedGround(tr, b, sc, curve),
     new THREE.MeshStandardMaterial({
       map: threeTexGrass(tr.grass?.[0] || '#2a5820'),
       roughness: 1, metalness: 0,
@@ -777,6 +928,9 @@ function threeBuildTrackMesh(tr) {
   );
   ground.receiveShadow = true;
   group.add(ground);
+
+  threeAddWaterZones(group, tr, curve);
+  threeAddShortcutPaths(group, tr, curve);
 
   group.userData.raceCurve = curve;
 
@@ -1066,6 +1220,16 @@ function threeSyncRaceKarts(ctx, tr, t) {
         ch.rotation.y = (t || 0) * 2.5;
         const base = ch.userData.baseY ?? ch.position.y;
         ch.position.y = base + Math.sin((t || 0) * 3 + ch.position.x) * 0.15;
+      }
+      if (ch.userData?.waterZone && ch.material) {
+        ch.material.opacity = 0.68 + Math.sin((t || 0) * 2.8 + ch.position.x * 0.2) * 0.08;
+        ch.material.emissiveIntensity = 0.18 + Math.sin((t || 0) * 3.2 + ch.position.z * 0.15) * 0.12;
+      }
+      if (ch.userData?.shortcutSign && ch.material?.emissive) {
+        ch.material.emissiveIntensity = 0.42 + Math.sin((t || 0) * 4) * 0.18;
+      }
+      if (ch.userData?.shortcutEdge && ch.material?.emissive) {
+        ch.material.emissiveIntensity = 0.28 + Math.sin((t || 0) * 2.5) * 0.12;
       }
     });
   }
