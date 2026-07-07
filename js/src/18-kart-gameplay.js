@@ -45,7 +45,8 @@ function kartInitRaceExtras(tr) {
   race.blueShells = [];
   race.obstacles = [];
   if (!tr.obstacleSpots) return;
-  for (const spot of tr.obstacleSpots) {
+  const spots = tr.mega ? tr.obstacleSpots.filter((_, i) => i % 2 === 0) : tr.obstacleSpots;
+  for (const spot of spots) {
     const p = kartPathSample(tr, spot.u);
     const tg = kartPathTangent(tr, spot.u);
     race.obstacles.push({
@@ -62,15 +63,15 @@ function kartUpdateObstacles(dt, tr) {
   for (const ob of race.obstacles) {
     ob.phase += dt * (ob.kind === 'crab' ? 2.2 : 1.4);
     const tg = kartPathTangent(tr, ob.u);
-    const lane = Math.sin(ob.phase) * tr.roadWidth * (tr.mega ? 0.38 : 0.32);
+    const lane = Math.sin(ob.phase) * tr.roadWidth * (tr.mega ? 0.28 : 0.3);
     ob.x = kartPathSample(tr, ob.u).x + Math.cos(tg.angle + Math.PI / 2) * lane;
     ob.y = kartPathSample(tr, ob.u).y + Math.sin(tg.angle + Math.PI / 2) * lane;
     ob.angle = tg.angle;
     for (const k of race.karts) {
       if (k.finished || k.shieldTimer > 0 || k.starTimer > 0) continue;
-      if (Math.hypot(k.x - ob.x, k.y - ob.y) < (tr.mega ? 34 : 28)) {
-        k.speed *= 0.35;
-        k.stunTimer = Math.max(k.stunTimer || 0, 0.6);
+      if (Math.hypot(k.x - ob.x, k.y - ob.y) < (tr.mega ? 28 : 26)) {
+        k.speed *= 0.42;
+        k.stunTimer = Math.max(k.stunTimer || 0, 0.38);
         spawnParticles(k.x, k.y, '#888', 8, 180);
         sfx.hurt();
       }
@@ -88,7 +89,7 @@ function kartUpdateHazards(dt) {
       if (k.finished || k.idx === h.owner || k.shieldTimer > 0 || k.starTimer > 0) continue;
       if (Math.hypot(k.x - h.x, k.y - h.y) < 22) {
         k.speed *= 0.4;
-        k.stunTimer = Math.max(k.stunTimer || 0, 1.1);
+        k.stunTimer = Math.max(k.stunTimer || 0, 0.72);
         spawnText(k.x, k.y - 18, 'RESBALON!', '#ff0', 14);
         spawnParticles(h.x, h.y, '#ffe040', 10, 140);
         race.hazards.splice(i, 1);
@@ -119,7 +120,7 @@ function kartUpdateProjectiles(dt) {
       }
       if (Math.hypot(k.x - p.x, k.y - p.y) < 26) {
         k.speed *= 0.25;
-        k.stunTimer = Math.max(k.stunTimer || 0, 1.4);
+        k.stunTimer = Math.max(k.stunTimer || 0, 0.9);
         spawnParticles(p.x, p.y, '#40c878', 12, 200);
         spawnText(k.x, k.y - 18, 'GOLPE!', '#f44', 15);
         sfx.hurt();
@@ -169,7 +170,7 @@ function kartUseItem(k, tr) {
       if (o.idx === k.idx || o.finished) continue;
       if ((o.rank || 99) < (k.rank || 99)) {
         o.speed *= 0.2;
-        o.stunTimer = Math.max(o.stunTimer || 0, 2.2);
+        o.stunTimer = Math.max(o.stunTimer || 0, 1.4);
         spawnRing(o.x, o.y, '#aaf', 70, 0.4);
       }
     }
@@ -223,7 +224,7 @@ function kartUpdateBlueShells(dt) {
         spawnRing(target.x, target.y, '#66ccff', 60, 0.35);
       } else {
         target.speed *= 0.1;
-        target.stunTimer = Math.max(target.stunTimer || 0, 2.5);
+        target.stunTimer = Math.max(target.stunTimer || 0, 1.55);
         spawnParticles(p.x, p.y, '#3080ff', 20, 250);
         addShake(0.2);
         showBanner('GOLPE AZUL!', '#3080ff');

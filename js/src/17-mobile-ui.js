@@ -138,6 +138,10 @@ function mobUiSync() {
   document.body.classList.toggle('kart-race', s === 'kart');
   document.body.classList.toggle('portrait', portrait);
   document.body.classList.toggle('landscape', !portrait);
+  const bJump = document.getElementById('bJump');
+  const bSp = document.getElementById('bSp');
+  if (bJump) bJump.textContent = s === 'kart' ? 'DRIFT' : 'JUMP';
+  if (bSp) bSp.textContent = s === 'kart' ? 'ITEM' : 'SP';
   if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s) && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
     if (typeof threeEnsure === 'function') threeEnsure();
   }
