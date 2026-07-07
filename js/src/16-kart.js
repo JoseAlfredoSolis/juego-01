@@ -1631,6 +1631,7 @@ function updateKartResults(dt) {
   }
 }
 function drawKartResults() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#0a1420', '#1a2840');
   uiTitle('RESULTADOS', 80, 44);
   if (!race) { uiFooter('Enter para volver'); return; }
