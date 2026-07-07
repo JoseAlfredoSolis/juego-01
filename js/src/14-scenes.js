@@ -281,7 +281,7 @@ function drawMenu(t) {
     if (lay.mode === 'land') hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
     uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
     for (let i = 0; i < menuItems.length; i++) {
-      uiMenuRow(menuItems[i], lay.startY + i * lay.rowH, i === menuSel, lay.rw, lay.rh, i);
+      uiMenuRow(mobMenuLabel(menuItems[i]), lay.startY + i * lay.rowH, i === menuSel, lay.rw, lay.rh, i);
     }
     uiPill(12, 22, 'Best: ' + gs.highScore, UI.cyan);
     uiWalletBadge(100, 48, gs.wallet);
@@ -303,24 +303,29 @@ function drawBearSil(x,y,s) {
 }
 
 // ── Instructions ───────────────────────────────────────────────────────────
+function updateInstructions() {
+  if (pressed('Enter') || pressed('Escape')) changeScene('menu');
+}
 function drawInstructions() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#0a180a','#0d2b0d', false);
   uiTitle('INSTRUCCIONES', 72, 40);
   uiPanel(W/2-340, 95, 680, 560, 18);
   const lines=[
-    ['MOVE','← → / A D'],['JUMP','Space / W / ↑'],['DOUBLE JUMP','Double Jump power-up + Space'],
-    ['SPECIAL','J / Shift  (boton SP)  — unico por personaje'],
-    ['STOMP','Jump on enemies to defeat them'],
-    ['CHECKPOINT','Bandera verde: reapareces ahi al morir'],
-    ['PELIGROS','Evita pinchos y sierras (el dash/escudo te protege)'],
-    ['PAUSE','Esc / P'],['',''],
-    ['COINS','50 pts  ★ Stars: 200 pts'],['ENEMIES','100 pts  Boss: 1000 pts'],
-    ['TIPOS','Patrulla, perseguidor, volador, saltarin, escupidor'],
-    ['+ TIPOS','Cazador  ·  Blindado (embiste)  ·  Mini-jefe (dispara/invoca)'],
-    ['GOAL','Reach the green flag → 500 pts'],['',''],
-    ['ONLINE','Menu MULTIJUGADOR: crea sala o unete con codigo de 6 letras'],
-    ['INVITAR','Copia el enlace y envialo — ambos juegan el mismo nivel'],
-    ['POWER-UPS','2x=Double Jump  →→=Speed  ★=Invincible'],
+    ['MOVER','← → / A D'],['SALTAR','Espacio / W / ↑'],
+    ['DOBLE SALTO','Power-up Doble Salto + Espacio'],
+    ['ESPECIAL','J / Shift — único por personaje'],
+    ['PISAR','Salta sobre enemigos para eliminarlos'],
+    ['CHECKPOINT','Bandera verde: reapareces ahí'],
+    ['PELIGROS','Pinchos y sierras (dash/escudo protege)'],
+    ['PAUSA','Esc / P'],['',''],
+    ['MONEDAS','50 pts · Estrellas 200 pts'],['ENEMIGOS','100 pts · Jefe 1000 pts'],
+    ['TIPOS','Patrulla, perseguidor, volador, saltarín'],
+    ['+ TIPOS','Cazador · Blindado · Mini-jefe'],
+    ['META','Bandera verde → 500 pts'],['',''],
+    ['ONLINE','Multijugador: sala o código 6 letras'],
+    ['INVITAR','Copia el enlace — mismo nivel'],
+    ['POWER-UPS','2x=Doble salto · →→=Velocidad · ★=Invencible'],
   ];
   ctx.textAlign='left'; ctx.font='18px monospace';
   lines.forEach(([k,v],i)=>{
@@ -329,7 +334,6 @@ function drawInstructions() {
     ctx.fillStyle=UI.bright; ctx.fillText(v,W/2-60,118+i*34);
   });
   uiFooter('Enter / Esc para volver');
-  if (pressed('Enter')||pressed('Escape')) changeScene('menu');
 }
 
 // ── Pomeranian World Screen ─────────────────────────────────────────────────
@@ -600,6 +604,7 @@ function updateGallery(dt) {
   if (pressed('Escape') || pressed('Enter')) { changeScene('menu'); }
 }
 function drawGallery(t) {
+  if (document.body.classList.contains('mob-menu-html')) return;
   const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1420', '#1a2840');
@@ -1124,6 +1129,7 @@ function updatePause(dt) {
 }
 
 function drawPause() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   drawBg(levelData.bg, levelData.levelW);
   drawPlatforms(levelData.platforms, gs.world);
   for (const it of items) drawCollectible(it, gameTimer);
@@ -1141,6 +1147,10 @@ let goSel=0, goT=0;
 
 function updateGameOver(dt) {
   goT+=dt;
+  mobBindMenu(() => goSel, v => { goSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'left' || dir === 'right') goSel = (goSel + 1) % 2;
+  });
   if (pressed('ArrowLeft')||pressed('ArrowRight')) goSel=(goSel+1)%2;
   if (pressed('Enter')||pressed('Space')) {
     if (goSel===0) { gs.lives=startLives(); startLevel(); changeScene('gameplay'); }
@@ -1149,6 +1159,7 @@ function updateGameOver(dt) {
 }
 
 function drawGameOver() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#1a0505','#3a0808', false);
   const scale=1+Math.sin(goT*3)*0.04;
   ctx.save(); ctx.translate(W/2,H/2-90); ctx.scale(scale,scale);
@@ -1157,8 +1168,10 @@ function drawGameOver() {
   hud('Score: '+gs.score+'    Monedas: '+gs.coins, W/2, H/2+10, UI.bright, 22, 'center');
   hud('Record: '+gs.highScore, W/2, H/2+44, UI.cyan, 20, 'center');
   uiBtn(W/2-200,H/2+80,180,48,'REINTENTAR',goSel===0);
-  uiBtn(W/2+20,H/2+80,180,48,'MENU',goSel===1);
-  uiFooter('Flechas + Enter');
+  mobRegisterRow(W/2-200,H/2+80,180,48,0);
+  uiBtn(W/2+20,H/2+80,180,48,'MENÚ',goSel===1);
+  mobRegisterRow(W/2+20,H/2+80,180,48,1);
+  uiFooter('← → elegir · Enter confirmar · Clic en botón');
 }
 
 // ── Level Complete Scene ────────────────────────────────────────────────────
@@ -1170,6 +1183,7 @@ function updateLevelComplete(dt) {
   }
 }
 function drawLevelComplete() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#06340f','#0a5a1e');
   const bob=Math.sin(lcT*3)*6;
   uiTitle('NIVEL COMPLETO!', 130+bob, 50);
@@ -1201,6 +1215,7 @@ function updateVictory(dt) {
   }
 }
 function drawVictory() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#142a5a','#3a1a5a');
   for(let i=0;i<90;i++){
     const x=(i*137+vicT*40)%W, y=((i*89)+vicT*120)%H;
@@ -1249,6 +1264,7 @@ function updateSettings(dt) {
   }
 }
 function drawSettings() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1420','#0d1b2a', false);
 
@@ -1338,6 +1354,7 @@ function updateCredits(dt) {
   if (pressed('Enter')||pressed('Escape')||pressed('Space')) changeScene('menu');
 }
 function drawCredits() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#0a1018','#101820', false);
   uiTitle('CREDITOS', 90, 42);
   uiPanel(W/2-300,130,600,420,18);
@@ -1402,6 +1419,7 @@ function drawCharThumbStrip(cx, cy, sel, n, maxShow) {
 }
 
 function drawCharSelect() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1018', '#142038', false); uiSparkles(charT * 0.3, 24);
 
@@ -1526,6 +1544,7 @@ function updateShop(dt){
   if(banner){ banner.life-=dt; if(banner.life<=0) banner=null; }
 }
 function drawShop(){
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#100818','#1a1030', false);
   uiSparkles(performance.now() * 0.001, 18);

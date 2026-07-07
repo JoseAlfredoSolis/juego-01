@@ -5,6 +5,7 @@ function updateAchievements(dt){
   if(pressed('Enter')||pressed('Escape')||pressed('Space')) changeScene('menu');
 }
 function drawAchievements(){
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1018','#101820', false);
   const got=ACHIEVEMENTS.filter(a=>gs.ach[a.id]).length;
@@ -238,7 +239,7 @@ function loop(ts) {
 
   switch(scene) {
     case 'menu':          drawMenu(t); break;
-    case 'instructions':  drawInstructions(); break;
+    case 'instructions':  updateInstructions(); drawInstructions(); break;
     case 'worldmap':      drawWorldMap(t); break;
     case 'gameplay':      drawGameplay(t); break;
     case 'pause':         drawPause(); break;

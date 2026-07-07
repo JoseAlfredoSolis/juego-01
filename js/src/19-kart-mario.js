@@ -220,10 +220,10 @@ function kartUpdateSlipstream(k, dt) {
 }
 
 function kartCountdownPhase(cd) {
-  if (cd > 3.2) return { text: '', light: 'red', lights: 0 };
-  if (cd > 2.2) return { text: '3', light: 'red', lights: 1 };
-  if (cd > 1.2) return { text: '2', light: 'red', lights: 2 };
-  if (cd > 0.2) return { text: '1', light: 'red', lights: 3 };
+  if (cd > 2.3) return { text: '', light: 'red', lights: 0 };
+  if (cd > 1.5) return { text: '3', light: 'red', lights: 1 };
+  if (cd > 0.7) return { text: '2', light: 'red', lights: 2 };
+  if (cd > 0.15) return { text: '1', light: 'red', lights: 3 };
   if (cd > 0) return { text: 'GO!', light: 'green', lights: 0 };
   return { text: '', light: 'go', lights: 0 };
 }
@@ -241,7 +241,7 @@ function kartCheckStartBoost(k) {
       k.pendingStartBoost = 160;
     } else {
       k.startBoost = 'early';
-      k.stunTimer = 0.8;
+      k.stunTimer = 0.5;
       k.speed = 0;
       spawnText(k.x, k.y - 20, 'DEMASIADO PRONTO!', '#f44', 14);
     }
@@ -287,8 +287,8 @@ function kartDrawTrafficLights(t) {
     ctx.fillStyle = phase.text === 'GO!' ? UI.green : UI.gold;
     ctx.fillText(phase.text, cx, cy + 110);
   }
-  if (race.countdown > 0 && race.countdown < 0.35) {
-    hud('¡Acelera para boost de salida!', W / 2, H - 88, UI.cyan, 15, 'center');
+  if (race.countdown > 0 && race.countdown < 0.55) {
+    hud('¡Mantén acelerar para boost de salida!', W / 2, H - 88, UI.cyan, 15, 'center');
   }
 }
 

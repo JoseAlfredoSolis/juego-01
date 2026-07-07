@@ -28,6 +28,7 @@ export async function waitForSnapshot(page, key, timeout = 10000) {
         kartmenu: s.scene === 'kartmenu',
         kartlobby: s.scene === 'kartlobby',
         kart_race: s.scene === 'kart',
+        kart_race_3d: s.scene === 'kart' && s.threeOn && s.kart3d,
         pomworld: s.scene === 'pomworld',
         bikiworld: s.scene === 'bikiworld',
         gallery: s.scene === 'gallery',

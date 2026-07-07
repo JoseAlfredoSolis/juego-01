@@ -229,7 +229,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v84';
+const GAME_VERSION = 'v89';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 12;           // FOREST..COSMOS + POMERANIAN + BIKINI
@@ -3630,15 +3630,15 @@ function drawGameplay(t) {
     drawPlatforms(ld.platforms, gs.world);
     for (const it of items) drawCollectible(it, t);
     for (const e of enemies) drawEnemy(e);
+    drawCheckpoints();
+    drawHazards();
+    drawProjectiles();
+    drawGoal(...goalPos, t);
+    drawFx();
+    drawParticles();
+    drawPlayer(player);
+    drawRemotePlayer();
   }
-  drawCheckpoints();
-  drawHazards();
-  drawProjectiles();
-  if (!use3d) drawGoal(...goalPos, t);
-  drawFx();
-  drawParticles();
-  if (!(typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly())) drawPlayer(player);
-  drawRemotePlayer();
   cam.x = sx; cam.y = sy;
   drawFlash();
   drawBanner();
@@ -3929,7 +3929,7 @@ function drawMenu(t) {
     if (lay.mode === 'land') hud('Plataformas 2D · PWA movil', W / 2, 142 + bob, UI.dim, 15, 'center');
     uiPanel(W / 2 - lay.pw / 2, lay.py, lay.pw, lay.ph, 14);
     for (let i = 0; i < menuItems.length; i++) {
-      uiMenuRow(menuItems[i], lay.startY + i * lay.rowH, i === menuSel, lay.rw, lay.rh, i);
+      uiMenuRow(mobMenuLabel(menuItems[i]), lay.startY + i * lay.rowH, i === menuSel, lay.rw, lay.rh, i);
     }
     uiPill(12, 22, 'Best: ' + gs.highScore, UI.cyan);
     uiWalletBadge(100, 48, gs.wallet);
@@ -3951,24 +3951,29 @@ function drawBearSil(x,y,s) {
 }
 
 // ── Instructions ───────────────────────────────────────────────────────────
+function updateInstructions() {
+  if (pressed('Enter') || pressed('Escape')) changeScene('menu');
+}
 function drawInstructions() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#0a180a','#0d2b0d', false);
   uiTitle('INSTRUCCIONES', 72, 40);
   uiPanel(W/2-340, 95, 680, 560, 18);
   const lines=[
-    ['MOVE','← → / A D'],['JUMP','Space / W / ↑'],['DOUBLE JUMP','Double Jump power-up + Space'],
-    ['SPECIAL','J / Shift  (boton SP)  — unico por personaje'],
-    ['STOMP','Jump on enemies to defeat them'],
-    ['CHECKPOINT','Bandera verde: reapareces ahi al morir'],
-    ['PELIGROS','Evita pinchos y sierras (el dash/escudo te protege)'],
-    ['PAUSE','Esc / P'],['',''],
-    ['COINS','50 pts  ★ Stars: 200 pts'],['ENEMIES','100 pts  Boss: 1000 pts'],
-    ['TIPOS','Patrulla, perseguidor, volador, saltarin, escupidor'],
-    ['+ TIPOS','Cazador  ·  Blindado (embiste)  ·  Mini-jefe (dispara/invoca)'],
-    ['GOAL','Reach the green flag → 500 pts'],['',''],
-    ['ONLINE','Menu MULTIJUGADOR: crea sala o unete con codigo de 6 letras'],
-    ['INVITAR','Copia el enlace y envialo — ambos juegan el mismo nivel'],
-    ['POWER-UPS','2x=Double Jump  →→=Speed  ★=Invincible'],
+    ['MOVER','← → / A D'],['SALTAR','Espacio / W / ↑'],
+    ['DOBLE SALTO','Power-up Doble Salto + Espacio'],
+    ['ESPECIAL','J / Shift — único por personaje'],
+    ['PISAR','Salta sobre enemigos para eliminarlos'],
+    ['CHECKPOINT','Bandera verde: reapareces ahí'],
+    ['PELIGROS','Pinchos y sierras (dash/escudo protege)'],
+    ['PAUSA','Esc / P'],['',''],
+    ['MONEDAS','50 pts · Estrellas 200 pts'],['ENEMIGOS','100 pts · Jefe 1000 pts'],
+    ['TIPOS','Patrulla, perseguidor, volador, saltarín'],
+    ['+ TIPOS','Cazador · Blindado · Mini-jefe'],
+    ['META','Bandera verde → 500 pts'],['',''],
+    ['ONLINE','Multijugador: sala o código 6 letras'],
+    ['INVITAR','Copia el enlace — mismo nivel'],
+    ['POWER-UPS','2x=Doble salto · →→=Velocidad · ★=Invencible'],
   ];
   ctx.textAlign='left'; ctx.font='18px monospace';
   lines.forEach(([k,v],i)=>{
@@ -3977,7 +3982,6 @@ function drawInstructions() {
     ctx.fillStyle=UI.bright; ctx.fillText(v,W/2-60,118+i*34);
   });
   uiFooter('Enter / Esc para volver');
-  if (pressed('Enter')||pressed('Escape')) changeScene('menu');
 }
 
 // ── Pomeranian World Screen ─────────────────────────────────────────────────
@@ -4248,6 +4252,7 @@ function updateGallery(dt) {
   if (pressed('Escape') || pressed('Enter')) { changeScene('menu'); }
 }
 function drawGallery(t) {
+  if (document.body.classList.contains('mob-menu-html')) return;
   const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1420', '#1a2840');
@@ -4772,6 +4777,7 @@ function updatePause(dt) {
 }
 
 function drawPause() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   drawBg(levelData.bg, levelData.levelW);
   drawPlatforms(levelData.platforms, gs.world);
   for (const it of items) drawCollectible(it, gameTimer);
@@ -4789,6 +4795,10 @@ let goSel=0, goT=0;
 
 function updateGameOver(dt) {
   goT+=dt;
+  mobBindMenu(() => goSel, v => { goSel = v; });
+  mobBindSwipe(dir => {
+    if (dir === 'left' || dir === 'right') goSel = (goSel + 1) % 2;
+  });
   if (pressed('ArrowLeft')||pressed('ArrowRight')) goSel=(goSel+1)%2;
   if (pressed('Enter')||pressed('Space')) {
     if (goSel===0) { gs.lives=startLives(); startLevel(); changeScene('gameplay'); }
@@ -4797,6 +4807,7 @@ function updateGameOver(dt) {
 }
 
 function drawGameOver() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#1a0505','#3a0808', false);
   const scale=1+Math.sin(goT*3)*0.04;
   ctx.save(); ctx.translate(W/2,H/2-90); ctx.scale(scale,scale);
@@ -4805,8 +4816,10 @@ function drawGameOver() {
   hud('Score: '+gs.score+'    Monedas: '+gs.coins, W/2, H/2+10, UI.bright, 22, 'center');
   hud('Record: '+gs.highScore, W/2, H/2+44, UI.cyan, 20, 'center');
   uiBtn(W/2-200,H/2+80,180,48,'REINTENTAR',goSel===0);
-  uiBtn(W/2+20,H/2+80,180,48,'MENU',goSel===1);
-  uiFooter('Flechas + Enter');
+  mobRegisterRow(W/2-200,H/2+80,180,48,0);
+  uiBtn(W/2+20,H/2+80,180,48,'MENÚ',goSel===1);
+  mobRegisterRow(W/2+20,H/2+80,180,48,1);
+  uiFooter('← → elegir · Enter confirmar · Clic en botón');
 }
 
 // ── Level Complete Scene ────────────────────────────────────────────────────
@@ -4818,6 +4831,7 @@ function updateLevelComplete(dt) {
   }
 }
 function drawLevelComplete() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#06340f','#0a5a1e');
   const bob=Math.sin(lcT*3)*6;
   uiTitle('NIVEL COMPLETO!', 130+bob, 50);
@@ -4849,6 +4863,7 @@ function updateVictory(dt) {
   }
 }
 function drawVictory() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#142a5a','#3a1a5a');
   for(let i=0;i<90;i++){
     const x=(i*137+vicT*40)%W, y=((i*89)+vicT*120)%H;
@@ -4897,6 +4912,7 @@ function updateSettings(dt) {
   }
 }
 function drawSettings() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1420','#0d1b2a', false);
 
@@ -4986,6 +5002,7 @@ function updateCredits(dt) {
   if (pressed('Enter')||pressed('Escape')||pressed('Space')) changeScene('menu');
 }
 function drawCredits() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#0a1018','#101820', false);
   uiTitle('CREDITOS', 90, 42);
   uiPanel(W/2-300,130,600,420,18);
@@ -5050,6 +5067,7 @@ function drawCharThumbStrip(cx, cy, sel, n, maxShow) {
 }
 
 function drawCharSelect() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1018', '#142038', false); uiSparkles(charT * 0.3, 24);
 
@@ -5174,6 +5192,7 @@ function updateShop(dt){
   if(banner){ banner.life-=dt; if(banner.life<=0) banner=null; }
 }
 function drawShop(){
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#100818','#1a1030', false);
   uiSparkles(performance.now() * 0.001, 18);
@@ -5294,6 +5313,7 @@ function updateAchievements(dt){
   if(pressed('Enter')||pressed('Escape')||pressed('Space')) changeScene('menu');
 }
 function drawAchievements(){
+  if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
   uiBgGrad('#0a1018','#101820', false);
   const got=ACHIEVEMENTS.filter(a=>gs.ach[a.id]).length;
@@ -5527,7 +5547,7 @@ function loop(ts) {
 
   switch(scene) {
     case 'menu':          drawMenu(t); break;
-    case 'instructions':  drawInstructions(); break;
+    case 'instructions':  updateInstructions(); drawInstructions(); break;
     case 'worldmap':      drawWorldMap(t); break;
     case 'gameplay':      drawGameplay(t); break;
     case 'pause':         drawPause(); break;
@@ -6432,20 +6452,37 @@ function kartDrawItemBoxes(tr, t) {
 function kartCpPos(tr, i) {
   return tr.checkpoints[i];
 }
+function kartSpeedKmh(speed) {
+  return Math.round(Math.abs(speed || 0) * 2.6);
+}
 function kartInTrack(tr, x, y) {
   const near = kartNearestOnAnyPath(tr, x, y);
-  const half = (near.onShortcut ? (near.shortcut?.width || 76) : tr.roadWidth) * 0.68;
+  const half = (near.onShortcut ? (near.shortcut?.width || 76) : tr.roadWidth) * 0.72;
   return near.dist <= half;
 }
 function kartPushToTrack(tr, k) {
   if (k._offTrackGrace > 0) return;
   const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.mega ? 160 : tr.huge ? 140 : 80);
-  k.x = near.x;
-  k.y = near.y;
-  k.angle = lerpAngle(k.angle, near.angle, 0.35);
-  k.speed *= 0.84;
-  if (!k._offTrackGrace) k._offTrackGrace = 0.55;
-  spawnParticles(k.x, k.y, '#ccc', 6, 180);
+  const half = (near.onShortcut ? (near.shortcut?.width || 76) : tr.roadWidth) * 0.72;
+  const overshoot = Math.max(0, near.dist - half);
+  const pull = Math.min(1, 0.22 + overshoot / Math.max(half, 40));
+  k.x = lerp(k.x, near.x, pull);
+  k.y = lerp(k.y, near.y, pull);
+  k.angle = lerpAngle(k.angle, near.angle, 0.16 + pull * 0.12);
+  k.speed *= 0.97 - pull * 0.03;
+  if (overshoot > half * 0.45) {
+    if (!k._offTrackWarn) {
+      k._offTrackWarn = 0.55;
+      if (!k.ai && k.idx === kartLocalIdx()) spawnText(k.x, k.y - 20, '¡CÉSPED!', tr.grass?.[0] || '#8a8', 13);
+    }
+    spawnParticles(k.x, k.y, tr.grass?.[0] || '#6a5', 3, 100);
+  }
+  if (overshoot > half * 1.1) {
+    k.x = lerp(k.x, near.x, 0.5);
+    k.y = lerp(k.y, near.y, 0.5);
+    k.speed *= 0.9;
+    k._offTrackGrace = 0.3;
+  }
 }
 function lerpAngle(a, b, t) {
   return a + kartAngleDiff(b, a) * t;
@@ -6467,7 +6504,8 @@ function mkKart(idx, tr, cfg) {
     startBoostAttempt: false, pendingStartBoost: 0,
     chassis: cfg.chassis || 0, wheels: cfg.wheels || 0, glider: cfg.glider || 0,
     input: { steer: 0, accel: 0, brake: 0, drift: false, useItem: false },
-    _stuckT: 0, _stuckCp: 0, _stuckLap: 0, _offTrackGrace: 0,
+    _stuckT: 0, _stuckCp: 0, _stuckLap: 0, _offTrackGrace: 0, _offTrackWarn: 0,
+    _shortcutSc: null, _shortcutTimer: 0, _shortcutDur: 0, _surfHud: '', _surfHudT: 0,
   };
   kartInitJumpState(k);
   return k;
@@ -6529,7 +6567,7 @@ function startKartRace(solo) {
   tr.items.forEach(b => { b.taken = false; });
   const roster = kartBuildRoster(solo);
   race = {
-    track: tr, solo: !!solo, phase: 'countdown', countdown: 4.5,
+    track: tr, solo: !!solo, phase: 'countdown', countdown: 3.2,
     timer: 0, karts: [],
     itemCd: 0, camX: tr.starts[0].x, camY: tr.starts[0].y, camFocusX: tr.starts[0].x, camFocusY: tr.starts[0].y,
     camAngle: 0, camZoom: 1, camFocal: 460, camHorizon: H * 0.34, camBaseY: H * 0.82, syncAcc: 0,
@@ -6558,8 +6596,8 @@ function startKartRace(solo) {
   if (!gs._hintKart) {
     gs._hintKart = true;
     showBanner(document.body.classList.contains('touch')
-      ? '◀▶ girar · ▲ acelera · ▼ freno · JUMP=deriva · Arrastra derecha=cámara'
-      : '←→ girar · ↓ freno · Espacio deriva · Aceleración automática · Q/E cámara', '#ff8020');
+      ? '◀▶ girar · ▲ acelera · ▼ freno · DRIFT/ITEM · Zona arriba-dcha=deriva'
+      : '←→ girar · ↓ freno · Espacio deriva · J=objeto · Aceleración automática · Q/E cámara', '#ff8020');
   }
   kartResultsT = 0;
   sfx.select();
@@ -6606,7 +6644,7 @@ function kartCheckRaceEnd(dt) {
   const done = race.karts.filter(k => k.finished);
   if (done.length && !race.endTimer) {
     const leader = done.slice().sort((a, b) => a.finishTime - b.finishTime)[0];
-    race.endTimer = 28;
+    race.endTimer = 22;
     race.leaderName = leader?.name || 'Líder';
     showBanner('META: ' + race.leaderName, '#ffd700');
   }
@@ -6656,22 +6694,44 @@ function kartReadInput(k) {
   k.input.drift = held('Space');
   k.input.useItem = pressed('KeyJ') || pressed('ShiftLeft');
 }
-function kartAIInput(k, tr) {
+function kartAIShortcutTarget(k, tr, near, dt) {
+  if (k._shortcutSc && k._shortcutTimer > 0) {
+    k._shortcutTimer -= dt;
+    const sc = k._shortcutSc;
+    const path = sc.path;
+    const prog = 1 - Math.max(0, k._shortcutTimer) / Math.max(0.01, k._shortcutDur || 2.5);
+    const idx = Math.min(path.length - 1, Math.floor(prog * (path.length - 1)));
+    return path[idx];
+  }
+  k._shortcutSc = null;
+  if (!tr.shortcuts?.length || near.onShortcut) return null;
+  const rank = k.rank || 8;
+  if (rank < 4 && Math.random() > 0.08) return null;
+  for (const sc of tr.shortcuts) {
+    const entry = sc.path[0];
+    const d = Math.hypot(entry.x - k.x, entry.y - k.y);
+    if (d > 150) continue;
+    const takeChance = rank >= 6 ? 0.72 : rank >= 4 ? 0.48 : 0.18;
+    if (d < 90 || Math.random() < takeChance) {
+      k._shortcutSc = sc;
+      k._shortcutDur = 2.4 + sc.path.length * 0.35;
+      k._shortcutTimer = k._shortcutDur;
+      return entry;
+    }
+  }
+  return null;
+}
+function kartAIInput(k, tr, dt) {
   const near = kartNearestOnAnyPath(tr, k.x, k.y, tr.mega ? 180 : tr.huge ? 120 : 72);
   const spdFactor = Math.min(1, Math.abs(k.speed) / 420);
   const lookAhead = (tr.mega ? 0.012 : tr.huge ? 0.02 : 0.045) + spdFactor * 0.04;
   let lookU = near.u + lookAhead;
-  if (!near.onShortcut && tr.shortcuts && Math.random() < 0.012) {
-    const sc = tr.shortcuts[0];
-    if (sc?.path?.[0]) {
-      const dx = sc.path[0].x - k.x, dy = sc.path[0].y - k.y;
-      if (Math.hypot(dx, dy) < 120) lookU = near.u;
-    }
-  }
+  const scTarget = kartAIShortcutTarget(k, tr, near, dt);
   if (lookU > 1) lookU -= 1;
-  const target = near.onShortcut && near.shortcut
-    ? near.shortcut.path[Math.min(near.shortcut.path.length - 1, Math.floor(lookU * near.shortcut.path.length))]
-    : kartPathSample(tr, lookU);
+  const target = scTarget
+    || (near.onShortcut && near.shortcut
+      ? near.shortcut.path[Math.min(near.shortcut.path.length - 1, Math.floor(lookU * near.shortcut.path.length))]
+      : kartPathSample(tr, lookU));
   const dx = target.x - k.x, dy = target.y - k.y;
   const want = Math.atan2(dy, dx);
   let diff = kartAngleDiff(want, k.angle);
@@ -6698,13 +6758,19 @@ function kartSimKart(k, dt, tr) {
   if (k.stunTimer > 0) {
     k.stunTimer -= dt;
     if (k._offTrackGrace > 0) k._offTrackGrace -= dt;
-    k.speed *= 0.92;
+    const inp = k.input;
+    const st = k.stats || kartBuildStats(k.char, k.chassis, k.wheels, k.glider);
+    const grip = kartGrip(tr, k.x, k.y, k.angle) * (st.grip || 1);
+    let turn = KART_TURN * grip * (st.handling || 1) * 0.38;
+    if (inp.steer) k.angle += inp.steer * turn * dt;
+    k.speed *= 0.94;
     k.x += Math.cos(k.angle) * k.speed * dt;
     k.y += Math.sin(k.angle) * k.speed * dt;
     return;
   }
-  if (k.shieldTimer > 0) k.shieldTimer -= dt;
+  if (k._offTrackWarn > 0) k._offTrackWarn -= dt;
   if (k._offTrackGrace > 0) k._offTrackGrace -= dt;
+  if (k.shieldTimer > 0) k.shieldTimer -= dt;
   if (k.starTimer > 0) {
     k.starTimer -= dt;
     k.boost = Math.max(k.boost, 160);
@@ -6717,9 +6783,12 @@ function kartSimKart(k, dt, tr) {
   grip = surf.grip;
   if (surf.label && !k._surfWarn) {
     k._surfWarn = 0.5;
-    spawnText(k.x, k.y - 18, surf.label, '#48f', 13);
+    k._surfHud = surf.label;
+    k._surfHudT = 1.8;
+    spawnText(k.x, k.y - 18, surf.label, surf.label === 'AGUA' ? '#48f' : '#fa4', 13);
   }
   if (k._surfWarn > 0) k._surfWarn -= dt;
+  if (k._surfHudT > 0) k._surfHudT -= dt;
   let turn = KART_TURN * grip * (st.handling || 1) * (0.72 + 0.28 * Math.min(1, Math.abs(k.speed) / 180));
   if (inp.drift && inp.steer) turn *= 1.55;
   if (inp.brake && inp.steer) turn *= 1.12;
@@ -6818,7 +6887,7 @@ function kartHostSim(dt) {
   kartUpdateBlueShells(dt);
   const localIdx = kartLocalIdx();
   for (const k of race.karts) {
-    if (k.ai) kartAIInput(k, race.track);
+    if (k.ai) kartAIInput(k, race.track, dt);
     else if (k.idx === localIdx || (race.solo && k.idx === 0)) kartReadInput(k);
     kartAIStuckRecovery(k, race.track, dt);
     kartSimKart(k, dt, race.track);
@@ -7066,17 +7135,17 @@ function drawKart(t) {
     drawKartTrack(race.track, t);
     const sorted = [...race.karts].sort((a, b) => kartWorldToCam(b.x, b.y).y - kartWorldToCam(a.x, a.y).y);
     for (const k of sorted) drawKartEntity(k, race.track);
-    const meFx = race.karts[kartLocalIdx()];
-    if (meFx) {
-      const sf = Math.min(1, Math.abs(meFx.speed || 0) / 450);
-      const bf = Math.min(1, (meFx.boost || 0) / 180);
-      if (sf > 0.35 || bf > 0.3) {
-        const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.72);
-        vig.addColorStop(0, 'rgba(0,0,0,0)');
-        vig.addColorStop(1, `rgba(0,0,0,${0.12 + sf * 0.14 + bf * 0.1})`);
-        ctx.fillStyle = vig;
-        ctx.fillRect(0, 0, W, H);
-      }
+  }
+  const meFx = race.karts[kartLocalIdx()];
+  if (meFx && race.phase === 'racing') {
+    const sf = Math.min(1, Math.abs(meFx.speed || 0) / 450);
+    const bf = Math.min(1, (meFx.boost || 0) / 180);
+    if (sf > 0.35 || bf > 0.3) {
+      const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.72);
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, `rgba(0,0,0,${0.12 + sf * 0.14 + bf * 0.1})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, W, H);
     }
   }
   fillRR(8, 8, W - 16, 56, 14, 'rgba(8,12,20,0.85)');
@@ -7090,7 +7159,7 @@ function drawKart(t) {
     const lapProg = Math.min(1, (me.lap * cpN + me.cp) / Math.max(1, laps * cpN));
     fillRR(24, 86, W - 48, 8, 4, 'rgba(0,0,0,0.45)');
     fillRR(24, 86, (W - 48) * lapProg, 8, 4, race.track.accent || UI.cyan);
-    const spdKmh = Math.round(Math.abs(me.speed) * 0.55);
+    const spdKmh = kartSpeedKmh(me.speed);
     hud(spdKmh + ' km/h', W - 28, 38, UI.cyan, 20, 'right');
     hud(((race.track.huge || race.track.mega) ? 'SECTOR ' : 'CP ') + (me.cp + 1) + '/' + cpN, 24, 58, UI.dim, 14);
     if (me.coins > 0) hud('🪙 ' + me.coins, 24, 78, UI.gold, 14);
@@ -7125,11 +7194,14 @@ function drawKart(t) {
   else if (race.solo) uiPill(W / 2 - 65, H - 36, '8 CORREDORES', UI.green);
   if (me) kartDrawMiniMap(race.track, me, race.karts);
   if (me && race.phase === 'racing') {
-    const spd = Math.hypot(me.vx || 0, me.vy || 0) || me.speed || 0;
+    const spdKmh = kartSpeedKmh(me.speed);
     fillRR(10, H - 50, 120, 40, 10, 'rgba(8,12,20,0.82)');
     hud('P' + (me.rank || '?') + '/' + race.karts.length, 22, H - 34, UI.gold, 14);
-    hud(Math.round(spd * 2.6) + ' km/h', 22, H - 16, UI.cyan, 16);
+    hud(spdKmh + ' km/h', 22, H - 16, UI.cyan, 16);
     if (me.boost > 50) hud('BOOST', 100, H - 34, '#ff0', 10);
+    if (me._surfHudT > 0 && me._surfHud) {
+      hud(me._surfHud, 70, H - 34, me._surfHud === 'AGUA' ? '#48f' : '#fa4', 11);
+    }
   }
   uiFooter('←→ Girar · ↓ Freno · Espacio=Deriva · J=Objeto · Esc=Salir');
   drawBanner();
@@ -7143,6 +7215,7 @@ function updateKartResults(dt) {
   }
 }
 function drawKartResults() {
+  if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#0a1420', '#1a2840');
   uiTitle('RESULTADOS', 80, 44);
   if (!race) { uiFooter('Enter para volver'); return; }
@@ -7479,11 +7552,22 @@ function mobProcessNav() {
 }
 
 function mobUiSync() {
-  if (!document.body.classList.contains('touch')) {
-    document.body.classList.remove('playing', 'mob-menu', 'mob-join', 'mob-nav-wide', 'kart-race', 'portrait', 'mob-menu-html');
+  const s = gs.scene;
+  if (s !== 'settings') mobSettingsResetArm = 0;
+  const isTouch = document.body.classList.contains('touch');
+
+  if (!isTouch) {
+    document.body.classList.toggle('mob-menu', MOB_MENU_SCENES.includes(s));
+    document.body.classList.toggle('playing', MOB_PLAY_SCENES.includes(s));
+    document.body.classList.remove('mob-join', 'mob-nav-wide', 'kart-race', 'portrait', 'landscape');
+    if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s)
+      && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
+      if (typeof threeEnsure === 'function') threeEnsure();
+    }
+    mobMenuHtmlSync();
+    if (typeof resize === 'function') resize();
     return;
   }
-  const s = gs.scene;
   const playing = MOB_PLAY_SCENES.includes(s);
   const menu = MOB_MENU_SCENES.includes(s);
   const join = MOB_JOIN_SCENES.includes(s);
@@ -7495,6 +7579,10 @@ function mobUiSync() {
   document.body.classList.toggle('kart-race', s === 'kart');
   document.body.classList.toggle('portrait', portrait);
   document.body.classList.toggle('landscape', !portrait);
+  const bJump = document.getElementById('bJump');
+  const bSp = document.getElementById('bSp');
+  if (bJump) bJump.textContent = s === 'kart' ? 'DRIFT' : 'JUMP';
+  if (bSp) bSp.textContent = s === 'kart' ? 'ITEM' : 'SP';
   if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s) && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
     if (typeof threeEnsure === 'function') threeEnsure();
   }
@@ -7642,15 +7730,44 @@ function setupDesktopPointer() {
 
 let mobMenuHtmlScene = '';
 let mobKartSelectSel = 0;
+let mobSettingsResetArm = 0;
+
+function mobUiHaptic(ms) {
+  if (typeof gs !== 'undefined' && gs.vibration && navigator.vibrate) {
+    try { navigator.vibrate(ms || 10); } catch (_) {}
+  }
+}
+
+function mobMenuLabel(key) {
+  if (typeof MENU_META !== 'undefined' && MENU_META[key]) return MENU_META[key].title;
+  return key;
+}
+
+function mobMenuDesc(key) {
+  if (typeof MENU_META !== 'undefined' && MENU_META[key]) return MENU_META[key].desc || '';
+  return '';
+}
+
+function htmlMenuCanvasScenes() {
+  if (typeof mobUseDesktopMenu !== 'function' || !mobUseDesktopMenu()) return [];
+  return [
+    'menu', 'worldmap', 'shop', 'gallery', 'charselect', 'settings', 'achievements',
+    'kartmenu', 'kartcup', 'kartselect', 'kartlobby',
+  ];
+}
 
 function mobGetHtmlMenuConfig() {
-  if (!document.body.classList.contains('touch')) return null;
   if (!MOB_MENU_SCENES.includes(gs.scene)) return null;
+  if (htmlMenuCanvasScenes().includes(gs.scene)) return null;
 
   if (gs.scene === 'menu' && typeof menuItems !== 'undefined') {
     return {
       type: 'list', theme: 'green', title: 'SUPER BEAR', subtitle: 'ADVENTURE',
-      items: menuItems, getSel: () => menuSel, setSel: v => { menuSel = v; },
+      items: menuItems.map(mobMenuLabel),
+      itemDescs: menuItems.map(mobMenuDesc),
+      sections: typeof MENU_SECTIONS !== 'undefined' ? MENU_SECTIONS : null,
+      keys: menuItems,
+      getSel: () => menuSel, setSel: v => { menuSel = v; },
       onPick: () => mobQueueAction('ok'), showMeta: true,
     };
   }
@@ -7740,6 +7857,9 @@ function mobGetHtmlMenuConfig() {
   if (gs.scene === 'settings') {
     const viewLbl = typeof threeCanUse === 'function' && threeCanUse()
       ? (gs.viewMode === '3d' ? '3D' : '2D') : '2D';
+    const resetLbl = mobSettingsResetArm
+      ? '⚠ Toca otra vez para BORRAR todo'
+      : 'Reiniciar progreso';
     return {
       type: 'settings', theme: 'blue', title: 'AJUSTES', subtitle: 'Toca para cambiar',
       items: [
@@ -7750,6 +7870,7 @@ function mobGetHtmlMenuConfig() {
         'Sacudida: ' + (gs.fxShake ? 'ON' : 'OFF'),
         'Partículas: ' + (gs.fxParticles ? 'ON' : 'OFF'),
         'Vibración: ' + (gs.vibration ? 'ON' : 'OFF'),
+        resetLbl,
         '← VOLVER AL MENÚ',
       ],
       onPick: idx => {
@@ -7763,9 +7884,187 @@ function mobGetHtmlMenuConfig() {
         else if (idx === 4) { gs.fxShake = !gs.fxShake; }
         else if (idx === 5) { gs.fxParticles = !gs.fxParticles; }
         else if (idx === 6) { gs.vibration = !gs.vibration; }
-        else if (idx === 7) { saveGame(); changeScene('menu'); return; }
+        else if (idx === 7) {
+          if (!mobSettingsResetArm) {
+            mobSettingsResetArm = 1;
+            sfx.hurt();
+            mobMenuHtmlScene = '';
+            mobMenuHtmlSync();
+            return;
+          }
+          resetProgress();
+          mobSettingsResetArm = 0;
+          saveGame();
+          changeScene('menu');
+          return;
+        }
+        else if (idx === 8) { mobSettingsResetArm = 0; saveGame(); changeScene('menu'); return; }
+        mobSettingsResetArm = 0;
         sfx.select(); saveGame();
         mobMenuHtmlScene = ''; mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'shop' && typeof buildShop === 'function') {
+    const list = buildShop();
+    return {
+      type: 'shop', theme: 'orange', title: 'TIENDA',
+      subtitle: '🪙 ' + gs.wallet + ' monedas',
+      detail: list.length ? 'Toca un artículo para comprar' : '¡Todo comprado!',
+      items: list.length
+        ? list.map(o => o.label + ' — ' + o.cost + ' 🪙')
+        : ['Volver al menú'],
+      shopList: list,
+      getSel: () => shopSel,
+      setSel: v => { shopSel = v; },
+      onPick: idx => {
+        if (!list.length) { changeScene('menu'); return; }
+        shopSel = idx;
+        buyShop(list[idx]);
+        mobMenuHtmlScene = '';
+        mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'gameover') {
+    return {
+      type: 'list', theme: 'orange', title: 'GAME OVER',
+      subtitle: 'Puntos: ' + gs.score + ' · Monedas: ' + gs.coins,
+      detail: 'Récord: ' + gs.highScore,
+      items: ['REINTENTAR', 'MENÚ PRINCIPAL'],
+      getSel: () => goSel, setSel: v => { goSel = v; },
+      onPick: idx => {
+        if (idx === 0) { gs.lives = startLives(); startLevel(); changeScene('gameplay'); }
+        else { gs.lives = startLives(); gs.score = 0; gs.coins = 0; changeScene('menu'); menuSel = 0; }
+      },
+    };
+  }
+  if (gs.scene === 'levelcomplete') {
+    const stars = lcStats.time < 25 ? 3 : lcStats.time < 45 ? 2 : 1;
+    return {
+      type: 'list', theme: 'green', title: '¡NIVEL COMPLETO!',
+      subtitle: 'Mundo ' + (lcStats.world + 1) + ' · Nivel ' + (lcStats.level + 1),
+      detail: '★'.repeat(stars) + '☆'.repeat(3 - stars) + ' · Score ' + gs.score,
+      items: ['CONTINUAR'],
+      onPick: () => { sfx.select(); advanceLevel(); },
+    };
+  }
+  if (gs.scene === 'victory') {
+    return {
+      type: 'list', theme: 'green', title: '¡VICTORIA!',
+      subtitle: 'Completaste los ' + WORLD_COUNT + ' mundos',
+      detail: 'Score final: ' + gs.score + ' · Récord: ' + gs.highScore,
+      items: ['VOLVER AL MENÚ'],
+      onPick: () => {
+        gs.lives = startLives(); gs.score = 0; gs.coins = 0; gs.world = 0; gs.level = 0;
+        changeScene('menu'); menuSel = 0;
+      },
+    };
+  }
+  if (gs.scene === 'achievements' && typeof ACHIEVEMENTS !== 'undefined') {
+    const got = ACHIEVEMENTS.filter(a => gs.ach[a.id]).length;
+    return {
+      type: 'list', theme: 'blue', title: 'LOGROS',
+      subtitle: got + ' / ' + ACHIEVEMENTS.length + ' desbloqueados',
+      items: ACHIEVEMENTS.map(a => (gs.ach[a.id] ? '✓ ' : '○ ') + a.name),
+      itemDescs: ACHIEVEMENTS.map(a => a.desc),
+      onPick: () => changeScene('menu'),
+    };
+  }
+  if (gs.scene === 'charselect' && typeof CHARACTERS !== 'undefined') {
+    const ch = CHARACTERS[charSel];
+    const unlocked = isCharUnlocked(charSel);
+    return {
+      type: 'list', theme: 'green', title: 'PERSONAJES',
+      subtitle: ch.name,
+      detail: unlocked ? ch.desc : 'Bloqueado — gana monedas o compra en tienda',
+      items: CHARACTERS.map((c, i) => (isCharUnlocked(i) ? '' : '🔒 ') + c.name),
+      getSel: () => charSel,
+      setSel: v => { charSel = v; },
+      onPick: idx => {
+        charSel = idx;
+        if (isCharUnlocked(idx)) {
+          gs.character = idx;
+          saveGame();
+          sfx.select();
+          changeScene('menu');
+        } else {
+          sfx.hurt();
+          mobMenuHtmlScene = '';
+          mobMenuHtmlSync();
+        }
+      },
+    };
+  }
+  if (gs.scene === 'gallery' && typeof CHARACTERS !== 'undefined') {
+    const c = CHARACTERS[gallerySel];
+    const unlocked = isCharUnlocked(gallerySel);
+    return {
+      type: 'list', theme: 'blue', title: 'GALERÍA DE HÉROES',
+      subtitle: c.name,
+      detail: (unlocked ? '' : 'Bloqueado · ') + c.desc,
+      items: CHARACTERS.map((ch, i) => (isCharUnlocked(i) ? '' : '🔒 ') + ch.name),
+      getSel: () => gallerySel,
+      setSel: v => { gallerySel = v; },
+      onPick: idx => {
+        gallerySel = idx;
+        sfx.select();
+        mobMenuHtmlScene = '';
+        mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'instructions') {
+    return {
+      type: 'list', theme: 'green', title: 'INSTRUCCIONES', subtitle: 'Controles y mecánicas',
+      items: [
+        'Moverse — ◀ ▶ o A D',
+        'Saltar — Espacio / ▲ / W',
+        'Doble salto — Power-up + Espacio',
+        'Especial — J / SP (único por héroe)',
+        'Pisar enemigos — Salta encima',
+        'Checkpoint — Bandera verde',
+        'Pausa — Esc / II',
+        'Monedas 50 pts · Estrellas 200 pts',
+        'Multijugador — Código de 6 letras',
+        '← VOLVER AL MENÚ',
+      ],
+      onPick: idx => {
+        if (idx >= 9) changeScene('menu');
+      },
+    };
+  }
+  if (gs.scene === 'credits') {
+    return {
+      type: 'list', theme: 'blue', title: 'CRÉDITOS',
+      subtitle: 'Super Bear Adventure',
+      items: [
+        'Diseño y programación',
+        'Motor HTML5 + canvas',
+        'Gráficos y audio procedurales',
+        'Controles táctiles PWA',
+        '¡Gracias por jugar!',
+        '← VOLVER AL MENÚ',
+      ],
+      onPick: idx => { if (idx >= 5) changeScene('menu'); },
+    };
+  }
+  if (gs.scene === 'kartresults' && race) {
+    const sorted = [...race.karts].sort((a, b) => a.rank - b.rank);
+    return {
+      type: 'list', theme: 'purple', title: 'RESULTADOS',
+      subtitle: sorted[0] ? 'Ganador: ' + sorted[0].name : '',
+      items: sorted.map((k, i) => {
+        const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : (i + 1) + '. ';
+        const me = k.idx === kartLocalIdx() ? ' (TÚ)' : '';
+        const time = k.dnf ? 'DNF' : (k.finished ? k.finishTime.toFixed(2) + 's' : '—');
+        return medal + k.name + me + ' · ' + time;
+      }).concat(['VOLVER']),
+      onPick: idx => {
+        if (idx >= sorted.length) {
+          race = null;
+          changeScene(mp.active ? 'kartlobby' : 'kartmenu');
+        }
       },
     };
   }
@@ -7799,7 +8098,12 @@ function mobMenuHtmlSync() {
   }
 
   if (titleEl) titleEl.textContent = cfg.title || '';
-  if (subEl) subEl.textContent = cfg.subtitle || '';
+  if (subEl) {
+    const hint = document.body.classList.contains('touch')
+      ? (cfg.subtitle || '')
+      : ((cfg.subtitle || '') + (cfg.items ? ' · ↑↓ Enter · Clic' : ''));
+    subEl.textContent = hint;
+  }
   if (detail) detail.textContent = cfg.detail || '';
   if (cfg.type === 'kartlobby' && subEl && typeof KART_TRACKS !== 'undefined') {
     subEl.textContent = KART_TRACKS[kartTrackSel].name;
@@ -7899,24 +8203,65 @@ function mobMenuHtmlSync() {
         list.appendChild(btn);
       }
     } else if (cfg.items) {
-      cfg.items.forEach((label, idx) => {
+      const appendItem = (label, idx) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'mmh-item';
         btn.dataset.idx = String(idx);
-        btn.textContent = label;
+        if (cfg.itemDescs?.[idx]) {
+          btn.innerHTML = label + '<span class="mmh-desc">' + cfg.itemDescs[idx] + '</span>';
+        } else {
+          btn.textContent = label;
+        }
+        if (cfg.type === 'shop' && cfg.shopList?.[idx]) {
+          const afford = gs.wallet >= cfg.shopList[idx].cost;
+          btn.classList.toggle('mmh-afford', afford);
+          btn.classList.toggle('mmh-locked', !afford);
+        }
+        if (cfg.keys?.[idx] === 'GALERIA' || label.startsWith('🔒')) btn.classList.toggle('mmh-locked', label.startsWith('🔒'));
         btn.addEventListener('click', e => {
           e.preventDefault();
+          mobUiHaptic(12);
           if (cfg.setSel) cfg.setSel(idx);
           sfx.select();
           if (cfg.onPick) cfg.onPick(idx);
         });
         list.appendChild(btn);
-      });
+      };
+      if (cfg.sections?.length && cfg.keys) {
+        for (let s = 0; s < cfg.sections.length; s++) {
+          const sec = cfg.sections[s];
+          const nextStart = s + 1 < cfg.sections.length ? cfg.sections[s + 1].start : cfg.items.length;
+          const head = document.createElement('p');
+          head.className = 'mmh-section';
+          head.textContent = sec.label;
+          list.appendChild(head);
+          for (let i = sec.start; i < nextStart; i++) appendItem(cfg.items[i], i);
+        }
+      } else {
+        cfg.items.forEach((label, idx) => appendItem(label, idx));
+      }
     }
   }
 
-  if (cfg.type === 'list' && cfg.getSel) {
+  if (gs.scene === 'gallery' && typeof CHARACTERS !== 'undefined' && subEl) {
+    subEl.textContent = CHARACTERS[gallerySel].name;
+    if (detail) {
+      const unlocked = isCharUnlocked(gallerySel);
+      detail.textContent = (unlocked ? '' : 'Bloqueado · ') + CHARACTERS[gallerySel].desc;
+    }
+  } else if (gs.scene === 'charselect' && typeof CHARACTERS !== 'undefined' && subEl) {
+    subEl.textContent = CHARACTERS[charSel].name;
+    if (detail) {
+      detail.textContent = isCharUnlocked(charSel)
+        ? CHARACTERS[charSel].desc
+        : 'Bloqueado — gana monedas o compra en tienda';
+    }
+  } else if (gs.scene === 'shop' && subEl) {
+    subEl.textContent = '🪙 ' + gs.wallet + ' monedas';
+  }
+
+  if (cfg.getSel) {
     const sel = cfg.getSel();
     list.querySelectorAll('.mmh-item').forEach((btn, i) => {
       btn.classList.toggle('sel', i === sel);
@@ -7998,7 +8343,8 @@ function kartInitRaceExtras(tr) {
   race.blueShells = [];
   race.obstacles = [];
   if (!tr.obstacleSpots) return;
-  for (const spot of tr.obstacleSpots) {
+  const spots = tr.mega ? tr.obstacleSpots.filter((_, i) => i % 2 === 0) : tr.obstacleSpots;
+  for (const spot of spots) {
     const p = kartPathSample(tr, spot.u);
     const tg = kartPathTangent(tr, spot.u);
     race.obstacles.push({
@@ -8015,15 +8361,15 @@ function kartUpdateObstacles(dt, tr) {
   for (const ob of race.obstacles) {
     ob.phase += dt * (ob.kind === 'crab' ? 2.2 : 1.4);
     const tg = kartPathTangent(tr, ob.u);
-    const lane = Math.sin(ob.phase) * tr.roadWidth * (tr.mega ? 0.38 : 0.32);
+    const lane = Math.sin(ob.phase) * tr.roadWidth * (tr.mega ? 0.28 : 0.3);
     ob.x = kartPathSample(tr, ob.u).x + Math.cos(tg.angle + Math.PI / 2) * lane;
     ob.y = kartPathSample(tr, ob.u).y + Math.sin(tg.angle + Math.PI / 2) * lane;
     ob.angle = tg.angle;
     for (const k of race.karts) {
       if (k.finished || k.shieldTimer > 0 || k.starTimer > 0) continue;
-      if (Math.hypot(k.x - ob.x, k.y - ob.y) < (tr.mega ? 34 : 28)) {
-        k.speed *= 0.35;
-        k.stunTimer = Math.max(k.stunTimer || 0, 0.6);
+      if (Math.hypot(k.x - ob.x, k.y - ob.y) < (tr.mega ? 28 : 26)) {
+        k.speed *= 0.42;
+        k.stunTimer = Math.max(k.stunTimer || 0, 0.38);
         spawnParticles(k.x, k.y, '#888', 8, 180);
         sfx.hurt();
       }
@@ -8041,7 +8387,7 @@ function kartUpdateHazards(dt) {
       if (k.finished || k.idx === h.owner || k.shieldTimer > 0 || k.starTimer > 0) continue;
       if (Math.hypot(k.x - h.x, k.y - h.y) < 22) {
         k.speed *= 0.4;
-        k.stunTimer = Math.max(k.stunTimer || 0, 1.1);
+        k.stunTimer = Math.max(k.stunTimer || 0, 0.72);
         spawnText(k.x, k.y - 18, 'RESBALON!', '#ff0', 14);
         spawnParticles(h.x, h.y, '#ffe040', 10, 140);
         race.hazards.splice(i, 1);
@@ -8072,7 +8418,7 @@ function kartUpdateProjectiles(dt) {
       }
       if (Math.hypot(k.x - p.x, k.y - p.y) < 26) {
         k.speed *= 0.25;
-        k.stunTimer = Math.max(k.stunTimer || 0, 1.4);
+        k.stunTimer = Math.max(k.stunTimer || 0, 0.9);
         spawnParticles(p.x, p.y, '#40c878', 12, 200);
         spawnText(k.x, k.y - 18, 'GOLPE!', '#f44', 15);
         sfx.hurt();
@@ -8122,7 +8468,7 @@ function kartUseItem(k, tr) {
       if (o.idx === k.idx || o.finished) continue;
       if ((o.rank || 99) < (k.rank || 99)) {
         o.speed *= 0.2;
-        o.stunTimer = Math.max(o.stunTimer || 0, 2.2);
+        o.stunTimer = Math.max(o.stunTimer || 0, 1.4);
         spawnRing(o.x, o.y, '#aaf', 70, 0.4);
       }
     }
@@ -8176,7 +8522,7 @@ function kartUpdateBlueShells(dt) {
         spawnRing(target.x, target.y, '#66ccff', 60, 0.35);
       } else {
         target.speed *= 0.1;
-        target.stunTimer = Math.max(target.stunTimer || 0, 2.5);
+        target.stunTimer = Math.max(target.stunTimer || 0, 1.55);
         spawnParticles(p.x, p.y, '#3080ff', 20, 250);
         addShake(0.2);
         showBanner('GOLPE AZUL!', '#3080ff');
@@ -8554,10 +8900,10 @@ function kartUpdateSlipstream(k, dt) {
 }
 
 function kartCountdownPhase(cd) {
-  if (cd > 3.2) return { text: '', light: 'red', lights: 0 };
-  if (cd > 2.2) return { text: '3', light: 'red', lights: 1 };
-  if (cd > 1.2) return { text: '2', light: 'red', lights: 2 };
-  if (cd > 0.2) return { text: '1', light: 'red', lights: 3 };
+  if (cd > 2.3) return { text: '', light: 'red', lights: 0 };
+  if (cd > 1.5) return { text: '3', light: 'red', lights: 1 };
+  if (cd > 0.7) return { text: '2', light: 'red', lights: 2 };
+  if (cd > 0.15) return { text: '1', light: 'red', lights: 3 };
   if (cd > 0) return { text: 'GO!', light: 'green', lights: 0 };
   return { text: '', light: 'go', lights: 0 };
 }
@@ -8575,7 +8921,7 @@ function kartCheckStartBoost(k) {
       k.pendingStartBoost = 160;
     } else {
       k.startBoost = 'early';
-      k.stunTimer = 0.8;
+      k.stunTimer = 0.5;
       k.speed = 0;
       spawnText(k.x, k.y - 20, 'DEMASIADO PRONTO!', '#f44', 14);
     }
@@ -8621,8 +8967,8 @@ function kartDrawTrafficLights(t) {
     ctx.fillStyle = phase.text === 'GO!' ? UI.green : UI.gold;
     ctx.fillText(phase.text, cx, cy + 110);
   }
-  if (race.countdown > 0 && race.countdown < 0.35) {
-    hud('¡Acelera para boost de salida!', W / 2, H - 88, UI.cyan, 15, 'center');
+  if (race.countdown > 0 && race.countdown < 0.55) {
+    hud('¡Mantén acelerar para boost de salida!', W / 2, H - 88, UI.cyan, 15, 'center');
   }
 }
 
@@ -9152,8 +9498,6 @@ function threeCanUse() {
 
 function gameView3dEnabled() {
   if (!threeCanUse() || gs.viewMode !== '3d') return false;
-  // 3D en vertical móvil dejaba la pista invisible (solo HUD) — forzar 2D al jugar.
-  if (typeof mobTouchPortrait === 'function' && mobTouchPortrait()) return false;
   return true;
 }
 
@@ -9277,6 +9621,34 @@ function threeTexChecker() {
   }, [6, 6]);
 }
 
+function threeTexDirt() {
+  return threeProcTex('dirt', 128, 128, (g, w, h) => {
+    g.fillStyle = '#5a5040';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 350; i++) {
+      const v = 70 + Math.random() * 40;
+      g.fillStyle = `rgba(${v},${55 + Math.random() * 25},${35 + Math.random() * 20},0.35)`;
+      g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+  }, [10, 10]);
+}
+
+function threeTexWater() {
+  return threeProcTex('water', 128, 128, (g, w, h) => {
+    g.fillStyle = '#1a4888';
+    g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 6) {
+      g.strokeStyle = `rgba(120,200,255,${0.12 + (y % 12) * 0.01})`;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      for (let x = 0; x <= w; x += 8) {
+        g.lineTo(x, y + Math.sin(x * 0.08) * 2);
+      }
+      g.stroke();
+    }
+  }, [6, 6]);
+}
+
 function threeTexSky(top, bottom) {
   const key = 'sky_' + top + '_' + bottom;
   return threeProcTex(key, 4, 256, (g, w, h) => {
@@ -9291,7 +9663,7 @@ function threeTexSky(top, bottom) {
 function threeEnhanceRenderer(renderer) {
   if (renderer.toneMapping !== undefined) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.12;
   }
 }
 
@@ -9396,6 +9768,7 @@ function threeClearScene(ctx) {
   ctx.decorGroup = null;
   ctx.trackGroup = null;
   ctx.gameGroup = null;
+  ctx.raceFxGroup = null;
   ctx.playerMesh = null;
   ctx.entityGroup = null;
   ctx.itemMeshes = [];
@@ -9578,7 +9951,7 @@ function threeMkBear(color) {
 
 function threeAddTrackDecor(group, tr, curve) {
   const decor = tr.decor || 'palm';
-  const segs = tr.huge ? 24 : 14;
+  const segs = tr.mega ? 52 : tr.huge ? 36 : 20;
   for (let i = 0; i < segs; i++) {
     const u = i / segs;
     const p = kartPathSample(tr, u);
@@ -9660,16 +10033,39 @@ function threeTrackHeightAt(tr, gx, gy, curve) {
   return curve.getPointAt(near.u).y;
 }
 
-function threeBuildRollingGround(tr, b, sc) {
+function threeShortcutPathPoint(px, py, tr) {
+  const near = kartNearestPath(tr, px, py, 80);
+  return threeTrackPathPoint({ x: px, y: py }, near.u, tr);
+}
+
+function threeSampleShortcutPath(path, frac, tr) {
+  const idx = Math.min(path.length - 2, Math.floor(frac * (path.length - 1)));
+  const p0 = path[idx];
+  const p1 = path[idx + 1];
+  const f = frac * (path.length - 1) - idx;
+  const px = p0.x + (p1.x - p0.x) * f;
+  const py = p0.y + (p1.y - p0.y) * f;
+  return threeShortcutPathPoint(px, py, tr);
+}
+
+function threeBuildAlignedGround(tr, b, sc, curve) {
+  const { tcx, tcy } = threeTrackScale(tr);
   const gw = (b.maxX - b.minX) * sc + 55;
   const gh = (b.maxY - b.minY) * sc + 55;
-  const geo = new THREE.PlaneGeometry(gw, gh, 36, 36);
+  const geo = new THREE.PlaneGeometry(gw, gh, 44, 44);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
+  const pathSamples = tr.mega ? 100 : tr.huge ? 72 : 56;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
-    const h = Math.sin(x * 0.065) * 2.2 + Math.cos(z * 0.055) * 1.6
-      + Math.sin((x + z) * 0.038) * 0.9 - 1.8;
+    const gx = x / sc + tcx;
+    const gy = z / sc + tcy;
+    const near = kartNearestPath(tr, gx, gy, pathSamples);
+    const pathY = curve.getPointAt(near.u).y;
+    const dist = near.dist * sc;
+    const shoulder = Math.min(1, Math.max(0, (dist - 3.5) / 13));
+    const noise = Math.sin(gx * 0.05 + gy * 0.03) * 0.35 + Math.sin(gx * 0.11 - gy * 0.07) * 0.18;
+    const h = pathY - 0.55 - shoulder * 1.05 + noise * (0.22 + shoulder * 0.32);
     pos.setY(i, h);
   }
   geo.computeVertexNormals();
@@ -9847,6 +10243,106 @@ function threeAddTrackObstacles(group, tr, curve) {
   }
 }
 
+function threeAddWaterZones(group, tr, curve) {
+  if (!tr.surfaces?.length) return;
+  const roadW = Math.max(5.4, (tr.roadWidth || 100) * threeTrackScale(tr).sc * 0.78);
+  const halfW = roadW * 0.52;
+  const waterMat = new THREE.MeshStandardMaterial({
+    map: threeTexWater(),
+    color: 0x3080d0,
+    transparent: true,
+    opacity: 0.74,
+    metalness: 0.7,
+    roughness: 0.1,
+    emissive: 0x1040a0,
+    emissiveIntensity: 0.22,
+    side: THREE.DoubleSide,
+  });
+  for (const s of tr.surfaces) {
+    if (s.type !== 'water') continue;
+    const segs = 28;
+    const u0 = s.uStart;
+    const u1 = s.uEnd;
+    const pts = [];
+    for (let i = 0; i <= segs; i++) {
+      const u = u0 + (u1 - u0) * (i / segs);
+      const p = kartPathSample(tr, u);
+      pts.push(threeTrackPathPoint(p, u, tr));
+    }
+    const wcurve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35);
+    const geo = threeBuildPathRibbon(wcurve, segs, halfW, -0.18);
+    const mesh = new THREE.Mesh(geo, waterMat.clone());
+    mesh.userData.waterZone = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+}
+
+function threeAddShortcutPaths(group, tr, curve) {
+  if (!tr.shortcuts?.length) return;
+  const sc = threeTrackScale(tr).sc;
+  const dirtMat = new THREE.MeshStandardMaterial({
+    map: threeTexDirt(),
+    color: 0x6a6048,
+    roughness: 0.95,
+    metalness: 0,
+    side: THREE.DoubleSide,
+  });
+  const edgeMat = new THREE.MeshStandardMaterial({
+    color: 0xffd040,
+    emissive: 0xaa8800,
+    emissiveIntensity: 0.35,
+    roughness: 0.6,
+    side: THREE.DoubleSide,
+  });
+  for (const shortcut of tr.shortcuts) {
+    const path = shortcut.path;
+    if (!path?.length) continue;
+    const segs = Math.max(28, path.length * 10);
+    const pts = [];
+    for (let i = 0; i <= segs; i++) {
+      pts.push(threeSampleShortcutPath(path, i / segs, tr));
+    }
+    const scurve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35);
+    const hw = Math.max(2.6, (shortcut.width || 72) * sc * 0.38);
+    const geo = threeBuildPathRibbon(scurve, segs, hw, 0.04);
+    const mesh = new THREE.Mesh(geo, dirtMat);
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    const edgeGeo = threeBuildPathRibbon(scurve, segs, hw + 0.22, 0.05);
+    const edge = new THREE.Mesh(edgeGeo, edgeMat);
+    edge.userData.shortcutEdge = true;
+    group.add(edge);
+    const mid = path[Math.floor(path.length / 2)];
+    const mw = threeGameToWorld(mid.x, mid.y, 0, tr);
+    const mh = threeTrackHeightAt(tr, mid.x, mid.y, curve) + 2.4;
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.14, 2.6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4a4030, roughness: 0.92 })
+    );
+    post.position.set(mw.x, mh + 1.3, mw.z);
+    post.castShadow = true;
+    group.add(post);
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(2.2, 1.0, 0.14),
+      new THREE.MeshStandardMaterial({
+        color: 0xffd700,
+        emissive: 0xaa8800,
+        emissiveIntensity: 0.5,
+        metalness: 0.2,
+        roughness: 0.45,
+      })
+    );
+    board.position.set(mw.x, mh + 2.7, mw.z);
+    board.userData.shortcutSign = true;
+    board.castShadow = true;
+    group.add(board);
+    const glow = new THREE.PointLight(0xffd040, 0.35, 10);
+    glow.position.set(mw.x, mh + 2.8, mw.z);
+    group.add(glow);
+  }
+}
+
 function threeBuildTrackMesh(tr) {
   const group = new THREE.Group();
   const pts = [];
@@ -9909,7 +10405,7 @@ function threeBuildTrackMesh(tr) {
   const b = kartTrackBounds(tr);
   const sc = threeTrackScale(tr).sc;
   const ground = new THREE.Mesh(
-    threeBuildRollingGround(tr, b, sc),
+    threeBuildAlignedGround(tr, b, sc, curve),
     new THREE.MeshStandardMaterial({
       map: threeTexGrass(tr.grass?.[0] || '#2a5820'),
       roughness: 1, metalness: 0,
@@ -9918,9 +10414,10 @@ function threeBuildTrackMesh(tr) {
   ground.receiveShadow = true;
   group.add(ground);
 
-  group.userData.raceCurve = curve;
+  threeAddWaterZones(group, tr, curve);
+  threeAddShortcutPaths(group, tr, curve);
 
-  threeAddSkyDome(group, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
+  group.userData.raceCurve = curve;
 
   threeAddTrackDecor(group, tr, curve);
   threeAddBoostPads(group, tr, curve);
@@ -9939,6 +10436,7 @@ function threeBuildTrackMesh(tr) {
       })
     );
     item.position.set(w.x, itemH, w.z);
+    item.userData.itemBox = box;
     item.userData.baseY = itemH;
     item.castShadow = true;
     group.add(item);
@@ -10110,33 +10608,79 @@ function threeBuildRaceScene(ctx, tr) {
   threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
-  ctx.scene.background = new THREE.Color(threeHexColor(tr.bg?.[0] || 0x0a1420));
-  ctx.scene.fog = new THREE.Fog(threeHexColor(tr.bg?.[0] || 0x0a1420), 40, tr.mega ? 420 : tr.huge ? 300 : 240);
+  const bgCol = threeHexColor(tr.bg?.[0] || 0x0a1420);
+  ctx.scene.background = new THREE.Color(bgCol);
+  ctx.scene.fog = new THREE.Fog(bgCol, 32, tr.mega ? 480 : tr.huge ? 340 : 280);
+  ctx.skyMesh = threeAddSkyDome(ctx.scene, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
   ctx.trackGroup = threeBuildTrackMesh(tr);
   ctx.scene.add(ctx.trackGroup);
   ctx.menuVariant = null;
+  ctx.raceFxGroup = null;
   ctx.kartMeshes = (race?.karts || []).map(k => {
-    const mesh = threeMkKartMesh(k.color, k.name);
+    const ch = typeof CHARACTERS !== 'undefined' ? CHARACTERS[k.char] : null;
+    const mesh = threeMkKartMesh(ch?.color || k.color, k.name);
     ctx.scene.add(mesh);
     return { mesh, kart: k };
   });
 }
 
+function threeSyncRaceFx(ctx, tr, t) {
+  if (!ctx.raceFxGroup) {
+    ctx.raceFxGroup = new THREE.Group();
+    ctx.scene.add(ctx.raceFxGroup);
+  }
+  threeClearGroup(ctx.raceFxGroup);
+  if (!race) return;
+  const curve = ctx.trackGroup?.userData?.raceCurve;
+
+  const addSphere = (gx, gy, radius, color, emissive, yOff) => {
+    const w = threeGameToWorld(gx, gy, 0, tr);
+    const h = threeTrackHeightAt(tr, gx, gy, curve) + (yOff ?? 1.1);
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 10, 8),
+      new THREE.MeshStandardMaterial({
+        color, emissive: emissive || color, emissiveIntensity: 0.45, roughness: 0.4, metalness: 0.2,
+      })
+    );
+    m.position.set(w.x, h, w.z);
+    ctx.raceFxGroup.add(m);
+  };
+
+  for (const p of race.projectiles || []) addSphere(p.x, p.y, 0.55, 0x40c878, 0x208848);
+  for (const h of race.hazards || []) addSphere(h.x, h.y, 0.7, 0xffe040, 0xaa8800);
+  for (const p of race.blueShells || []) addSphere(p.x, p.y, 0.65, 0x4080ff, 0x2040cc);
+  for (const ob of race.obstacles || []) {
+    if (ob.kind === 'crab') addSphere(ob.x, ob.y, 0.85, 0xc04040, 0x660000);
+    else addSphere(ob.x, ob.y, 0.95, 0x707880, 0x303840);
+  }
+}
+
 function threeSyncRaceKarts(ctx, tr, t) {
   if (!race) return;
   const local = race.karts[kartLocalIdx()];
+  const curve = ctx.trackGroup?.userData?.raceCurve;
   for (const entry of ctx.kartMeshes) {
     const k = entry.kart;
     if (!k) continue;
     const w = threeGameToWorld(k.x, k.y, k.z, tr);
-    const curve = ctx.trackGroup?.userData?.raceCurve;
     const roadH = threeTrackHeightAt(tr, k.x, k.y, curve);
     entry.mesh.position.set(w.x, roadH + w.y + 0.15, w.z);
+    const steer = k.input?.steer || 0;
     entry.mesh.rotation.y = -k.angle + Math.PI / 2;
+    entry.mesh.rotation.z = -steer * 0.14;
+    entry.mesh.rotation.x = (k.z || 0) > 8 ? -0.08 : 0;
     const wheels = entry.mesh.userData.wheels;
     if (wheels) {
       const spin = (k.speed || 0) * 0.015;
       wheels.forEach(wheel => { wheel.rotation.x += spin; });
+    }
+    if (k.shieldTimer > 0 || k.starTimer > 0) {
+      const pulse = 0.35 + Math.sin((t || 0) * 14) * 0.2;
+      entry.mesh.traverse(obj => {
+        if (obj.material?.emissive) {
+          obj.material.emissiveIntensity = k.starTimer > 0 ? pulse : 0.12 + pulse * 0.3;
+        }
+      });
     }
     if (k.boost > 50) {
       entry.mesh.traverse(obj => {
@@ -10151,46 +10695,56 @@ function threeSyncRaceKarts(ctx, tr, t) {
       entry.mesh.userData.exhaust.visible = false;
     }
   }
-  if (local) {
-    const w = threeGameToWorld(local.x, local.y, local.z, tr);
-    const curve = ctx.trackGroup?.userData?.raceCurve;
-    const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
-    const samples = tr.mega ? 140 : tr.huge ? 100 : 64;
-    const near = kartNearestPath(tr, local.x, local.y, samples);
-    const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 400);
-    const boostFactor = Math.min(1, (local.boost || 0) / 200);
-    const lookU = (near.u + 0.035 + speedFactor * 0.055) % 1;
-    const aheadP = kartPathSample(tr, lookU);
-    const aw = threeGameToWorld(aheadP.x, aheadP.y, local.z, tr);
-    const aheadH = threeTrackHeightAt(tr, aheadP.x, aheadP.y, curve);
-    const bearing = (race.camAngle || 0) + Math.PI / 2 + camOrbit.yaw * 0.2;
-    const dist = 14 + (race.camZoom || 1) * 5 + speedFactor * 10 + boostFactor * 6 + camOrbit.dist * 0.25;
-    const h = 8 + Math.min(8, (local.z || 0) * 0.05) + speedFactor * 2.5 + camOrbit.pitch * 8;
-    const cx = w.x - Math.cos(bearing) * dist;
-    const cz = w.z - Math.sin(bearing) * dist;
-    const camY = roadH + w.y + h;
-    const lookH = aheadH + 2.8 + Math.min(2, (local.speed || 0) * 0.004);
-    const camLerp = 0.14 + speedFactor * 0.1 + boostFactor * 0.05;
-    ctx.camera.position.lerp(new THREE.Vector3(cx, camY, cz), camLerp);
-    ctx.camera.lookAt(aw.x, lookH, aw.z);
-    const targetFov = 52 + speedFactor * 10 + boostFactor * 8 + (local.z > 30 ? 4 : 0);
-    ctx.camera.fov = lerp(ctx.camera.fov, targetFov, 0.085);
-    ctx.camera.updateProjectionMatrix();
-  }
   if (ctx.trackGroup) {
-    ctx.trackGroup.children.forEach(ch => {
+    ctx.trackGroup.traverse(ch => {
+      if (ch.userData?.itemBox) ch.visible = !ch.userData.itemBox.taken;
       if (ch.userData?.boostPad && ch.material?.emissive) {
         ch.material.emissiveIntensity = 0.4 + Math.sin((t || 0) * 8 + (ch.userData.padU || 0) * 18) * 0.28;
-        return;
       }
-      if (ch.isPointLight) return;
-      if (ch.geometry?.type === 'BoxGeometry' && ch.material?.emissive) {
+      if (ch.geometry?.type === 'BoxGeometry' && ch.material?.emissive && ch.userData?.itemBox) {
         ch.rotation.y = (t || 0) * 2.5;
         const base = ch.userData.baseY ?? ch.position.y;
         ch.position.y = base + Math.sin((t || 0) * 3 + ch.position.x) * 0.15;
       }
+      if (ch.userData?.waterZone && ch.material) {
+        ch.material.opacity = 0.68 + Math.sin((t || 0) * 2.8 + ch.position.x * 0.2) * 0.08;
+        ch.material.emissiveIntensity = 0.18 + Math.sin((t || 0) * 3.2 + ch.position.z * 0.15) * 0.12;
+      }
+      if (ch.userData?.shortcutSign && ch.material?.emissive) {
+        ch.material.emissiveIntensity = 0.42 + Math.sin((t || 0) * 4) * 0.18;
+      }
+      if (ch.userData?.shortcutEdge && ch.material?.emissive) {
+        ch.material.emissiveIntensity = 0.28 + Math.sin((t || 0) * 2.5) * 0.12;
+      }
     });
   }
+  if (local) {
+    const w = threeGameToWorld(local.x, local.y, local.z, tr);
+    const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
+    const look = typeof kartCamLookAngle === 'function' ? kartCamLookAngle(local, tr) : local.angle;
+    const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 400);
+    const boostFactor = Math.min(1, (local.boost || 0) / 200);
+    const samples = tr.mega ? 140 : tr.huge ? 100 : 64;
+    const near = kartNearestPath(tr, local.x, local.y, samples);
+    const lookU = (near.u + 0.04 + speedFactor * 0.06) % 1;
+    const aheadP = kartPathSample(tr, lookU);
+    const aw = threeGameToWorld(aheadP.x, aheadP.y, local.z, tr);
+    const aheadH = threeTrackHeightAt(tr, aheadP.x, aheadP.y, curve);
+    const bearing = look + camOrbit.yaw * 0.45;
+    const dist = 11 + (race.camZoom || 1) * 4 + speedFactor * 12 + boostFactor * 7 + camOrbit.dist * 0.3;
+    const h = 7.5 + Math.min(10, (local.z || 0) * 0.06) + speedFactor * 3 + camOrbit.pitch * 10;
+    const cx = w.x - Math.cos(bearing) * dist;
+    const cz = w.z - Math.sin(bearing) * dist;
+    const camY = Math.max(roadH + 3, roadH + w.y + h);
+    const lookH = aheadH + 2.6 + Math.min(3, (local.speed || 0) * 0.005) + (local.z || 0) * 0.04;
+    const camLerp = 0.16 + speedFactor * 0.12 + boostFactor * 0.05;
+    ctx.camera.position.lerp(new THREE.Vector3(cx, camY, cz), camLerp);
+    ctx.camera.lookAt(aw.x, lookH, aw.z);
+    const targetFov = 54 + speedFactor * 12 + boostFactor * 9 + (local.z > 30 ? 5 : 0);
+    ctx.camera.fov = lerp(ctx.camera.fov, targetFov, 0.09);
+    ctx.camera.updateProjectionMatrix();
+  }
+  threeSyncRaceFx(ctx, tr, t);
 }
 
 function threeUpdateMainMenu(ctx, dt, t) {
@@ -10453,8 +11007,8 @@ function threeSyncGameplay(ctx, t) {
   const pp = threeGpPos(px, py);
   ctx.playerMesh.position.set(pp.x, pp.y + 1.2, 0.6);
   const sc = 0.55;
-  ctx.playerMesh.rotation.y = 0;
-  ctx.playerMesh.scale.set(sc * player.facing, sc, sc);
+  ctx.playerMesh.rotation.y = player.facing < 0 ? Math.PI : 0;
+  ctx.playerMesh.scale.set(sc * Math.abs(player.facing), sc, sc);
 
   for (const { it, mesh } of ctx.itemMeshes) {
     mesh.visible = !it.taken;
@@ -10625,6 +11179,7 @@ function ptrApplyAxes(cx, cy) {
     else if (kartPtrSteer > 0.1) touchPress('ArrowRight');
     if (cy > H * 0.76) touchPress('ArrowDown');
     else touchPress('ArrowUp');
+    if (cy < H * 0.4 && cx > W * 0.52) touchPress('Space');
     return;
   }
 

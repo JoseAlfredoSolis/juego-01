@@ -122,11 +122,22 @@ function mobProcessNav() {
 }
 
 function mobUiSync() {
-  if (!document.body.classList.contains('touch')) {
-    document.body.classList.remove('playing', 'mob-menu', 'mob-join', 'mob-nav-wide', 'kart-race', 'portrait', 'mob-menu-html');
+  const s = gs.scene;
+  if (s !== 'settings') mobSettingsResetArm = 0;
+  const isTouch = document.body.classList.contains('touch');
+
+  if (!isTouch) {
+    document.body.classList.toggle('mob-menu', MOB_MENU_SCENES.includes(s));
+    document.body.classList.toggle('playing', MOB_PLAY_SCENES.includes(s));
+    document.body.classList.remove('mob-join', 'mob-nav-wide', 'kart-race', 'portrait', 'landscape');
+    if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s)
+      && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
+      if (typeof threeEnsure === 'function') threeEnsure();
+    }
+    mobMenuHtmlSync();
+    if (typeof resize === 'function') resize();
     return;
   }
-  const s = gs.scene;
   const playing = MOB_PLAY_SCENES.includes(s);
   const menu = MOB_MENU_SCENES.includes(s);
   const join = MOB_JOIN_SCENES.includes(s);
@@ -138,6 +149,10 @@ function mobUiSync() {
   document.body.classList.toggle('kart-race', s === 'kart');
   document.body.classList.toggle('portrait', portrait);
   document.body.classList.toggle('landscape', !portrait);
+  const bJump = document.getElementById('bJump');
+  const bSp = document.getElementById('bSp');
+  if (bJump) bJump.textContent = s === 'kart' ? 'DRIFT' : 'JUMP';
+  if (bSp) bSp.textContent = s === 'kart' ? 'ITEM' : 'SP';
   if (['menu', 'kartmenu', 'kartselect', 'kartlobby', 'kartcup'].includes(s) && typeof threeMobileCanUse === 'function' && threeMobileCanUse()) {
     if (typeof threeEnsure === 'function') threeEnsure();
   }
@@ -285,15 +300,44 @@ function setupDesktopPointer() {
 
 let mobMenuHtmlScene = '';
 let mobKartSelectSel = 0;
+let mobSettingsResetArm = 0;
+
+function mobUiHaptic(ms) {
+  if (typeof gs !== 'undefined' && gs.vibration && navigator.vibrate) {
+    try { navigator.vibrate(ms || 10); } catch (_) {}
+  }
+}
+
+function mobMenuLabel(key) {
+  if (typeof MENU_META !== 'undefined' && MENU_META[key]) return MENU_META[key].title;
+  return key;
+}
+
+function mobMenuDesc(key) {
+  if (typeof MENU_META !== 'undefined' && MENU_META[key]) return MENU_META[key].desc || '';
+  return '';
+}
+
+function htmlMenuCanvasScenes() {
+  if (typeof mobUseDesktopMenu !== 'function' || !mobUseDesktopMenu()) return [];
+  return [
+    'menu', 'worldmap', 'shop', 'gallery', 'charselect', 'settings', 'achievements',
+    'kartmenu', 'kartcup', 'kartselect', 'kartlobby',
+  ];
+}
 
 function mobGetHtmlMenuConfig() {
-  if (!document.body.classList.contains('touch')) return null;
   if (!MOB_MENU_SCENES.includes(gs.scene)) return null;
+  if (htmlMenuCanvasScenes().includes(gs.scene)) return null;
 
   if (gs.scene === 'menu' && typeof menuItems !== 'undefined') {
     return {
       type: 'list', theme: 'green', title: 'SUPER BEAR', subtitle: 'ADVENTURE',
-      items: menuItems, getSel: () => menuSel, setSel: v => { menuSel = v; },
+      items: menuItems.map(mobMenuLabel),
+      itemDescs: menuItems.map(mobMenuDesc),
+      sections: typeof MENU_SECTIONS !== 'undefined' ? MENU_SECTIONS : null,
+      keys: menuItems,
+      getSel: () => menuSel, setSel: v => { menuSel = v; },
       onPick: () => mobQueueAction('ok'), showMeta: true,
     };
   }
@@ -383,6 +427,9 @@ function mobGetHtmlMenuConfig() {
   if (gs.scene === 'settings') {
     const viewLbl = typeof threeCanUse === 'function' && threeCanUse()
       ? (gs.viewMode === '3d' ? '3D' : '2D') : '2D';
+    const resetLbl = mobSettingsResetArm
+      ? '⚠ Toca otra vez para BORRAR todo'
+      : 'Reiniciar progreso';
     return {
       type: 'settings', theme: 'blue', title: 'AJUSTES', subtitle: 'Toca para cambiar',
       items: [
@@ -393,6 +440,7 @@ function mobGetHtmlMenuConfig() {
         'Sacudida: ' + (gs.fxShake ? 'ON' : 'OFF'),
         'Partículas: ' + (gs.fxParticles ? 'ON' : 'OFF'),
         'Vibración: ' + (gs.vibration ? 'ON' : 'OFF'),
+        resetLbl,
         '← VOLVER AL MENÚ',
       ],
       onPick: idx => {
@@ -406,9 +454,187 @@ function mobGetHtmlMenuConfig() {
         else if (idx === 4) { gs.fxShake = !gs.fxShake; }
         else if (idx === 5) { gs.fxParticles = !gs.fxParticles; }
         else if (idx === 6) { gs.vibration = !gs.vibration; }
-        else if (idx === 7) { saveGame(); changeScene('menu'); return; }
+        else if (idx === 7) {
+          if (!mobSettingsResetArm) {
+            mobSettingsResetArm = 1;
+            sfx.hurt();
+            mobMenuHtmlScene = '';
+            mobMenuHtmlSync();
+            return;
+          }
+          resetProgress();
+          mobSettingsResetArm = 0;
+          saveGame();
+          changeScene('menu');
+          return;
+        }
+        else if (idx === 8) { mobSettingsResetArm = 0; saveGame(); changeScene('menu'); return; }
+        mobSettingsResetArm = 0;
         sfx.select(); saveGame();
         mobMenuHtmlScene = ''; mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'shop' && typeof buildShop === 'function') {
+    const list = buildShop();
+    return {
+      type: 'shop', theme: 'orange', title: 'TIENDA',
+      subtitle: '🪙 ' + gs.wallet + ' monedas',
+      detail: list.length ? 'Toca un artículo para comprar' : '¡Todo comprado!',
+      items: list.length
+        ? list.map(o => o.label + ' — ' + o.cost + ' 🪙')
+        : ['Volver al menú'],
+      shopList: list,
+      getSel: () => shopSel,
+      setSel: v => { shopSel = v; },
+      onPick: idx => {
+        if (!list.length) { changeScene('menu'); return; }
+        shopSel = idx;
+        buyShop(list[idx]);
+        mobMenuHtmlScene = '';
+        mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'gameover') {
+    return {
+      type: 'list', theme: 'orange', title: 'GAME OVER',
+      subtitle: 'Puntos: ' + gs.score + ' · Monedas: ' + gs.coins,
+      detail: 'Récord: ' + gs.highScore,
+      items: ['REINTENTAR', 'MENÚ PRINCIPAL'],
+      getSel: () => goSel, setSel: v => { goSel = v; },
+      onPick: idx => {
+        if (idx === 0) { gs.lives = startLives(); startLevel(); changeScene('gameplay'); }
+        else { gs.lives = startLives(); gs.score = 0; gs.coins = 0; changeScene('menu'); menuSel = 0; }
+      },
+    };
+  }
+  if (gs.scene === 'levelcomplete') {
+    const stars = lcStats.time < 25 ? 3 : lcStats.time < 45 ? 2 : 1;
+    return {
+      type: 'list', theme: 'green', title: '¡NIVEL COMPLETO!',
+      subtitle: 'Mundo ' + (lcStats.world + 1) + ' · Nivel ' + (lcStats.level + 1),
+      detail: '★'.repeat(stars) + '☆'.repeat(3 - stars) + ' · Score ' + gs.score,
+      items: ['CONTINUAR'],
+      onPick: () => { sfx.select(); advanceLevel(); },
+    };
+  }
+  if (gs.scene === 'victory') {
+    return {
+      type: 'list', theme: 'green', title: '¡VICTORIA!',
+      subtitle: 'Completaste los ' + WORLD_COUNT + ' mundos',
+      detail: 'Score final: ' + gs.score + ' · Récord: ' + gs.highScore,
+      items: ['VOLVER AL MENÚ'],
+      onPick: () => {
+        gs.lives = startLives(); gs.score = 0; gs.coins = 0; gs.world = 0; gs.level = 0;
+        changeScene('menu'); menuSel = 0;
+      },
+    };
+  }
+  if (gs.scene === 'achievements' && typeof ACHIEVEMENTS !== 'undefined') {
+    const got = ACHIEVEMENTS.filter(a => gs.ach[a.id]).length;
+    return {
+      type: 'list', theme: 'blue', title: 'LOGROS',
+      subtitle: got + ' / ' + ACHIEVEMENTS.length + ' desbloqueados',
+      items: ACHIEVEMENTS.map(a => (gs.ach[a.id] ? '✓ ' : '○ ') + a.name),
+      itemDescs: ACHIEVEMENTS.map(a => a.desc),
+      onPick: () => changeScene('menu'),
+    };
+  }
+  if (gs.scene === 'charselect' && typeof CHARACTERS !== 'undefined') {
+    const ch = CHARACTERS[charSel];
+    const unlocked = isCharUnlocked(charSel);
+    return {
+      type: 'list', theme: 'green', title: 'PERSONAJES',
+      subtitle: ch.name,
+      detail: unlocked ? ch.desc : 'Bloqueado — gana monedas o compra en tienda',
+      items: CHARACTERS.map((c, i) => (isCharUnlocked(i) ? '' : '🔒 ') + c.name),
+      getSel: () => charSel,
+      setSel: v => { charSel = v; },
+      onPick: idx => {
+        charSel = idx;
+        if (isCharUnlocked(idx)) {
+          gs.character = idx;
+          saveGame();
+          sfx.select();
+          changeScene('menu');
+        } else {
+          sfx.hurt();
+          mobMenuHtmlScene = '';
+          mobMenuHtmlSync();
+        }
+      },
+    };
+  }
+  if (gs.scene === 'gallery' && typeof CHARACTERS !== 'undefined') {
+    const c = CHARACTERS[gallerySel];
+    const unlocked = isCharUnlocked(gallerySel);
+    return {
+      type: 'list', theme: 'blue', title: 'GALERÍA DE HÉROES',
+      subtitle: c.name,
+      detail: (unlocked ? '' : 'Bloqueado · ') + c.desc,
+      items: CHARACTERS.map((ch, i) => (isCharUnlocked(i) ? '' : '🔒 ') + ch.name),
+      getSel: () => gallerySel,
+      setSel: v => { gallerySel = v; },
+      onPick: idx => {
+        gallerySel = idx;
+        sfx.select();
+        mobMenuHtmlScene = '';
+        mobMenuHtmlSync();
+      },
+    };
+  }
+  if (gs.scene === 'instructions') {
+    return {
+      type: 'list', theme: 'green', title: 'INSTRUCCIONES', subtitle: 'Controles y mecánicas',
+      items: [
+        'Moverse — ◀ ▶ o A D',
+        'Saltar — Espacio / ▲ / W',
+        'Doble salto — Power-up + Espacio',
+        'Especial — J / SP (único por héroe)',
+        'Pisar enemigos — Salta encima',
+        'Checkpoint — Bandera verde',
+        'Pausa — Esc / II',
+        'Monedas 50 pts · Estrellas 200 pts',
+        'Multijugador — Código de 6 letras',
+        '← VOLVER AL MENÚ',
+      ],
+      onPick: idx => {
+        if (idx >= 9) changeScene('menu');
+      },
+    };
+  }
+  if (gs.scene === 'credits') {
+    return {
+      type: 'list', theme: 'blue', title: 'CRÉDITOS',
+      subtitle: 'Super Bear Adventure',
+      items: [
+        'Diseño y programación',
+        'Motor HTML5 + canvas',
+        'Gráficos y audio procedurales',
+        'Controles táctiles PWA',
+        '¡Gracias por jugar!',
+        '← VOLVER AL MENÚ',
+      ],
+      onPick: idx => { if (idx >= 5) changeScene('menu'); },
+    };
+  }
+  if (gs.scene === 'kartresults' && race) {
+    const sorted = [...race.karts].sort((a, b) => a.rank - b.rank);
+    return {
+      type: 'list', theme: 'purple', title: 'RESULTADOS',
+      subtitle: sorted[0] ? 'Ganador: ' + sorted[0].name : '',
+      items: sorted.map((k, i) => {
+        const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : (i + 1) + '. ';
+        const me = k.idx === kartLocalIdx() ? ' (TÚ)' : '';
+        const time = k.dnf ? 'DNF' : (k.finished ? k.finishTime.toFixed(2) + 's' : '—');
+        return medal + k.name + me + ' · ' + time;
+      }).concat(['VOLVER']),
+      onPick: idx => {
+        if (idx >= sorted.length) {
+          race = null;
+          changeScene(mp.active ? 'kartlobby' : 'kartmenu');
+        }
       },
     };
   }
@@ -442,7 +668,12 @@ function mobMenuHtmlSync() {
   }
 
   if (titleEl) titleEl.textContent = cfg.title || '';
-  if (subEl) subEl.textContent = cfg.subtitle || '';
+  if (subEl) {
+    const hint = document.body.classList.contains('touch')
+      ? (cfg.subtitle || '')
+      : ((cfg.subtitle || '') + (cfg.items ? ' · ↑↓ Enter · Clic' : ''));
+    subEl.textContent = hint;
+  }
   if (detail) detail.textContent = cfg.detail || '';
   if (cfg.type === 'kartlobby' && subEl && typeof KART_TRACKS !== 'undefined') {
     subEl.textContent = KART_TRACKS[kartTrackSel].name;
@@ -542,24 +773,65 @@ function mobMenuHtmlSync() {
         list.appendChild(btn);
       }
     } else if (cfg.items) {
-      cfg.items.forEach((label, idx) => {
+      const appendItem = (label, idx) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'mmh-item';
         btn.dataset.idx = String(idx);
-        btn.textContent = label;
+        if (cfg.itemDescs?.[idx]) {
+          btn.innerHTML = label + '<span class="mmh-desc">' + cfg.itemDescs[idx] + '</span>';
+        } else {
+          btn.textContent = label;
+        }
+        if (cfg.type === 'shop' && cfg.shopList?.[idx]) {
+          const afford = gs.wallet >= cfg.shopList[idx].cost;
+          btn.classList.toggle('mmh-afford', afford);
+          btn.classList.toggle('mmh-locked', !afford);
+        }
+        if (cfg.keys?.[idx] === 'GALERIA' || label.startsWith('🔒')) btn.classList.toggle('mmh-locked', label.startsWith('🔒'));
         btn.addEventListener('click', e => {
           e.preventDefault();
+          mobUiHaptic(12);
           if (cfg.setSel) cfg.setSel(idx);
           sfx.select();
           if (cfg.onPick) cfg.onPick(idx);
         });
         list.appendChild(btn);
-      });
+      };
+      if (cfg.sections?.length && cfg.keys) {
+        for (let s = 0; s < cfg.sections.length; s++) {
+          const sec = cfg.sections[s];
+          const nextStart = s + 1 < cfg.sections.length ? cfg.sections[s + 1].start : cfg.items.length;
+          const head = document.createElement('p');
+          head.className = 'mmh-section';
+          head.textContent = sec.label;
+          list.appendChild(head);
+          for (let i = sec.start; i < nextStart; i++) appendItem(cfg.items[i], i);
+        }
+      } else {
+        cfg.items.forEach((label, idx) => appendItem(label, idx));
+      }
     }
   }
 
-  if (cfg.type === 'list' && cfg.getSel) {
+  if (gs.scene === 'gallery' && typeof CHARACTERS !== 'undefined' && subEl) {
+    subEl.textContent = CHARACTERS[gallerySel].name;
+    if (detail) {
+      const unlocked = isCharUnlocked(gallerySel);
+      detail.textContent = (unlocked ? '' : 'Bloqueado · ') + CHARACTERS[gallerySel].desc;
+    }
+  } else if (gs.scene === 'charselect' && typeof CHARACTERS !== 'undefined' && subEl) {
+    subEl.textContent = CHARACTERS[charSel].name;
+    if (detail) {
+      detail.textContent = isCharUnlocked(charSel)
+        ? CHARACTERS[charSel].desc
+        : 'Bloqueado — gana monedas o compra en tienda';
+    }
+  } else if (gs.scene === 'shop' && subEl) {
+    subEl.textContent = '🪙 ' + gs.wallet + ' monedas';
+  }
+
+  if (cfg.getSel) {
     const sel = cfg.getSel();
     list.querySelectorAll('.mmh-item').forEach((btn, i) => {
       btn.classList.toggle('sel', i === sel);

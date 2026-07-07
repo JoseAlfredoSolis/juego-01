@@ -35,6 +35,7 @@ function ptrApplyAxes(cx, cy) {
     else if (kartPtrSteer > 0.1) touchPress('ArrowRight');
     if (cy > H * 0.76) touchPress('ArrowDown');
     else touchPress('ArrowUp');
+    if (cy < H * 0.4 && cx > W * 0.52) touchPress('Space');
     return;
   }
 
