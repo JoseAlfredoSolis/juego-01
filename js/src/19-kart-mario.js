@@ -38,7 +38,7 @@ const KART_CUPS = [
   { name: 'COPA NEBULA',   tracks: [3, 4, 5], color: '#a040ff', icon: '🌌' },
   { name: 'COPA OBSTÁCULOS', tracks: [5, 1, 3], color: '#ff6020', icon: '💥' },
   { name: 'COPA VELOCIDAD', tracks: [7, 0, 3], color: '#00c8ff', icon: '⚡' },
-  { name: 'COPA POMERANIAN', tracks: [8, 0, 2], color: '#ff90b8', icon: '🐕' },
+  { name: 'COPA POMERANIAN', tracks: [7, 0, 2], color: '#ff90b8', icon: '🐕' },
 ];
 const KART_CPU_NAMES = ['PEACH', 'BOWSER', 'TOAD', 'LUIGI', 'YOSHI', 'WARIO', 'WALUIGI'];
 
@@ -466,6 +466,7 @@ function drawKartSelect(t) {
 }
 
 function updateKartCup(dt) {
+  mobBindMenu(() => kartCupSel, v => { kartCupSel = v; });
   mobBindSwipe(dir => {
     if (dir === 'up') kartCupSel = (kartCupSel - 1 + KART_CUPS.length) % KART_CUPS.length;
     if (dir === 'down') kartCupSel = (kartCupSel + 1) % KART_CUPS.length;
@@ -487,6 +488,35 @@ function drawKartCup(t) {
   }
   if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
   uiSparkles(t * 0.5, 20);
+
+  const desktop = uiIsDesktop();
+  if (desktop) {
+    uiDesktopHeader('MODO COPA', '3 carreras · Puntos estilo Mario Kart (15-12-10-8-6-4-2-1)');
+    const px = 28, py = 72, pw = 1224, ph = 580;
+    uiPanel(px, py, pw, ph, 18);
+    hud('ELIGE UNA COPA', px + 28, py + 28, UI.gold, 16, 'left');
+    const rowH = 72, startY = py + 52;
+    for (let i = 0; i < KART_CUPS.length; i++) {
+      const cup = KART_CUPS[i];
+      const y = startY + i * rowH;
+      const sel = i === kartCupSel;
+      const tracks = cup.tracks.map(ti => (KART_TRACKS[ti] || { name: '?' }).name).join(' · ');
+      fillRR(px + 16, y, pw - 32, rowH - 8, 12, sel ? 'rgba(255,215,0,0.14)' : 'rgba(255,255,255,0.04)');
+      if (sel) strokeRR(px + 16, y, pw - 32, rowH - 8, 12, UI.gold, 2);
+      ctx.textAlign = 'left'; ctx.font = sel ? 'bold 24px monospace' : '22px monospace';
+      ctx.fillStyle = sel ? UI.gold : UI.bright;
+      ctx.fillText((sel ? '▸ ' : '  ') + cup.icon + '  ' + cup.name, px + 32, y + 30);
+      ctx.font = '14px monospace'; ctx.fillStyle = UI.dim;
+      ctx.fillText(tracks, px + 32, y + 54);
+      mobRegisterRow(px + 16, y, pw - 32, rowH - 8, i);
+    }
+    const cup = KART_CUPS[kartCupSel];
+    fillRR(px + 20, py + ph - 58, pw - 40, 44, 12, 'rgba(255,215,0,0.08)');
+    hud('Clic o Enter · ' + cup.name, px + pw / 2, py + ph - 30, UI.gold, 15, 'center');
+    hud('Esc volver al menú kart', W / 2, H - 14, UI.dim, 13, 'center');
+    return;
+  }
+
   const port = mobTouchPortrait();
   uiTitle('MODO COPA', port ? 48 : 80, port ? 30 : 44);
   if (!port) hud('3 carreras · Puntos estilo Mario Kart (15-12-10-8-6-4-2-1)', W / 2, 130, UI.cyan, 16, 'center');
@@ -496,17 +526,21 @@ function drawKartCup(t) {
     const cup = KART_CUPS[i];
     const y = startY + i * rowH;
     const sel = i === kartCupSel;
-    uiPanel(W / 2 - (port ? 250 : 280), y - (port ? 24 : 30), port ? 500 : 560, port ? 54 : 72, 14);
+    const cardW = port ? 500 : 560;
+    const cardH = port ? 54 : 72;
+    const cardX = W / 2 - (port ? 250 : 280);
+    uiPanel(cardX, y - (port ? 24 : 30), cardW, cardH, 14);
     ctx.font = 'bold ' + (port ? 20 : 26) + 'px monospace';
     ctx.textAlign = 'left';
     ctx.fillStyle = sel ? UI.gold : UI.bright;
-    ctx.fillText(cup.icon + '  ' + cup.name, W / 2 - (port ? 220 : 250), y + (port ? 6 : 10));
+    ctx.fillText(cup.icon + '  ' + cup.name, cardX + 30, y + (port ? 6 : 10));
     if (!port) {
-      const names = cup.tracks.map(ti => KART_TRACKS[ti].name).join(' · ');
+      const names = cup.tracks.map(ti => (KART_TRACKS[ti] || { name: '?' }).name).join(' · ');
       ctx.font = '13px monospace';
       ctx.fillStyle = UI.dim;
-      ctx.fillText(names, W / 2 - 250, y + 32);
+      ctx.fillText(names, cardX + 30, y + 32);
     }
+    mobRegisterRow(cardX, y - (port ? 24 : 30), cardW, cardH, i);
   }
   uiFooter(port ? '▲▼ elegir · OK confirmar' : 'Enter elegir copa · Esc volver');
 }

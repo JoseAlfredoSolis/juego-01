@@ -194,8 +194,11 @@ function mobHandlePointerUp(clientX, clientY) {
     if (dist < MOB_TAP_MAX) {
       const p = canvasPoint(clientX, clientY);
       if (gs.scene === 'worldmap') mobWorldHitTest(p.x, p.y);
-      else if (['charselect', 'gallery', 'shop', 'menu', 'settings', 'worldmap'].includes(gs.scene)) {
-        mobHitTest(p.x, p.y);
+      else if (MOB_MENU_SCENES.includes(gs.scene)) {
+        const prev = mobSelGet ? mobSelGet() : -1;
+        if (mobHitTest(p.x, p.y) && mobSelGet && mobSelGet() === prev) {
+          mobTapKey('Enter');
+        }
       }
     }
     return;
