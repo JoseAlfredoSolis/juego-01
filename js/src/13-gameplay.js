@@ -380,15 +380,15 @@ function drawGameplay(t) {
     drawPlatforms(ld.platforms, gs.world);
     for (const it of items) drawCollectible(it, t);
     for (const e of enemies) drawEnemy(e);
+    drawCheckpoints();
+    drawHazards();
+    drawProjectiles();
+    drawGoal(...goalPos, t);
+    drawFx();
+    drawParticles();
+    drawPlayer(player);
+    drawRemotePlayer();
   }
-  drawCheckpoints();
-  drawHazards();
-  drawProjectiles();
-  if (!use3d) drawGoal(...goalPos, t);
-  drawFx();
-  drawParticles();
-  if (!(typeof threeGameplayHudOnly === 'function' && threeGameplayHudOnly())) drawPlayer(player);
-  drawRemotePlayer();
   cam.x = sx; cam.y = sy;
   drawFlash();
   drawBanner();

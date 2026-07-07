@@ -54,7 +54,7 @@ test.describe('Carrera kart', () => {
       window.__GAME_TEST__.setViewMode('3d');
       window.__GAME_TEST__.goKartRace(7);
     });
-    await waitForSnapshot(page, 'kart_race', 15000);
+    await waitForSnapshot(page, 'kart_race_3d', 15000);
 
     const snap = await getSnapshot(page);
     expect(snap.viewMode).toBe('3d');

@@ -13,8 +13,6 @@ function threeCanUse() {
 
 function gameView3dEnabled() {
   if (!threeCanUse() || gs.viewMode !== '3d') return false;
-  // 3D en vertical móvil dejaba la pista invisible (solo HUD) — forzar 2D al jugar.
-  if (typeof mobTouchPortrait === 'function' && mobTouchPortrait()) return false;
   return true;
 }
 
@@ -152,7 +150,7 @@ function threeTexSky(top, bottom) {
 function threeEnhanceRenderer(renderer) {
   if (renderer.toneMapping !== undefined) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.12;
   }
 }
 
@@ -257,6 +255,7 @@ function threeClearScene(ctx) {
   ctx.decorGroup = null;
   ctx.trackGroup = null;
   ctx.gameGroup = null;
+  ctx.raceFxGroup = null;
   ctx.playerMesh = null;
   ctx.entityGroup = null;
   ctx.itemMeshes = [];
@@ -439,7 +438,7 @@ function threeMkBear(color) {
 
 function threeAddTrackDecor(group, tr, curve) {
   const decor = tr.decor || 'palm';
-  const segs = tr.huge ? 24 : 14;
+  const segs = tr.mega ? 52 : tr.huge ? 36 : 20;
   for (let i = 0; i < segs; i++) {
     const u = i / segs;
     const p = kartPathSample(tr, u);
@@ -781,8 +780,6 @@ function threeBuildTrackMesh(tr) {
 
   group.userData.raceCurve = curve;
 
-  threeAddSkyDome(group, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
-
   threeAddTrackDecor(group, tr, curve);
   threeAddBoostPads(group, tr, curve);
   threeAddJumpRamps(group, tr, curve);
@@ -800,6 +797,7 @@ function threeBuildTrackMesh(tr) {
       })
     );
     item.position.set(w.x, itemH, w.z);
+    item.userData.itemBox = box;
     item.userData.baseY = itemH;
     item.castShadow = true;
     group.add(item);
@@ -971,33 +969,79 @@ function threeBuildRaceScene(ctx, tr) {
   threeRestorePerspectiveCamera(ctx);
   threeClearScene(ctx);
   ctx.lights = threeAddLights(ctx.scene, false);
-  ctx.scene.background = new THREE.Color(threeHexColor(tr.bg?.[0] || 0x0a1420));
-  ctx.scene.fog = new THREE.Fog(threeHexColor(tr.bg?.[0] || 0x0a1420), 40, tr.mega ? 420 : tr.huge ? 300 : 240);
+  const bgCol = threeHexColor(tr.bg?.[0] || 0x0a1420);
+  ctx.scene.background = new THREE.Color(bgCol);
+  ctx.scene.fog = new THREE.Fog(bgCol, 32, tr.mega ? 480 : tr.huge ? 340 : 280);
+  ctx.skyMesh = threeAddSkyDome(ctx.scene, tr.bg?.[1] || tr.bg?.[0] || '#70b8f0', tr.bg?.[0] || '#1a4080');
   ctx.trackGroup = threeBuildTrackMesh(tr);
   ctx.scene.add(ctx.trackGroup);
   ctx.menuVariant = null;
+  ctx.raceFxGroup = null;
   ctx.kartMeshes = (race?.karts || []).map(k => {
-    const mesh = threeMkKartMesh(k.color, k.name);
+    const ch = typeof CHARACTERS !== 'undefined' ? CHARACTERS[k.char] : null;
+    const mesh = threeMkKartMesh(ch?.color || k.color, k.name);
     ctx.scene.add(mesh);
     return { mesh, kart: k };
   });
 }
 
+function threeSyncRaceFx(ctx, tr, t) {
+  if (!ctx.raceFxGroup) {
+    ctx.raceFxGroup = new THREE.Group();
+    ctx.scene.add(ctx.raceFxGroup);
+  }
+  threeClearGroup(ctx.raceFxGroup);
+  if (!race) return;
+  const curve = ctx.trackGroup?.userData?.raceCurve;
+
+  const addSphere = (gx, gy, radius, color, emissive, yOff) => {
+    const w = threeGameToWorld(gx, gy, 0, tr);
+    const h = threeTrackHeightAt(tr, gx, gy, curve) + (yOff ?? 1.1);
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 10, 8),
+      new THREE.MeshStandardMaterial({
+        color, emissive: emissive || color, emissiveIntensity: 0.45, roughness: 0.4, metalness: 0.2,
+      })
+    );
+    m.position.set(w.x, h, w.z);
+    ctx.raceFxGroup.add(m);
+  };
+
+  for (const p of race.projectiles || []) addSphere(p.x, p.y, 0.55, 0x40c878, 0x208848);
+  for (const h of race.hazards || []) addSphere(h.x, h.y, 0.7, 0xffe040, 0xaa8800);
+  for (const p of race.blueShells || []) addSphere(p.x, p.y, 0.65, 0x4080ff, 0x2040cc);
+  for (const ob of race.obstacles || []) {
+    if (ob.kind === 'crab') addSphere(ob.x, ob.y, 0.85, 0xc04040, 0x660000);
+    else addSphere(ob.x, ob.y, 0.95, 0x707880, 0x303840);
+  }
+}
+
 function threeSyncRaceKarts(ctx, tr, t) {
   if (!race) return;
   const local = race.karts[kartLocalIdx()];
+  const curve = ctx.trackGroup?.userData?.raceCurve;
   for (const entry of ctx.kartMeshes) {
     const k = entry.kart;
     if (!k) continue;
     const w = threeGameToWorld(k.x, k.y, k.z, tr);
-    const curve = ctx.trackGroup?.userData?.raceCurve;
     const roadH = threeTrackHeightAt(tr, k.x, k.y, curve);
     entry.mesh.position.set(w.x, roadH + w.y + 0.15, w.z);
+    const steer = k.input?.steer || 0;
     entry.mesh.rotation.y = -k.angle + Math.PI / 2;
+    entry.mesh.rotation.z = -steer * 0.14;
+    entry.mesh.rotation.x = (k.z || 0) > 8 ? -0.08 : 0;
     const wheels = entry.mesh.userData.wheels;
     if (wheels) {
       const spin = (k.speed || 0) * 0.015;
       wheels.forEach(wheel => { wheel.rotation.x += spin; });
+    }
+    if (k.shieldTimer > 0 || k.starTimer > 0) {
+      const pulse = 0.35 + Math.sin((t || 0) * 14) * 0.2;
+      entry.mesh.traverse(obj => {
+        if (obj.material?.emissive) {
+          obj.material.emissiveIntensity = k.starTimer > 0 ? pulse : 0.12 + pulse * 0.3;
+        }
+      });
     }
     if (k.boost > 50) {
       entry.mesh.traverse(obj => {
@@ -1012,46 +1056,46 @@ function threeSyncRaceKarts(ctx, tr, t) {
       entry.mesh.userData.exhaust.visible = false;
     }
   }
-  if (local) {
-    const w = threeGameToWorld(local.x, local.y, local.z, tr);
-    const curve = ctx.trackGroup?.userData?.raceCurve;
-    const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
-    const samples = tr.mega ? 140 : tr.huge ? 100 : 64;
-    const near = kartNearestPath(tr, local.x, local.y, samples);
-    const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 400);
-    const boostFactor = Math.min(1, (local.boost || 0) / 200);
-    const lookU = (near.u + 0.035 + speedFactor * 0.055) % 1;
-    const aheadP = kartPathSample(tr, lookU);
-    const aw = threeGameToWorld(aheadP.x, aheadP.y, local.z, tr);
-    const aheadH = threeTrackHeightAt(tr, aheadP.x, aheadP.y, curve);
-    const bearing = (race.camAngle || 0) + Math.PI / 2 + camOrbit.yaw * 0.2;
-    const dist = 14 + (race.camZoom || 1) * 5 + speedFactor * 10 + boostFactor * 6 + camOrbit.dist * 0.25;
-    const h = 8 + Math.min(8, (local.z || 0) * 0.05) + speedFactor * 2.5 + camOrbit.pitch * 8;
-    const cx = w.x - Math.cos(bearing) * dist;
-    const cz = w.z - Math.sin(bearing) * dist;
-    const camY = roadH + w.y + h;
-    const lookH = aheadH + 2.8 + Math.min(2, (local.speed || 0) * 0.004);
-    const camLerp = 0.14 + speedFactor * 0.1 + boostFactor * 0.05;
-    ctx.camera.position.lerp(new THREE.Vector3(cx, camY, cz), camLerp);
-    ctx.camera.lookAt(aw.x, lookH, aw.z);
-    const targetFov = 52 + speedFactor * 10 + boostFactor * 8 + (local.z > 30 ? 4 : 0);
-    ctx.camera.fov = lerp(ctx.camera.fov, targetFov, 0.085);
-    ctx.camera.updateProjectionMatrix();
-  }
   if (ctx.trackGroup) {
-    ctx.trackGroup.children.forEach(ch => {
+    ctx.trackGroup.traverse(ch => {
+      if (ch.userData?.itemBox) ch.visible = !ch.userData.itemBox.taken;
       if (ch.userData?.boostPad && ch.material?.emissive) {
         ch.material.emissiveIntensity = 0.4 + Math.sin((t || 0) * 8 + (ch.userData.padU || 0) * 18) * 0.28;
-        return;
       }
-      if (ch.isPointLight) return;
-      if (ch.geometry?.type === 'BoxGeometry' && ch.material?.emissive) {
+      if (ch.geometry?.type === 'BoxGeometry' && ch.material?.emissive && ch.userData?.itemBox) {
         ch.rotation.y = (t || 0) * 2.5;
         const base = ch.userData.baseY ?? ch.position.y;
         ch.position.y = base + Math.sin((t || 0) * 3 + ch.position.x) * 0.15;
       }
     });
   }
+  if (local) {
+    const w = threeGameToWorld(local.x, local.y, local.z, tr);
+    const roadH = threeTrackHeightAt(tr, local.x, local.y, curve);
+    const look = typeof kartCamLookAngle === 'function' ? kartCamLookAngle(local, tr) : local.angle;
+    const speedFactor = Math.min(1, Math.abs(local.speed || 0) / 400);
+    const boostFactor = Math.min(1, (local.boost || 0) / 200);
+    const samples = tr.mega ? 140 : tr.huge ? 100 : 64;
+    const near = kartNearestPath(tr, local.x, local.y, samples);
+    const lookU = (near.u + 0.04 + speedFactor * 0.06) % 1;
+    const aheadP = kartPathSample(tr, lookU);
+    const aw = threeGameToWorld(aheadP.x, aheadP.y, local.z, tr);
+    const aheadH = threeTrackHeightAt(tr, aheadP.x, aheadP.y, curve);
+    const bearing = look + camOrbit.yaw * 0.45;
+    const dist = 11 + (race.camZoom || 1) * 4 + speedFactor * 12 + boostFactor * 7 + camOrbit.dist * 0.3;
+    const h = 7.5 + Math.min(10, (local.z || 0) * 0.06) + speedFactor * 3 + camOrbit.pitch * 10;
+    const cx = w.x - Math.cos(bearing) * dist;
+    const cz = w.z - Math.sin(bearing) * dist;
+    const camY = Math.max(roadH + 3, roadH + w.y + h);
+    const lookH = aheadH + 2.6 + Math.min(3, (local.speed || 0) * 0.005) + (local.z || 0) * 0.04;
+    const camLerp = 0.16 + speedFactor * 0.12 + boostFactor * 0.05;
+    ctx.camera.position.lerp(new THREE.Vector3(cx, camY, cz), camLerp);
+    ctx.camera.lookAt(aw.x, lookH, aw.z);
+    const targetFov = 54 + speedFactor * 12 + boostFactor * 9 + (local.z > 30 ? 5 : 0);
+    ctx.camera.fov = lerp(ctx.camera.fov, targetFov, 0.09);
+    ctx.camera.updateProjectionMatrix();
+  }
+  threeSyncRaceFx(ctx, tr, t);
 }
 
 function threeUpdateMainMenu(ctx, dt, t) {
@@ -1314,8 +1358,8 @@ function threeSyncGameplay(ctx, t) {
   const pp = threeGpPos(px, py);
   ctx.playerMesh.position.set(pp.x, pp.y + 1.2, 0.6);
   const sc = 0.55;
-  ctx.playerMesh.rotation.y = 0;
-  ctx.playerMesh.scale.set(sc * player.facing, sc, sc);
+  ctx.playerMesh.rotation.y = player.facing < 0 ? Math.PI : 0;
+  ctx.playerMesh.scale.set(sc * Math.abs(player.facing), sc, sc);
 
   for (const { it, mesh } of ctx.itemMeshes) {
     mesh.visible = !it.taken;

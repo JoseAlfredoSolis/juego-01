@@ -1502,17 +1502,17 @@ function drawKart(t) {
     drawKartTrack(race.track, t);
     const sorted = [...race.karts].sort((a, b) => kartWorldToCam(b.x, b.y).y - kartWorldToCam(a.x, a.y).y);
     for (const k of sorted) drawKartEntity(k, race.track);
-    const meFx = race.karts[kartLocalIdx()];
-    if (meFx) {
-      const sf = Math.min(1, Math.abs(meFx.speed || 0) / 450);
-      const bf = Math.min(1, (meFx.boost || 0) / 180);
-      if (sf > 0.35 || bf > 0.3) {
-        const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.72);
-        vig.addColorStop(0, 'rgba(0,0,0,0)');
-        vig.addColorStop(1, `rgba(0,0,0,${0.12 + sf * 0.14 + bf * 0.1})`);
-        ctx.fillStyle = vig;
-        ctx.fillRect(0, 0, W, H);
-      }
+  }
+  const meFx = race.karts[kartLocalIdx()];
+  if (meFx && race.phase === 'racing') {
+    const sf = Math.min(1, Math.abs(meFx.speed || 0) / 450);
+    const bf = Math.min(1, (meFx.boost || 0) / 180);
+    if (sf > 0.35 || bf > 0.3) {
+      const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.72);
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, `rgba(0,0,0,${0.12 + sf * 0.14 + bf * 0.1})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, W, H);
     }
   }
   fillRR(8, 8, W - 16, 56, 14, 'rgba(8,12,20,0.85)');
