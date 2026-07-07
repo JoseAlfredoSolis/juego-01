@@ -5,8 +5,27 @@ function updateAchievements(dt){
   if(pressed('Enter')||pressed('Escape')||pressed('Space')) changeScene('menu');
 }
 function drawAchievements(){
+  const desktop = uiIsDesktop();
   uiBgGrad('#0a1018','#101820', false);
   const got=ACHIEVEMENTS.filter(a=>gs.ach[a.id]).length;
+  if (desktop) {
+    uiDesktopHeader('LOGROS', got + ' / ' + ACHIEVEMENTS.length + ' desbloqueados');
+    uiPanel(28, 72, 1224, 580, 18);
+    const colW = 580, gap = 24, x0 = 48, y0 = 100;
+    ACHIEVEMENTS.forEach((a,i)=>{
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = x0 + col * (colW + gap), y = y0 + row * 52;
+      const on=!!gs.ach[a.id];
+      fillRR(x, y - 24, colW, 44, 10, on?'rgba(60,200,90,0.12)':'rgba(255,255,255,0.04)');
+      if(on) strokeRR(x, y - 24, colW, 44, 10,'rgba(60,200,90,0.35)',1);
+      ctx.textAlign='left'; ctx.font='bold 20px monospace';
+      ctx.fillStyle=on?UI.green:'#555'; ctx.fillText('*', x + 8, y);
+      ctx.fillStyle=on?UI.bright:'#777'; ctx.fillText(a.name, x + 28, y - 2);
+      ctx.font='13px monospace'; ctx.fillStyle=on?UI.dim:'#555'; ctx.fillText(a.desc, x + 28, y + 14);
+    });
+    hud('Enter / Esc volver', W / 2, H - 14, UI.dim, 13, 'center');
+    return;
+  }
   uiTitle('LOGROS', 66, 40);
   hud(got+' / '+ACHIEVEMENTS.length+' desbloqueados', W/2, 102, UI.green, 20, 'center');
   uiPanel(W/2-380,118,760,520,18);

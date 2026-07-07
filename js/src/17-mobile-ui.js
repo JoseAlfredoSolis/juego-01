@@ -20,12 +20,10 @@ const MOB_TAP_MAX = 22;
 const MOB_SWIPE_MIN = 36;
 
 function mobRegisterRow(x, y, w, h, idx) {
-  if (!document.body.classList.contains('touch')) return;
   mobRows.push({ x, y, w, h, idx });
 }
 
 function mobRegisterWorldCard(wi, x, y, w, h) {
-  if (!document.body.classList.contains('touch')) return;
   mobWorldCards.push({ wi, x, y, w, h });
 }
 
@@ -191,7 +189,17 @@ function mobHandlePointerUp(clientX, clientY) {
   const dist = Math.hypot(dx, dy);
   mobPtr = null;
 
-  if (!document.body.classList.contains('touch')) return;
+  if (!document.body.classList.contains('touch')) {
+    if (MOB_PLAY_SCENES.includes(gs.scene)) return;
+    if (dist < MOB_TAP_MAX) {
+      const p = canvasPoint(clientX, clientY);
+      if (gs.scene === 'worldmap') mobWorldHitTest(p.x, p.y);
+      else if (['charselect', 'gallery', 'shop', 'menu', 'settings', 'worldmap'].includes(gs.scene)) {
+        mobHitTest(p.x, p.y);
+      }
+    }
+    return;
+  }
   if (MOB_PLAY_SCENES.includes(gs.scene) || MOB_JOIN_SCENES.includes(gs.scene)) return;
 
   if (dist < MOB_TAP_MAX) {
@@ -252,6 +260,24 @@ function setupMobileUi() {
   });
 
   canvas.addEventListener('pointercancel', () => { mobPtr = null; });
+}
+
+function setupDesktopPointer() {
+  const canvas = document.getElementById('c');
+  if (!canvas) return;
+  canvas.addEventListener('pointerdown', e => {
+    if (document.body.classList.contains('touch')) return;
+    if (MOB_PLAY_SCENES.includes(gs.scene)) return;
+    mobPtr = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  });
+  canvas.addEventListener('pointerup', e => {
+    if (document.body.classList.contains('touch')) return;
+    if (!mobPtr || mobPtr.id !== e.pointerId) return;
+    mobHandlePointerUp(e.clientX, e.clientY);
+  });
+  canvas.addEventListener('pointercancel', () => {
+    if (!document.body.classList.contains('touch')) mobPtr = null;
+  });
 }
 
 let mobMenuHtmlScene = '';

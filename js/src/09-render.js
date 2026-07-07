@@ -202,6 +202,25 @@ function uiSectionLabel(x, y, text) {
   ctx.textAlign = 'left'; ctx.font = 'bold 13px monospace'; ctx.fillStyle = UI.cyan;
   ctx.fillText(text, x, y);
 }
+
+function uiIsDesktop() {
+  return typeof mobUseDesktopMenu === 'function' && mobUseDesktopMenu();
+}
+
+function uiDesktopHeader(title, subtitle) {
+  fillRR(0, 0, W, 56, 0, 'rgba(0,0,0,0.42)');
+  strokeRR(0, 54, W, 2, 0, 'rgba(255,255,255,0.06)', 1);
+  hud(title, 28, 36, UI.gold, 22, 'left');
+  if (subtitle) hud(subtitle, 28, 52, UI.dim, 13, 'left');
+  if (typeof GAME_VERSION !== 'undefined') {
+    hud(GAME_VERSION, W - 16, 38, 'rgba(255,255,255,0.35)', 13, 'right');
+  }
+}
+
+function uiDesktopStatusBar() {
+  fillRR(0, H - 40, W, 40, 0, 'rgba(0,0,0,0.55)');
+  hud('Vidas: ' + gs.lives + '   Monedas: ' + gs.coins + '   Score: ' + gs.score, W / 2, H - 14, UI.bright, 15, 'center');
+}
 function drawHeartIcon(x,y,s,on=true){
   ctx.fillStyle=on?'#ff4d6d':'#3a3040'; ctx.beginPath();
   ctx.moveTo(x,y+s*0.3); ctx.bezierCurveTo(x,y,x-s*0.45,y-s*0.15,x-s*0.45,y+s*0.12);

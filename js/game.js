@@ -229,7 +229,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v80';
+const GAME_VERSION = 'v81';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 12;           // FOREST..COSMOS + POMERANIAN + BIKINI
@@ -1813,6 +1813,25 @@ function uiMenuTile(x, y, w, h, title, desc, sel, rowIdx) {
 function uiSectionLabel(x, y, text) {
   ctx.textAlign = 'left'; ctx.font = 'bold 13px monospace'; ctx.fillStyle = UI.cyan;
   ctx.fillText(text, x, y);
+}
+
+function uiIsDesktop() {
+  return typeof mobUseDesktopMenu === 'function' && mobUseDesktopMenu();
+}
+
+function uiDesktopHeader(title, subtitle) {
+  fillRR(0, 0, W, 56, 0, 'rgba(0,0,0,0.42)');
+  strokeRR(0, 54, W, 2, 0, 'rgba(255,255,255,0.06)', 1);
+  hud(title, 28, 36, UI.gold, 22, 'left');
+  if (subtitle) hud(subtitle, 28, 52, UI.dim, 13, 'left');
+  if (typeof GAME_VERSION !== 'undefined') {
+    hud(GAME_VERSION, W - 16, 38, 'rgba(255,255,255,0.35)', 13, 'right');
+  }
+}
+
+function uiDesktopStatusBar() {
+  fillRR(0, H - 40, W, 40, 0, 'rgba(0,0,0,0.55)');
+  hud('Vidas: ' + gs.lives + '   Monedas: ' + gs.coins + '   Score: ' + gs.score, W / 2, H - 14, UI.bright, 15, 'center');
 }
 function drawHeartIcon(x,y,s,on=true){
   ctx.fillStyle=on?'#ff4d6d':'#3a3040'; ctx.beginPath();
@@ -3825,33 +3844,40 @@ function drawMenuHeroPanel(t) {
 }
 
 function drawMenuDesktop(t) {
+  uiDesktopHeader('SUPER BEAR ADVENTURE', 'Menú principal · PC');
   drawMenuHeroPanel(t);
 
-  const rx = 452, ry = 64, rw = 800, rh = 592;
+  const rx = 440, ry = 64, rw = 820, rh = 592;
   uiPanel(rx, ry, rw, rh, 22);
   hud('MENÚ PRINCIPAL', rx + rw / 2, ry + 32, UI.gold, 22, 'center');
+  uiWalletBadge(rx + rw - 100, ry + 32, gs.wallet);
 
-  const tileX = rx + 28, tileW = rw - 56, tileH = 36;
+  const tileX = rx + 24, tileW = rw - 48, tileH = 44, colW = Math.floor((tileW - 12) / 2);
   let y = ry + 52;
   for (let s = 0; s < MENU_SECTIONS.length; s++) {
     const sec = MENU_SECTIONS[s];
     const nextStart = s + 1 < MENU_SECTIONS.length ? MENU_SECTIONS[s + 1].start : menuItems.length;
     uiSectionLabel(tileX, y + 12, sec.label);
     y += 22;
+    let col = 0;
     for (let i = sec.start; i < nextStart; i++) {
       const key = menuItems[i];
       const meta = MENU_META[key] || { title: key, desc: '' };
-      uiMenuTile(tileX, y, tileW, tileH, meta.title, null, i === menuSel, i);
-      y += tileH + 4;
+      const cx = tileX + col * (colW + 12);
+      uiMenuTile(cx, y, colW, tileH, meta.title, meta.desc, i === menuSel, i);
+      col++;
+      if (col >= 2) { col = 0; y += tileH + 6; }
     }
-    y += 8;
+    if (col > 0) y += tileH + 6;
+    y += 10;
   }
 
   const selKey = menuItems[menuSel];
   const selMeta = MENU_META[selKey] || { title: selKey, desc: '' };
-  fillRR(rx + 20, ry + rh - 58, rw - 40, 44, 12, 'rgba(255,215,0,0.08)');
-  strokeRR(rx + 20, ry + rh - 58, rw - 40, 44, 12, 'rgba(255,215,0,0.25)', 1);
-  hud('Enter · ' + selMeta.title + (selMeta.desc ? ' — ' + selMeta.desc : ''), rx + rw / 2, ry + rh - 30, UI.bright, 15, 'center');
+  fillRR(rx + 20, ry + rh - 62, rw - 40, 48, 12, 'rgba(255,215,0,0.08)');
+  strokeRR(rx + 20, ry + rh - 62, rw - 40, 48, 12, 'rgba(255,215,0,0.25)', 1);
+  hud('Enter · ' + selMeta.title + (selMeta.desc ? ' — ' + selMeta.desc : ''), rx + rw / 2, ry + rh - 32, UI.bright, 15, 'center');
+  hud('Clic en una opción · Flechas ▲▼ · Enter confirmar', rx + rw / 2, H - 14, UI.dim, 13, 'center');
 }
 
 function updateMenu(dt) {
@@ -3911,7 +3937,7 @@ function drawMenu(t) {
     uiFooter('▲▼ navegar · OK confirmar');
   } else {
     drawMenuDesktop(t);
-    uiFooter('▲▼ navegar · Enter confirmar · Esc');
+    return;
   }
   hud(GAME_VERSION, W - 12, H - 12, 'rgba(255,255,255,0.4)', 13, 'right');
 }
@@ -4123,6 +4149,92 @@ function drawBikiWorld(t) {
 
 // ── Character Gallery ───────────────────────────────────────────────────────
 let gallerySel = 0, galleryT = 0;
+
+function drawHeroDesktopGrid(sel, t, gx, gy, gw, gh, label) {
+  uiPanel(gx, gy, gw, gh, 18);
+  uiSectionLabel(gx + 16, gy + 24, label || 'HÉROES');
+  const cols = 6, cw = 88, ch = 76, pad = 14, startY = gy + 42;
+  for (let i = 0; i < CHARACTERS.length; i++) {
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = gx + pad + col * (cw + 8), y = startY + row * (ch + 8);
+    if (y + ch > gy + gh - 10) break;
+    const on = i === sel, ok = isCharUnlocked(i);
+    const c = CHARACTERS[i];
+    fillRR(x, y, cw, ch, 12, on ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.04)');
+    if (on) strokeRR(x, y, cw, ch, 12, UI.gold, 2);
+    else if (ok) strokeRR(x, y, cw, ch, 12, 'rgba(255,255,255,0.1)', 1);
+    if (c?.draw) {
+      ctx.save();
+      ctx.translate(x + cw / 2, y + 36);
+      ctx.scale(0.72, 0.72);
+      const sil = !ok && !c.shopOnly && !c.shopPrice;
+      if (!sil) {
+        c.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
+        if (!ok) { ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H); }
+      } else {
+        ctx.fillStyle = '#2b3240'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H);
+      }
+      ctx.restore();
+    }
+    ctx.textAlign = 'center'; ctx.font = 'bold 9px monospace';
+    ctx.fillStyle = on ? UI.gold : ok ? UI.bright : UI.dim;
+    const nm = (c?.name || '?').slice(0, 10);
+    ctx.fillText(nm, x + cw / 2, y + ch - 8);
+    mobRegisterRow(x, y, cw, ch, i);
+  }
+}
+
+function drawHeroDesktopDetail(sel, t, rx, ry, rw, rh, opts) {
+  const ch = CHARACTERS[sel];
+  const unlocked = isCharUnlocked(sel);
+  const bob = Math.sin(t * 3) * 6;
+  uiPanel(rx, ry, rw, rh, 20);
+  hud(opts?.title || 'DETALLE', rx + rw / 2, ry + 28, UI.cyan, 15, 'center');
+
+  const previewY = ry + 200 + bob;
+  uiGlowCircle(rx + rw / 2, previewY, 80, ch?.color || UI.gold, t);
+  ctx.save();
+  ctx.translate(rx + rw / 2, previewY);
+  ctx.scale(4.6, 4.6);
+  const showSil = !unlocked && !ch.shopOnly && !ch.shopPrice;
+  if (!showSil && ch?.draw) {
+    ch.draw({ facing: 1 }, -PLAYER_W / 2, -PLAYER_H / 2);
+    if (!unlocked) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H); }
+  } else {
+    ctx.fillStyle = '#2b3240'; ctx.fillRect(-PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H);
+  }
+  ctx.restore();
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 26px monospace';
+  ctx.fillStyle = unlocked ? UI.gold : UI.dim;
+  ctx.fillText(ch?.name || '?', rx + rw / 2, ry + 72);
+
+  if (opts?.pick && gs.character === sel) {
+    uiBadge(rx + rw / 2, ry + 98, 'EN USO', UI.green, 'rgba(20,60,30,0.7)');
+  } else {
+    uiBadge(rx + rw / 2, ry + 98, unlocked ? 'DESBLOQUEADO' : 'BLOQUEADO', unlocked ? UI.green : UI.red,
+      unlocked ? 'rgba(20,60,30,0.65)' : 'rgba(60,20,20,0.55)');
+  }
+
+  if (unlocked) {
+    drawStatBar(rx + 36, ry + 320, rw - 72, ch.speed, 'VEL', UI.green);
+    drawStatBar(rx + 36, ry + 348, rw - 72, ch.jump, 'SAL', UI.cyan);
+    if (ch?.special) hud('★ ' + ch.special.name, rx + rw / 2, ry + 382, ch.color || UI.cyan, 15, 'center');
+    hud(ch?.desc || '', rx + rw / 2, ry + 408, UI.bright, 14, 'center');
+    if (opts?.pick) {
+      fillRR(rx + 24, ry + rh - 58, rw - 48, 44, 12, 'rgba(255,215,0,0.12)');
+      hud('Enter · Elegir a ' + ch.name, rx + rw / 2, ry + rh - 30, UI.gold, 15, 'center');
+    }
+  } else {
+    let lockTxt = 'Completa ' + (ch?.unlock || 0) + ' mundo(s)';
+    if (ch?.shopOnly) lockTxt = '★ Tienda · ' + charShopCost(ch) + ' monedas';
+    else if (ch?.shopPrice) lockTxt = 'Tienda · ' + charShopCost(ch) + ' monedas';
+    hud(lockTxt, rx + rw / 2, ry + 360, UI.gold, 15, 'center');
+  }
+  uiPager(rx + rw / 2, ry + rh - 78, sel, CHARACTERS.length);
+}
+
 function updateGallery(dt) {
   galleryT += dt;
   mobBindMenu(() => gallerySel, v => { gallerySel = v; });
@@ -4137,8 +4249,19 @@ function updateGallery(dt) {
 }
 function drawGallery(t) {
   const portrait = typeof mobTouchPortrait === 'function' && mobTouchPortrait();
+  const desktop = uiIsDesktop();
   uiBgGrad('#0a1420', '#1a2840');
   uiSparkles(t * 0.4, 24);
+
+  if (desktop) {
+    uiDesktopHeader('GALERÍA DE HÉROES', 'Todos los personajes del juego');
+    uiWalletBadge(W - 110, 36, gs.wallet);
+    drawHeroDesktopGrid(gallerySel, t, 24, 64, 760, 592, 'COLECCIÓN');
+    drawHeroDesktopDetail(gallerySel, t, 800, 64, 456, 592, { title: 'FICHA' });
+    hud('Clic en héroe · ◀▶ navegar · Esc volver', W / 2, H - 14, UI.dim, 13, 'center');
+    return;
+  }
+
   uiTitle('GALERIA DE HEROES', portrait ? 48 : 58, portrait ? 28 : 36);
   uiWalletBadge(W - 110, portrait ? 38 : 42, gs.wallet);
 
@@ -4206,7 +4329,7 @@ const WORLD_MAP_ROW_LABELS = [
 ];
 
 function worldMapUseDesktopLayout() {
-  return !(document.body.classList.contains('touch') && !mobUseDesktopMenu()) && W >= 1100;
+  return uiIsDesktop() && W >= 1100;
 }
 
 function worldMapDesktopMetrics() {
@@ -4358,6 +4481,7 @@ function drawWorldMapDesktopTile(wi, t) {
   ctx.shadowBlur = 0;
   strokeRR(x, y + bob, w, h, 16, sel ? UI.gold : 'rgba(255,255,255,0.12)', sel ? 3 : 1);
   if (sel) fillRR(x, y + bob, 5, h, 3, UI.gold);
+  mobRegisterWorldCard(wi, x, y + bob, w, h);
 
   uiBadge(x + 32, y + bob + 16, 'W' + (wi + 1), sel ? UI.gold : 'rgba(255,255,255,0.85)', 'rgba(0,0,0,0.55)');
   drawWorldIcon(wi, cx, cy + bob - 10, 18);
@@ -4545,7 +4669,8 @@ function updateWorldMap(dt) {
 function drawWorldMap(t) {
   uiBgGrad('#080c14', '#141e2e'); uiSparkles(t * 0.5, 20);
   const desktop = worldMapUseDesktopLayout();
-  uiTitle('MAPA DE MUNDOS', desktop ? 42 : 46, desktop ? 32 : 36);
+  if (desktop) uiDesktopHeader('MAPA DE MUNDOS', 'Elige mundo y nivel');
+  else uiTitle('MAPA DE MUNDOS', 46, 36);
 
   const unlocked = worldsUnlockedCount();
   let cleared = 0;
@@ -4610,9 +4735,13 @@ function drawWorldMap(t) {
   }
 
   fillRR(0, H - 36, W, 36, 0, 'rgba(0,0,0,0.55)');
-  hud('Vidas:' + gs.lives + '  Monedas:' + gs.coins + '  Score:' + gs.score, W / 2, H - 12, UI.bright, 16, 'center');
+  if (!desktop) {
+    hud('Vidas:' + gs.lives + '  Monedas:' + gs.coins + '  Score:' + gs.score, W / 2, H - 12, UI.bright, 16, 'center');
+  } else {
+    uiDesktopStatusBar();
+  }
   uiFooter(touchList ? 'Toca mundo · 1/2/3 nivel · OK jugar' :
-    desktop ? 'Flechas · mundo · Teclas 1/2/3 · nivel · Enter jugar · Esc menú' :
+    desktop ? 'Clic o flechas · mundo · 1/2/3 nivel · Enter jugar · Esc menú' :
     'Flechas=mundo · 1/2/3=nivel · Enter=jugar · Esc=Menú');
   if (mp.active && mp.role === 'guest') {
     uiBadge(W / 2, H - 56, 'Esperando al anfitrión...', '#7df', 'rgba(0,80,140,0.65)');
@@ -4768,9 +4897,9 @@ function updateSettings(dt) {
   }
 }
 function drawSettings() {
+  const desktop = uiIsDesktop();
   uiBgGrad('#0a1420','#0d1b2a', false);
-  uiTitle('AJUSTES', 68, 42);
-  uiPanel(W/2-370,100,740,530,18);
+
   const viewLbl = typeof threeCanUse === 'function' && threeCanUse()
     ? (gs.viewMode === '3d' ? '3D' : '2D')
     : '2D';
@@ -4785,6 +4914,60 @@ function drawSettings() {
     ['Reiniciar progreso',''],
     ['Volver',''],
   ];
+  const hints = [
+    'Sonidos de salto, monedas y golpes.',
+    'Música distinta en cada nivel del juego.',
+    'Afecta vidas, enemigos y puntuación.',
+    'Alterna vista 2D clásica o 3D con Three.js.',
+    'Sacude la pantalla al recibir daño.',
+    'Partículas al coleccionar y al golpear.',
+    'Vibración en móvil (sin efecto en PC).',
+    'Borra récord, mundos y compras.',
+    'Guarda y vuelve al menú.',
+  ];
+
+  if (desktop) {
+    uiDesktopHeader('AJUSTES', 'Audio, gráficos y progreso');
+    const lx = 28, ly = 72, lw = 520, lh = 580;
+    const rx = 564, rw = 688, rh = 580;
+    uiPanel(lx, ly, lw, lh, 18);
+    uiPanel(rx, ly, rw, rh, 18);
+    hud('OPCIONES', lx + 24, ly + 28, UI.gold, 16, 'left');
+    opts.forEach((o, i) => {
+      let vc = o[1];
+      if (o[1] === 'ON') vc = UI.green;
+      else if (o[1] === 'OFF') vc = UI.red;
+      if (i === 2) vc = diff().color;
+      if (i === 3) vc = gs.viewMode === '3d' ? UI.cyan : UI.gold;
+      const y = ly + 56 + i * 52;
+      fillRR(lx + 12, y - 28, lw - 24, 44, 10, i === setSel ? 'rgba(255,215,0,0.12)' : 'rgba(255,255,255,0.04)');
+      if (i === setSel) strokeRR(lx + 12, y - 28, lw - 24, 44, 10, UI.gold, 2);
+      ctx.textAlign = 'left'; ctx.font = i === setSel ? 'bold 20px monospace' : '18px monospace';
+      ctx.fillStyle = i === setSel ? UI.gold : UI.bright;
+      ctx.fillText((i === setSel ? '▸ ' : '  ') + o[0], lx + 28, y);
+      if (o[1] !== '') {
+        ctx.textAlign = 'right'; ctx.font = 'bold 18px monospace'; ctx.fillStyle = vc;
+        ctx.fillText(o[1], lx + lw - 28, y);
+      }
+      mobRegisterRow(lx + 12, y - 28, lw - 24, 44, i);
+    });
+    hud('AYUDA', rx + 28, ly + 28, UI.cyan, 16, 'left');
+    const sel = opts[setSel];
+    ctx.textAlign = 'left'; ctx.font = 'bold 24px monospace'; ctx.fillStyle = UI.gold;
+    ctx.fillText(sel[0], rx + 36, ly + 80);
+    ctx.font = '17px monospace'; ctx.fillStyle = UI.bright;
+    ctx.fillText(hints[setSel], rx + 36, ly + 118);
+    if (setSel === 2) {
+      const d = diff();
+      hud('Vidas: ' + d.lives + '  Enemigos: x' + d.enemy.toFixed(2) + '  Puntos: x' + d.score.toFixed(1),
+        rx + 36, ly + 160, UI.cyan, 16, 'left');
+    }
+    hud('◀ ▶ o Enter cambia valor · Esc guardar y volver', W / 2, H - 14, UI.dim, 13, 'center');
+    return;
+  }
+
+  uiTitle('AJUSTES', 68, 42);
+  uiPanel(W/2-370,100,740,530,18);
   opts.forEach((o,i)=>{
     let vc=o[1]; if(o[1]==='ON') vc=UI.green; else if(o[1]==='OFF') vc=UI.red;
     if(i===2) vc=diff().color;
@@ -4816,6 +4999,7 @@ function drawCredits() {
 // ── Character Select Scene ──────────────────────────────────────────────────
 let charSel=0, charT=0;
 function updateCharSelect(dt) {
+  mobBindMenu(() => charSel, v => { charSel = v; sfx.select(); });
   mobBindSwipe(dir => {
     const n = CHARACTERS.length;
     if (dir === 'left') charSel = (charSel - 1 + n) % n;
@@ -4866,7 +5050,18 @@ function drawCharThumbStrip(cx, cy, sel, n, maxShow) {
 }
 
 function drawCharSelect() {
+  const desktop = uiIsDesktop();
   uiBgGrad('#0a1018', '#142038', false); uiSparkles(charT * 0.3, 24);
+
+  if (desktop) {
+    uiDesktopHeader('PERSONAJES', 'Elige tu héroe');
+    uiWalletBadge(W - 110, 36, gs.wallet);
+    drawHeroDesktopGrid(charSel, charT, 24, 64, 760, 592, 'HÉROES');
+    drawHeroDesktopDetail(charSel, charT, 800, 64, 456, 592, { title: 'SELECCIÓN', pick: true });
+    hud('Clic en héroe · Enter confirmar · Esc volver', W / 2, H - 14, UI.dim, 13, 'center');
+    return;
+  }
+
   uiTitle('PERSONAJES', 68, 40);
   uiWalletBadge(W - 110, 42, gs.wallet);
 
@@ -4979,16 +5174,28 @@ function updateShop(dt){
   if(banner){ banner.life-=dt; if(banner.life<=0) banner=null; }
 }
 function drawShop(){
+  const desktop = uiIsDesktop();
   uiBgGrad('#100818','#1a1030', false);
   uiSparkles(performance.now() * 0.001, 18);
-  uiTitle('TIENDA', 68, 42);
-  uiWalletBadge(W / 2, 108, gs.wallet);
 
-  const pw = 780, ph = 490, px = W / 2 - pw / 2, py = 132;
+  const pw = desktop ? 1232 : 780;
+  const ph = desktop ? 560 : 490;
+  const px = W / 2 - pw / 2;
+  const py = desktop ? 72 : 132;
+
+  if (desktop) {
+    uiDesktopHeader('TIENDA', 'Compra héroes y mejoras');
+    uiWalletBadge(W - 110, 36, gs.wallet);
+  } else {
+    uiTitle('TIENDA', 68, 42);
+    uiWalletBadge(W / 2, 108, gs.wallet);
+  }
+
   uiPanel(px, py, pw, ph, 20);
   const list = buildShop();
-  const listX = px + 16, listW = 430, listY = py + 14, listH = ph - 28;
+  const listX = px + 16, listW = desktop ? 560 : 430, listY = py + 14, listH = ph - 28;
   const detailX = px + listW + 28, detailW = pw - listW - 44;
+  const visible = desktop ? 8 : SHOP_VISIBLE;
 
   fillRR(detailX, listY, detailW, listH, 16, 'rgba(0,0,0,0.28)');
   strokeRR(detailX, listY, detailW, listH, 16, 'rgba(255,215,0,0.15)', 1);
@@ -4998,8 +5205,12 @@ function drawShop(){
     hud('¡Todo comprado!', W / 2, py + ph / 2, UI.green, 26, 'center');
     hud('Sigue jugando para ganar más monedas', W / 2, py + ph / 2 + 36, UI.dim, 16, 'center');
   } else {
-    const off = shopListOffset(list.length);
-    const clipH = SHOP_VISIBLE * SHOP_ROW_H;
+    const visible = desktop ? 8 : SHOP_VISIBLE;
+    let off = 0;
+    if (list.length > visible) {
+      off = Math.max(0, Math.min(shopSel - Math.floor(visible / 2), list.length - visible));
+    }
+    const clipH = visible * SHOP_ROW_H;
     uiClipScroll(listX, listY, listW, clipH, 14, () => {
       list.forEach((o, i) => {
         const y = listY + (i - off) * SHOP_ROW_H + 8;
@@ -5029,13 +5240,13 @@ function drawShop(){
           ctx.fillStyle = afford ? UI.gold : UI.red;
           ctx.fillText(o.cost + ' mon.', listX + listW - 20, y + 36);
         });
-        if (sel) mobRegisterRow(listX + 4, y, listW - 8, SHOP_ROW_H - 10, i);
+        mobRegisterRow(listX + 4, y, listW - 8, SHOP_ROW_H - 10, i);
       });
     });
 
-    if (list.length > SHOP_VISIBLE) {
-      const scrollFrac = off / Math.max(1, list.length - SHOP_VISIBLE);
-      uiBar(listX + listW + 6, listY, 5, clipH, (off + SHOP_VISIBLE) / list.length, UI.gold);
+    if (list.length > visible) {
+      const scrollFrac = off / Math.max(1, list.length - visible);
+      uiBar(listX + listW + 6, listY, 5, clipH, (off + visible) / list.length, UI.gold);
       hud('▲▼ ' + (shopSel + 1) + '/' + list.length, listX + listW / 2, listY + clipH + 16, UI.dim, 13, 'center');
     }
 
@@ -5072,7 +5283,7 @@ function drawShop(){
     uiBadge(W / 2, py - 8, banner.text, banner.color, 'rgba(0,0,0,0.75)');
     ctx.globalAlpha = 1;
   }
-  uiFooter('▲▼ navegar · Enter comprar · Esc volver');
+  uiFooter(desktop ? 'Clic o ▲▼ · Enter comprar · Esc volver' : '▲▼ navegar · Enter comprar · Esc volver');
 }
 
 
@@ -5083,8 +5294,27 @@ function updateAchievements(dt){
   if(pressed('Enter')||pressed('Escape')||pressed('Space')) changeScene('menu');
 }
 function drawAchievements(){
+  const desktop = uiIsDesktop();
   uiBgGrad('#0a1018','#101820', false);
   const got=ACHIEVEMENTS.filter(a=>gs.ach[a.id]).length;
+  if (desktop) {
+    uiDesktopHeader('LOGROS', got + ' / ' + ACHIEVEMENTS.length + ' desbloqueados');
+    uiPanel(28, 72, 1224, 580, 18);
+    const colW = 580, gap = 24, x0 = 48, y0 = 100;
+    ACHIEVEMENTS.forEach((a,i)=>{
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = x0 + col * (colW + gap), y = y0 + row * 52;
+      const on=!!gs.ach[a.id];
+      fillRR(x, y - 24, colW, 44, 10, on?'rgba(60,200,90,0.12)':'rgba(255,255,255,0.04)');
+      if(on) strokeRR(x, y - 24, colW, 44, 10,'rgba(60,200,90,0.35)',1);
+      ctx.textAlign='left'; ctx.font='bold 20px monospace';
+      ctx.fillStyle=on?UI.green:'#555'; ctx.fillText('*', x + 8, y);
+      ctx.fillStyle=on?UI.bright:'#777'; ctx.fillText(a.name, x + 28, y - 2);
+      ctx.font='13px monospace'; ctx.fillStyle=on?UI.dim:'#555'; ctx.fillText(a.desc, x + 28, y + 14);
+    });
+    hud('Enter / Esc volver', W / 2, H - 14, UI.dim, 13, 'center');
+    return;
+  }
   uiTitle('LOGROS', 66, 40);
   hud(got+' / '+ACHIEVEMENTS.length+' desbloqueados', W/2, 102, UI.green, 20, 'center');
   uiPanel(W/2-380,118,760,520,18);
@@ -7104,12 +7334,10 @@ const MOB_TAP_MAX = 22;
 const MOB_SWIPE_MIN = 36;
 
 function mobRegisterRow(x, y, w, h, idx) {
-  if (!document.body.classList.contains('touch')) return;
   mobRows.push({ x, y, w, h, idx });
 }
 
 function mobRegisterWorldCard(wi, x, y, w, h) {
-  if (!document.body.classList.contains('touch')) return;
   mobWorldCards.push({ wi, x, y, w, h });
 }
 
@@ -7275,7 +7503,17 @@ function mobHandlePointerUp(clientX, clientY) {
   const dist = Math.hypot(dx, dy);
   mobPtr = null;
 
-  if (!document.body.classList.contains('touch')) return;
+  if (!document.body.classList.contains('touch')) {
+    if (MOB_PLAY_SCENES.includes(gs.scene)) return;
+    if (dist < MOB_TAP_MAX) {
+      const p = canvasPoint(clientX, clientY);
+      if (gs.scene === 'worldmap') mobWorldHitTest(p.x, p.y);
+      else if (['charselect', 'gallery', 'shop', 'menu', 'settings', 'worldmap'].includes(gs.scene)) {
+        mobHitTest(p.x, p.y);
+      }
+    }
+    return;
+  }
   if (MOB_PLAY_SCENES.includes(gs.scene) || MOB_JOIN_SCENES.includes(gs.scene)) return;
 
   if (dist < MOB_TAP_MAX) {
@@ -7336,6 +7574,24 @@ function setupMobileUi() {
   });
 
   canvas.addEventListener('pointercancel', () => { mobPtr = null; });
+}
+
+function setupDesktopPointer() {
+  const canvas = document.getElementById('c');
+  if (!canvas) return;
+  canvas.addEventListener('pointerdown', e => {
+    if (document.body.classList.contains('touch')) return;
+    if (MOB_PLAY_SCENES.includes(gs.scene)) return;
+    mobPtr = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  });
+  canvas.addEventListener('pointerup', e => {
+    if (document.body.classList.contains('touch')) return;
+    if (!mobPtr || mobPtr.id !== e.pointerId) return;
+    mobHandlePointerUp(e.clientX, e.clientY);
+  });
+  canvas.addEventListener('pointercancel', () => {
+    if (!document.body.classList.contains('touch')) mobPtr = null;
+  });
 }
 
 let mobMenuHtmlScene = '';
@@ -10555,6 +10811,7 @@ function setupCameraOrbit() {
 setupTouch();
 setupPointerControls();
 setupMobileUi();
+setupDesktopPointer();
 mobUiSync();
 resize();
 

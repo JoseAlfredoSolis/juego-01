@@ -2,6 +2,7 @@
 setupTouch();
 setupPointerControls();
 setupMobileUi();
+setupDesktopPointer();
 mobUiSync();
 resize();
 
