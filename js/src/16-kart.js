@@ -1272,7 +1272,19 @@ function kartSimKart(k, dt, tr) {
     k.speed *= 0.3;
     sfx.win();
     spawnRing(k.x, k.y, '#ffd700', 90, 0.5);
-    if (!k.ai && k.idx === kartLocalIdx()) showBanner('¡META!', '#ffd700');
+    if (!k.ai && k.idx === kartLocalIdx()) {
+      const prev = gs.kartBest?.[kartTrackSel] || 0;
+      if (!prev || k.finishTime < prev) {
+        if (!gs.kartBest) gs.kartBest = {};
+        gs.kartBest[kartTrackSel] = k.finishTime;
+        race.newRecord = true;
+        if (prev && typeof unlockAch === 'function') unlockAch('kartrecord');
+        saveGame();
+        showBanner('¡META! ¡NUEVO RÉCORD!', '#ffd700');
+      } else {
+        showBanner('¡META!', '#ffd700');
+      }
+    }
   }
 }
 function kartRank() {
@@ -1653,6 +1665,14 @@ function drawKartResults() {
   });
   const winner = sorted[0];
   if (winner) hud('Ganador: ' + winner.name + '!', W / 2, 560, UI.gold, 24, 'center');
+  if (race.newRecord) {
+    const pulse = 0.7 + 0.3 * Math.sin(kartResultsT * 6);
+    ctx.globalAlpha = pulse;
+    hud('¡NUEVO RÉCORD DE PISTA!', W / 2, 595, UI.gold, 20, 'center');
+    ctx.globalAlpha = 1;
+  } else if (gs.kartBest?.[kartTrackSel]) {
+    hud('Récord de pista: ' + gs.kartBest[kartTrackSel].toFixed(2) + 's', W / 2, 595, UI.dim, 15, 'center');
+  }
   uiFooter('Enter / Esc para volver');
 }
 
@@ -1831,7 +1851,8 @@ function drawKartLobby(t) {
     : tr.decor === 'rock' ? 'Montaña · Curvas cerradas · Saltos'
     : 'Urbano · Técnica · Atajos';
   hud(decor, W / 2, 430, tr.accent, 15, 'center');
-  hud('Dificultad IA: ' + kartDiff().name, W / 2, 455, UI.cyan, 15, 'center');
+  const kb = gs.kartBest?.[kartTrackSel];
+  hud('Dificultad IA: ' + kartDiff().name + (kb ? ' · Récord: ' + kb.toFixed(2) + 's' : ''), W / 2, 455, UI.cyan, 15, 'center');
   ctx.fillStyle = UI.dim; ctx.font = '16px monospace'; ctx.textAlign = 'center';
   ctx.fillText('↑↓ pista · ←→ dificultad', W / 2, 480);
   if (mp.role === 'guest') {

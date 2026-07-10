@@ -229,7 +229,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v89';
+const GAME_VERSION = 'v90';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 12;           // FOREST..COSMOS + POMERANIAN + BIKINI
@@ -1214,12 +1214,17 @@ function drawHazards() {
 // ── Game State ─────────────────────────────────────────────────────────────
 function freshUnlocked(){ return Array.from({length:WORLD_COUNT}, (_,i)=>i===0); }
 function freshLevelDone(){ return Array.from({length:WORLD_COUNT}, ()=>[false,false,false]); }
+function freshLevelStars(){ return Array.from({length:WORLD_COUNT}, ()=>[0,0,0]); }
+function freshLevelTimes(){ return Array.from({length:WORLD_COUNT}, ()=>[0,0,0]); }
 const gs = {
   scene: 'menu', // menu | worldmap | gameplay | pause | gameover | levelcomplete | victory | settings | credits | instructions | shop | achievements
   score: 0, highScore: 0, coins: 0, lives: 3,
   world: 0, level: 0, character: 0, difficulty: 1,
   worldUnlocked: freshUnlocked(),
   levelDone: freshLevelDone(),
+  levelStarsBest: freshLevelStars(), // best star rating per level (0-3)
+  levelBestTime: freshLevelTimes(),  // best clear time per level (0 = none)
+  kartBest: {},                      // best race time per kart track {trackIdx: seconds}
   wallet: 0,            // persistent coins for the shop
   bonusLives: 0,        // bought extra starting lives (0..3)
   magnet: false,        // bought coin magnet
@@ -1450,6 +1455,8 @@ const SAVE_KEY='superbear_save_v1';
 function migrateProgress(){
   while(gs.worldUnlocked.length<WORLD_COUNT) gs.worldUnlocked.push(false);
   while(gs.levelDone.length<WORLD_COUNT) gs.levelDone.push([false,false,false]);
+  while(gs.levelStarsBest.length<WORLD_COUNT) gs.levelStarsBest.push([0,0,0]);
+  while(gs.levelBestTime.length<WORLD_COUNT) gs.levelBestTime.push([0,0,0]);
   for(let w=0;w<WORLD_COUNT-1;w++){
     if(gs.levelDone[w] && gs.levelDone[w].every(Boolean)) gs.worldUnlocked[w+1]=true;
   }
@@ -1460,6 +1467,9 @@ function loadSave(){
     if(typeof s.highScore==='number') gs.highScore=s.highScore;
     if(Array.isArray(s.worldUnlocked)) gs.worldUnlocked=s.worldUnlocked;
     if(Array.isArray(s.levelDone)) gs.levelDone=s.levelDone;
+    if(Array.isArray(s.levelStarsBest)) gs.levelStarsBest=s.levelStarsBest;
+    if(Array.isArray(s.levelBestTime)) gs.levelBestTime=s.levelBestTime;
+    if(s.kartBest && typeof s.kartBest==='object') gs.kartBest=s.kartBest;
     migrateProgress();
     if(typeof s.sound==='boolean') audio.sound=s.sound;
     if(typeof s.music==='boolean') audio.music=s.music;
@@ -1484,7 +1494,9 @@ function saveGame(){
   try{
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       highScore:gs.highScore, worldUnlocked:gs.worldUnlocked,
-      levelDone:gs.levelDone, sound:audio.sound, music:audio.music,
+      levelDone:gs.levelDone,
+      levelStarsBest:gs.levelStarsBest, levelBestTime:gs.levelBestTime,
+      kartBest:gs.kartBest, sound:audio.sound, music:audio.music,
       character:gs.character, difficulty:gs.difficulty,
       wallet:gs.wallet, bonusLives:gs.bonusLives, magnet:gs.magnet,
       bought:gs.bought, ach:gs.ach,
@@ -1500,6 +1512,9 @@ function resetProgress(){
 // === 08-effects.js (from index.html lines 629-729) ===
   gs.worldUnlocked=freshUnlocked();
   gs.levelDone=freshLevelDone();
+  gs.levelStarsBest=freshLevelStars();
+  gs.levelBestTime=freshLevelTimes();
+  gs.kartBest={};
   gs.wallet=0; gs.bonusLives=0; gs.magnet=false; gs.bought={}; gs.ach={};
   saveGame();
 }
@@ -2872,11 +2887,14 @@ const ACHIEVEMENTS = [
   { id:'firstcoin', name:'Primera moneda',  desc:'Recoge tu primera moneda' },
   { id:'boss',      name:'Cazajefes',       desc:'Vence a un jefe' },
   { id:'nohit',     name:'Intocable',       desc:'Completa un nivel sin recibir daño' },
-  { id:'speed',     name:'Veloz',           desc:'Termina un nivel en menos de 20s' },
+  { id:'speed',     name:'Veloz',           desc:'Termina un nivel en menos de 25s' },
+  { id:'threestar', name:'Perfeccionista',  desc:'Consigue 3 estrellas en un nivel' },
+  { id:'combo3',    name:'Combo aéreo',     desc:'Pisotea 3 enemigos sin tocar el suelo' },
+  { id:'kartrecord',name:'Piloto de élite', desc:'Marca un récord en una pista de kart' },
   { id:'rich',      name:'Millonario oso',  desc:'Acumula 500 monedas en total' },
   { id:'shopper',   name:'Comprador',       desc:'Compra algo en la tienda' },
   { id:'allchars',  name:'Equipo completo', desc:'Desbloquea todos los personajes' },
-  { id:'allworlds', name:'Leyenda',         desc:'Completa los 11 mundos' },
+  { id:'allworlds', name:'Leyenda',         desc:'Completa los 12 mundos' },
   { id:'pomworld',  name:'Amante pomerania', desc:'Visita el mundo Pomeranian' },
   { id:'bikiworld', name:'Vecino de la pecera', desc:'Visita el mundo Bikini' },
   { id:'coop',      name:'Equipo online',   desc:'Juega con un amigo en linea' },
@@ -2931,6 +2949,7 @@ function mkEnemies(data) {
       phase:'patrol', phaseTimer:3, chargeDir:1,
       // new-enemy state
       jumpTimer: 0.8+Math.random()*1.2, shootTimer: 1.2+Math.random()*1.2, bob: Math.random()*Math.PI*2,
+      windup: 0, charging: false,
     };
   });
 }
@@ -2975,10 +2994,19 @@ function updateEnemy(e, dt, plats, px, py, levelW) {
   } else if (e.type==='miniboss') {
     updateMiniBoss(e, dt, px, py);
   } else if (e.type==='armor') {
-    // Patrols slowly, but CHARGES when it spots the player at a similar height.
+    // Patrols slowly; when it spots the player it telegraphs ("!" + pause) then CHARGES.
     const dx = px - e.x;
-    if (Math.abs(dx) < 300 && Math.abs(py - e.y) < 90) {
-      e.dir = dx>0?1:-1; e.vx = e.dir * 210 * dm; e.charging = true;
+    const spotted = Math.abs(dx) < 300 && Math.abs(py - e.y) < 90;
+    if (e.windup > 0) {
+      e.windup -= dt; e.vx = 0;
+      if (e.windup <= 0) { e.charging = true; e.dir = px>e.x?1:-1; }
+    } else if (e.charging) {
+      if (!spotted) { e.charging = false; }
+      else e.vx = e.dir * 210 * dm;
+    } else if (spotted) {
+      e.windup = 0.35; e.vx = 0; e.dir = dx>0?1:-1;
+      spawnText(e.x+e.w/2, e.y-14, '!', '#ff5d5d', 22);
+      beep(180, 0.12, 'sawtooth', 0.14, 120);
     } else {
       if (e.x <= e.startX - e.range/2) e.dir = 1;
       if (e.x >= e.startX + e.range/2) e.dir = -1;
@@ -3368,6 +3396,8 @@ function drawPlatforms(plats, world) {
 let player, enemies, items, hazards, checkpoints, goalPos, levelData, gameTimer;
 let levelCoins = 0, levelStars = 0, runNoHit = true;
 let lcStats = null, lcT = 0; // level-complete screen data
+let hitPause = 0;            // freeze-frame timer (juice on impacts)
+function hitStop(t){ hitPause = Math.max(hitPause, t); }
 
 function startLevel() {
   levelData = mkLevel(gs.world, gs.level);
@@ -3385,6 +3415,7 @@ function startLevel() {
   goalPos = levelData.goal;
   gameTimer = 0;
   levelCoins = 0; levelStars = 0; runNoHit = true;
+  hitPause = 0;
   particles = [];
   fx = []; shake = 0; flash = null; banner = null;
   if (typeof camOrbitReset === 'function') camOrbitReset();
@@ -3416,10 +3447,16 @@ function startLevel() {
 }
 
 function updateGameplay(dt) {
+  if (hitPause > 0) {
+    hitPause -= dt;
+    if (pressed('Escape')||pressed('KeyP')) { gs.scene='pause'; pauseSel=0; }
+    return;
+  }
   gameTimer += dt;
   const ld = levelData;
 
   updatePlayer(player, dt, ld.platforms, ld.levelW);
+  if (player.onGround) player.stompCombo = 0;
   applyHazardModifiers(player);
   for (const e of enemies) updateEnemy(e, dt, ld.platforms, player.x, player.y, ld.levelW);
   updateHazards(dt);
@@ -3460,9 +3497,9 @@ function updateGameplay(dt) {
       if (!rectOverlap(hx,player.y,hw,player.h, e.x,e.y,e.w,e.h)) continue;
       const ecx=e.x+e.w/2, ecy=e.y+e.h/2;
       if (e.type==='boss') {
-        e.hp--; e.hitFlash=0.25; e.range=Math.floor(e.range*1.15);
+        e.hp--; e.hitFlash=0.25; e.range=Math.floor(e.range*1.15); hitStop(0.06);
         spawnSparks(ecx,ecy,'#fff',14,360); spawnRing(ecx,ecy,'#ffcf3a',60,0.35); addShake(0.16); addFlash('#fff',0.08);
-        if (e.hp<=0) { e.active=false; gs.score+=BOSS_PTS; spawnParticles(ecx,ecy,'#FFD700',26,300); spawnRing(ecx,ecy,'#FFD700',110,0.5); spawnText(ecx,ecy-10,'+'+BOSS_PTS,'#FFD700',22); addShake(0.3); addFlash('#fff',0.15); dropReward(ecx,ecy,true); }
+        if (e.hp<=0) { e.active=false; gs.score+=BOSS_PTS; hitStop(0.14); spawnParticles(ecx,ecy,'#FFD700',26,300); spawnRing(ecx,ecy,'#FFD700',110,0.5); spawnText(ecx,ecy-10,'+'+BOSS_PTS,'#FFD700',22); addShake(0.3); addFlash('#fff',0.15); dropReward(ecx,ecy,true); }
         else { gs.score+=100; spawnText(ecx,ecy-10,'HIT! '+e.hp,'#fff',16); }
         player.attackTimer = 0; // one hit per punch
       } else if (e.type==='miniboss') {
@@ -3486,7 +3523,16 @@ function updateGameplay(dt) {
       const stomp = player.vy>=6 && (player.y+player.h) <= e.y+(e.h/2+12);
       const ecx=e.x+e.w/2, ecy=e.y+e.h/2;
       if (stomp) {
-        player.vy = STOMP_BOUNCE; sfx.stomp();
+        // Stomp combo: cadena de pisotones sin tocar el suelo → más puntos y rebote.
+        player.stompCombo = (player.stompCombo||0) + 1;
+        const combo = player.stompCombo;
+        player.vy = STOMP_BOUNCE * Math.min(1.35, 1 + (combo-1)*0.09);
+        sfx.stomp();
+        if (combo >= 2) {
+          beep(440 + combo*110, 0.09, 'square', 0.16, 660 + combo*130);
+          spawnText(player.x+player.w/2, player.y-24, 'COMBO x'+combo, '#ffd24d', Math.min(26, 14+combo*2));
+          if (combo >= 3) { hitStop(0.05); addShake(0.08); unlockAch('combo3'); }
+        }
         if (e.type==='armor') {
           // Armored: stomping just clangs off — must be hit with a special.
           e.hitFlash=0.12; spawnSparks(ecx,ecy,'#dde',10,220); spawnText(ecx,ecy-8,'CLANC!','#cdd',14);
@@ -3504,10 +3550,12 @@ function updateGameplay(dt) {
           else { gs.score+=100; spawnText(ecx,ecy-10,'HIT! '+e.hp,'#fff',16); }
         } else {
           spawnParticles(ecx,ecy,'#fff',10); spawnDust(ecx,ecy+e.h/2,6,'#ddd');
-          e.active=false; gs.score+=ENEMY_PTS; spawnText(ecx,ecy-8,'+'+ENEMY_PTS,'#fff',14);
+          const comboPts = ENEMY_PTS * Math.min(4, player.stompCombo||1);
+          e.active=false; gs.score+=comboPts; spawnText(ecx,ecy-8,'+'+comboPts,'#fff',14);
         }
       } else {
         sfx.hurt(); gs.lives--; player.lives=gs.lives; runNoHit=false;
+        hitStop(0.09);
         addFlash('#ff2b2b',0.22); addShake(0.2);
         spawnText(player.x+player.w/2, player.y-6, '-1', '#ff4d4d', 20);
         if (gs.lives<=0) { gameOver(); return; }
@@ -3528,6 +3576,7 @@ function updateGameplay(dt) {
       else { hx+=6; hy+=6; hw-=12; hh-=12; }
       if (!rectOverlap(player.x+4,player.y+4,player.w-8,player.h-4, hx,hy,hw,hh)) continue;
       sfx.hurt(); gs.lives--; player.lives=gs.lives; runNoHit=false;
+      hitStop(0.09);
       addFlash('#ff2b2b',0.22); addShake(0.2); maybeVibrate(40);
       spawnText(player.x+player.w/2, player.y-6, '-1', '#ff4d4d', 20);
       if (gs.lives<=0) { gameOver(); return; }
@@ -3545,6 +3594,7 @@ function updateGameplay(dt) {
     const protectedNow = player.invTimer>0 || player.respawnTimer>0 || player.power==='inv';
     if (protectedNow) { spawnSparks(cxp,cyp,'#b06bff',8,220); continue; }
     sfx.hurt(); gs.lives--; player.lives=gs.lives; runNoHit=false;
+    hitStop(0.09);
     addFlash('#ff2b2b',0.22); addShake(0.18);
     spawnParticles(cxp,cyp,'#b06bff',10,200);
     spawnText(player.x+player.w/2, player.y-6, '-1', '#ff4d4d', 20);
@@ -3575,11 +3625,26 @@ function updateGameplay(dt) {
     if (gs.score > gs.highScore) gs.highScore = gs.score;
     gs.levelDone[gs.world][gs.level] = true;
     if (gs.level===2 && gs.world<LAST_WORLD) gs.worldUnlocked[gs.world+1]=true;
+    // Star rating: 1 completar · 2 todas las monedas · 3 sin daño.
+    const totalCoins = (levelData.coins||[]).length;
+    const allCoins = totalCoins>0 && levelCoins>=totalCoins;
+    const starsEarned = 1 + (allCoins?1:0) + (runNoHit?1:0);
+    const prevStars = gs.levelStarsBest[gs.world][gs.level]||0;
+    const newStars = Math.max(0, starsEarned - prevStars);
+    const starReward = newStars*25;
+    if (starReward>0) { gs.wallet += starReward; checkCollectAch(); }
+    if (starsEarned > prevStars) gs.levelStarsBest[gs.world][gs.level] = starsEarned;
+    const prevBest = gs.levelBestTime[gs.world][gs.level]||0;
+    const isRecord = !prevBest || gameTimer < prevBest;
+    if (isRecord) gs.levelBestTime[gs.world][gs.level] = gameTimer;
     if (runNoHit) unlockAch('nohit');
     if (gameTimer < 25) unlockAch('speed');
+    if (starsEarned >= 3) unlockAch('threestar');
     checkCollectAch();
     saveGame();
-    lcStats = { world:gs.world, level:gs.level, time:gameTimer, bonus:timeBonus, base:base, coins:levelCoins, stars:levelStars };
+    lcStats = { world:gs.world, level:gs.level, time:gameTimer, bonus:timeBonus, base:base,
+      coins:levelCoins, stars:levelStars, totalCoins, allCoins, noHit:runNoHit,
+      rating:starsEarned, starReward, record:isRecord, prevBest };
     changeScene('levelcomplete'); lcT=0;
     return;
   }
@@ -3835,12 +3900,15 @@ function drawMenuHeroPanel(t) {
   uiWalletBadge(px + 130, sy + 108, gs.wallet);
   uiBadge(px + pw - 56, sy + 108, 'Dif. ' + diff().name, diff().color, 'rgba(0,0,0,0.45)');
 
-  let cleared = 0;
-  for (let w = 0; w < WORLD_COUNT; w++) if (gs.levelDone[w].every(Boolean)) cleared++;
+  let cleared = 0, starTotal = 0;
+  for (let w = 0; w < WORLD_COUNT; w++) {
+    if (gs.levelDone[w].every(Boolean)) cleared++;
+    starTotal += (gs.levelStarsBest[w]||[]).reduce((a,b)=>a+(b||0),0);
+  }
   const unlocked = typeof worldsUnlockedCount === 'function' ? worldsUnlockedCount() : 1;
   hud('Mundos: ' + unlocked + '/' + WORLD_COUNT + ' · Completos: ' + cleared, px + 36, sy + 148, UI.dim, 14, 'left');
   uiBar(px + 36, sy + 162, pw - 72, 8, cleared / WORLD_COUNT, UI.green);
-  hud('Plataformas 2D/3D · PWA', px + 36, sy + 192, UI.dim, 13, 'left');
+  hud('★ ' + starTotal + '/' + (WORLD_COUNT*9) + ' estrellas · PWA', px + 36, sy + 192, UI.gold, 13, 'left');
 }
 
 function drawMenuDesktop(t) {
@@ -4465,8 +4533,10 @@ function drawWorldMapCard(wi, t) {
     ctx.fillText('BLOQ', cx, cy + 10);
   } else {
     const doneCount = gs.levelDone[wi].filter(Boolean).length;
-    if (doneCount === 3) uiBadge(cx, y + h - 44, '★ COMPLETO', UI.gold, 'rgba(0,0,0,0.5)');
-    else if (doneCount > 0) uiBadge(cx, y + h - 44, doneCount + '/3', UI.cyan, 'rgba(0,0,0,0.45)');
+    const starSum = (gs.levelStarsBest[wi]||[]).reduce((a,b)=>a+(b||0),0);
+    if (starSum >= 9) uiBadge(cx, y + h - 44, '★ 9/9 PERFECTO', UI.gold, 'rgba(0,0,0,0.5)');
+    else if (doneCount === 3) uiBadge(cx, y + h - 44, '★ ' + starSum + '/9', UI.gold, 'rgba(0,0,0,0.5)');
+    else if (doneCount > 0) uiBadge(cx, y + h - 44, doneCount + '/3 · ★' + starSum, UI.cyan, 'rgba(0,0,0,0.45)');
   }
 }
 
@@ -4506,13 +4576,14 @@ function drawWorldMapDesktopTile(wi, t) {
     for (let lv = 0; lv < 3; lv++) {
       const dx = cx - 22 + lv * 22, dy = y + bob + h - 10;
       const done = gs.levelDone[wi][lv], lvsel = sel && lv === wmLvl;
+      const lvStars = (gs.levelStarsBest[wi]||[])[lv] || 0;
       ctx.beginPath(); ctx.arc(dx, dy, lvsel ? 7 : 5, 0, Math.PI * 2);
-      ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = lvStars >= 3 ? UI.gold : done ? 'rgba(255,215,0,0.6)' : lvsel ? UI.green : 'rgba(255,255,255,0.3)';
       ctx.fill();
       if (lvsel) { ctx.strokeStyle = UI.gold; ctx.lineWidth = 2; ctx.stroke(); }
       if (done) {
         ctx.fillStyle = '#111'; ctx.font = 'bold 9px monospace';
-        ctx.fillText('★', dx, dy + 3);
+        ctx.fillText(lvStars > 0 ? String(lvStars) : '★', dx, dy + 3);
       }
     }
   }
@@ -4578,19 +4649,24 @@ function drawWorldMapDesktopDetail(t) {
     hud('Completa el mundo anterior para desbloquear', rx + rw / 2, ry + 424, UI.red, 15, 'center');
   } else {
     hud('Elige nivel', rx + 36, ry + 388, UI.dim, 14, 'left');
-    const lw = 118, lh = 52, gap = 12;
+    const lw = 118, lh = 62, gap = 12;
     const startX = rx + (rw - (lw * 3 + gap * 2)) / 2;
     for (let lv = 0; lv < 3; lv++) {
-      const bx = startX + lv * (lw + gap), by = ry + 408;
+      const bx = startX + lv * (lw + gap), by = ry + 404;
       const lvsel = lv === wmLvl, done = gs.levelDone[wmSel][lv];
+      const lvStars = (gs.levelStarsBest[wmSel]||[])[lv] || 0;
+      const best = (gs.levelBestTime[wmSel]||[])[lv] || 0;
       fillRR(bx, by, lw, lh, 14, lvsel ? 'rgba(255,215,0,0.22)' : 'rgba(255,255,255,0.06)');
       strokeRR(bx, by, lw, lh, 14, lvsel ? UI.gold : 'rgba(255,255,255,0.12)', lvsel ? 2 : 1);
-      ctx.textAlign = 'center'; ctx.font = 'bold 17px monospace';
+      ctx.textAlign = 'center'; ctx.font = 'bold 16px monospace';
       ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : UI.bright;
-      ctx.fillText('NIVEL ' + (lv + 1), bx + lw / 2, by + 24);
-      ctx.font = '12px monospace';
-      ctx.fillStyle = done ? UI.gold : UI.dim;
-      ctx.fillText(done ? '★ Completado' : lvsel ? 'Seleccionado' : 'Pulsa ' + (lv + 1), bx + lw / 2, by + 42);
+      ctx.fillText('NIVEL ' + (lv + 1), bx + lw / 2, by + 21);
+      ctx.font = '13px monospace';
+      ctx.fillStyle = done ? UI.gold : 'rgba(255,255,255,0.25)';
+      ctx.fillText(done ? '★'.repeat(lvStars) + '☆'.repeat(Math.max(0, 3 - lvStars)) : '☆☆☆', bx + lw / 2, by + 39);
+      ctx.font = '11px monospace';
+      ctx.fillStyle = best ? UI.cyan : UI.dim;
+      ctx.fillText(best ? best.toFixed(1) + 's' : (lvsel ? 'Seleccionado' : 'Pulsa ' + (lv + 1)), bx + lw / 2, by + 55);
       mobRegisterRow(bx, by, lw, lh, lv);
     }
     fillRR(rx + 24, ry + 478, rw - 48, 52, 14, 'rgba(255,215,0,0.12)');
@@ -4620,12 +4696,13 @@ function drawWorldMapDetail() {
     for (let lv = 0; lv < 3; lv++) {
       const lx = W / 2 - 80 + lv * 88, ly = py + 78;
       const lvsel = lv === wmLvl, done = gs.levelDone[wmSel][lv];
+      const lvStars = (gs.levelStarsBest[wmSel]||[])[lv] || 0;
       fillRR(lx - 36, ly - 22, 72, 44, 10, lvsel ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.06)');
       if (lvsel) strokeRR(lx - 36, ly - 22, 72, 44, 10, UI.gold, 2);
       ctx.textAlign = 'center'; ctx.font = 'bold 16px monospace';
       ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : UI.bright;
       ctx.fillText('NIVEL ' + (lv + 1), lx, ly + 2);
-      if (done) { ctx.font = '12px monospace'; ctx.fillStyle = UI.gold; ctx.fillText('★', lx, ly + 18); }
+      if (done) { ctx.font = '12px monospace'; ctx.fillStyle = UI.gold; ctx.fillText('★'.repeat(Math.max(1, lvStars)), lx, ly + 18); }
       mobRegisterRow(lx - 36, ly - 22, 72, 44, lv);
     }
   }
@@ -4834,21 +4911,29 @@ function drawLevelComplete() {
   if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#06340f','#0a5a1e');
   const bob=Math.sin(lcT*3)*6;
-  uiTitle('NIVEL COMPLETO!', 130+bob, 50);
-  uiPanel(W/2-280,175,560,380,20);
-  hud('Mundo '+(lcStats.world+1)+' - Nivel '+(lcStats.level+1), W/2, 210, UI.bright, 26, 'center');
-  const stars = lcStats.time<25 ? 3 : lcStats.time<45 ? 2 : 1;
+  uiTitle('NIVEL COMPLETO!', 118+bob, 50);
+  uiPanel(W/2-300,160,600,430,20);
+  hud('Mundo '+(lcStats.world+1)+' - Nivel '+(lcStats.level+1), W/2, 196, UI.bright, 26, 'center');
+  const stars = lcStats.rating || 1;
+  const starLbl = ['','COMPLETADO','+ TODAS LAS MONEDAS','+ SIN DAÑO'];
   for(let i=0;i<3;i++){
     const sx=W/2-60+i*60;
-    fillRR(sx-22,228,44,44,10, i<stars?'rgba(255,215,0,0.25)':'rgba(255,255,255,0.06)');
-    ctx.font='36px monospace'; ctx.textAlign='center'; ctx.fillStyle=i<stars?UI.gold:'#444'; ctx.fillText('*',sx,262);
+    const pop = Math.min(1, Math.max(0,(lcT-0.25-i*0.3)*4));
+    fillRR(sx-22,214,44,44,10, i<stars?'rgba(255,215,0,'+(0.25*pop)+')':'rgba(255,255,255,0.06)');
+    ctx.font=(28+8*pop)+'px monospace'; ctx.textAlign='center';
+    ctx.fillStyle=i<stars&&pop>0.1?UI.gold:'#444'; ctx.fillText('★',sx,248);
   }
-  const rows=[['Tiempo',lcStats.time.toFixed(1)+'s'],['Monedas / Estrellas',lcStats.coins+' / '+lcStats.stars],
-    ['Bonus nivel','+'+lcStats.base],['Bonus tiempo','+'+lcStats.bonus],['Score total',''+gs.score]];
+  hud(starLbl[stars]||'', W/2, 282, UI.gold, 15, 'center');
+  const timeTxt = lcStats.time.toFixed(1)+'s'+(lcStats.record?'  ¡RÉCORD!':lcStats.prevBest?'  (mejor '+lcStats.prevBest.toFixed(1)+'s)':'');
+  const rows=[['Tiempo',timeTxt],
+    ['Monedas',lcStats.coins+' / '+(lcStats.totalCoins||'?')+(lcStats.allCoins?' ✔':'')],
+    ['Bonus nivel','+'+lcStats.base],['Bonus tiempo','+'+lcStats.bonus]];
+  if (lcStats.starReward) rows.push(['Estrellas nuevas','+'+lcStats.starReward+' monedas']);
+  rows.push(['Score total',''+gs.score]);
   rows.forEach((r,i)=>{
-    const y=310+i*44;
-    ctx.textAlign='left'; ctx.fillStyle=UI.green; ctx.font='22px monospace'; ctx.fillText(r[0],W/2-240,y);
-    ctx.textAlign='right'; ctx.fillStyle=UI.bright; ctx.fillText(r[1],W/2+240,y);
+    const y=322+i*40;
+    ctx.textAlign='left'; ctx.fillStyle=UI.green; ctx.font='20px monospace'; ctx.fillText(r[0],W/2-260,y);
+    ctx.textAlign='right'; ctx.fillStyle=r[1].includes('RÉCORD')?UI.gold:UI.bright; ctx.fillText(r[1],W/2+260,y);
   });
   uiFooter('Enter / Salto para continuar');
 }
@@ -6856,7 +6941,19 @@ function kartSimKart(k, dt, tr) {
     k.speed *= 0.3;
     sfx.win();
     spawnRing(k.x, k.y, '#ffd700', 90, 0.5);
-    if (!k.ai && k.idx === kartLocalIdx()) showBanner('¡META!', '#ffd700');
+    if (!k.ai && k.idx === kartLocalIdx()) {
+      const prev = gs.kartBest?.[kartTrackSel] || 0;
+      if (!prev || k.finishTime < prev) {
+        if (!gs.kartBest) gs.kartBest = {};
+        gs.kartBest[kartTrackSel] = k.finishTime;
+        race.newRecord = true;
+        if (prev && typeof unlockAch === 'function') unlockAch('kartrecord');
+        saveGame();
+        showBanner('¡META! ¡NUEVO RÉCORD!', '#ffd700');
+      } else {
+        showBanner('¡META!', '#ffd700');
+      }
+    }
   }
 }
 function kartRank() {
@@ -7237,6 +7334,14 @@ function drawKartResults() {
   });
   const winner = sorted[0];
   if (winner) hud('Ganador: ' + winner.name + '!', W / 2, 560, UI.gold, 24, 'center');
+  if (race.newRecord) {
+    const pulse = 0.7 + 0.3 * Math.sin(kartResultsT * 6);
+    ctx.globalAlpha = pulse;
+    hud('¡NUEVO RÉCORD DE PISTA!', W / 2, 595, UI.gold, 20, 'center');
+    ctx.globalAlpha = 1;
+  } else if (gs.kartBest?.[kartTrackSel]) {
+    hud('Récord de pista: ' + gs.kartBest[kartTrackSel].toFixed(2) + 's', W / 2, 595, UI.dim, 15, 'center');
+  }
   uiFooter('Enter / Esc para volver');
 }
 
@@ -7415,7 +7520,8 @@ function drawKartLobby(t) {
     : tr.decor === 'rock' ? 'Montaña · Curvas cerradas · Saltos'
     : 'Urbano · Técnica · Atajos';
   hud(decor, W / 2, 430, tr.accent, 15, 'center');
-  hud('Dificultad IA: ' + kartDiff().name, W / 2, 455, UI.cyan, 15, 'center');
+  const kb = gs.kartBest?.[kartTrackSel];
+  hud('Dificultad IA: ' + kartDiff().name + (kb ? ' · Récord: ' + kb.toFixed(2) + 's' : ''), W / 2, 455, UI.cyan, 15, 'center');
   ctx.fillStyle = UI.dim; ctx.font = '16px monospace'; ctx.textAlign = 'center';
   ctx.fillText('↑↓ pista · ←→ dificultad', W / 2, 480);
   if (mp.role === 'guest') {
@@ -7940,11 +8046,17 @@ function mobGetHtmlMenuConfig() {
     };
   }
   if (gs.scene === 'levelcomplete') {
-    const stars = lcStats.time < 25 ? 3 : lcStats.time < 45 ? 2 : 1;
+    const stars = lcStats.rating || 1;
+    const extra = [];
+    if (lcStats.record) extra.push('¡RÉCORD ' + lcStats.time.toFixed(1) + 's!');
+    else extra.push(lcStats.time.toFixed(1) + 's');
+    if (lcStats.allCoins) extra.push('Monedas ✔');
+    if (lcStats.noHit) extra.push('Sin daño ✔');
+    if (lcStats.starReward) extra.push('+' + lcStats.starReward + ' monedas');
     return {
       type: 'list', theme: 'green', title: '¡NIVEL COMPLETO!',
       subtitle: 'Mundo ' + (lcStats.world + 1) + ' · Nivel ' + (lcStats.level + 1),
-      detail: '★'.repeat(stars) + '☆'.repeat(3 - stars) + ' · Score ' + gs.score,
+      detail: '★'.repeat(stars) + '☆'.repeat(3 - stars) + ' · ' + extra.join(' · ') + ' · Score ' + gs.score,
       items: ['CONTINUAR'],
       onPick: () => { sfx.select(); advanceLevel(); },
     };
@@ -8051,9 +8163,11 @@ function mobGetHtmlMenuConfig() {
   }
   if (gs.scene === 'kartresults' && race) {
     const sorted = [...race.karts].sort((a, b) => a.rank - b.rank);
+    const recTxt = race.newRecord ? ' · ¡NUEVO RÉCORD!'
+      : gs.kartBest?.[kartTrackSel] ? ' · Récord ' + gs.kartBest[kartTrackSel].toFixed(2) + 's' : '';
     return {
       type: 'list', theme: 'purple', title: 'RESULTADOS',
-      subtitle: sorted[0] ? 'Ganador: ' + sorted[0].name : '',
+      subtitle: (sorted[0] ? 'Ganador: ' + sorted[0].name : '') + recTxt,
       items: sorted.map((k, i) => {
         const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : (i + 1) + '. ';
         const me = k.idx === kartLocalIdx() ? ' (TÚ)' : '';
@@ -8106,7 +8220,8 @@ function mobMenuHtmlSync() {
   }
   if (detail) detail.textContent = cfg.detail || '';
   if (cfg.type === 'kartlobby' && subEl && typeof KART_TRACKS !== 'undefined') {
-    subEl.textContent = KART_TRACKS[kartTrackSel].name;
+    const kb = gs.kartBest?.[kartTrackSel];
+    subEl.textContent = KART_TRACKS[kartTrackSel].name + (kb ? ' · Récord ' + kb.toFixed(2) + 's' : '');
   }
 
   if (mobMenuHtmlScene !== gs.scene) {
@@ -8192,7 +8307,10 @@ function mobMenuHtmlSync() {
         const btn = document.createElement('button');
         btn.type = 'button'; btn.className = 'mmh-item';
         const done = gs.levelDone[wmSel]?.[lv];
-        btn.textContent = (done ? '★ ' : '') + 'NIVEL ' + (lv + 1);
+        const lvStars = (gs.levelStarsBest?.[wmSel]||[])[lv] || 0;
+        const best = (gs.levelBestTime?.[wmSel]||[])[lv] || 0;
+        const rating = done ? '★'.repeat(Math.max(1, lvStars)) + '☆'.repeat(Math.max(0, 3 - Math.max(1, lvStars))) + ' ' : '';
+        btn.textContent = rating + 'NIVEL ' + (lv + 1) + (best ? ' · ' + best.toFixed(1) + 's' : '');
         if (lv === wmLvl) btn.classList.add('sel');
         btn.addEventListener('click', e => {
           e.preventDefault();
@@ -8271,7 +8389,9 @@ function mobMenuHtmlSync() {
   if (meta) {
     if (cfg.showMeta && typeof gs !== 'undefined' && typeof CHARACTERS !== 'undefined') {
       const ch = CHARACTERS[gs.character] || CHARACTERS[0];
-      meta.innerHTML = '<span>Best: ' + gs.highScore + '</span><span>🪙 ' + gs.wallet + '</span><span>' + ch.name + '</span>';
+      let starTotal = 0;
+      if (Array.isArray(gs.levelStarsBest)) for (const w of gs.levelStarsBest) starTotal += (w||[]).reduce((a,b)=>a+(b||0),0);
+      meta.innerHTML = '<span>Best: ' + gs.highScore + '</span><span>🪙 ' + gs.wallet + '</span><span>★ ' + starTotal + '</span><span>' + ch.name + '</span>';
       meta.style.display = 'flex';
     } else {
       meta.innerHTML = '';

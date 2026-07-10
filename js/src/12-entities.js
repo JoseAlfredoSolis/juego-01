@@ -615,11 +615,14 @@ const ACHIEVEMENTS = [
   { id:'firstcoin', name:'Primera moneda',  desc:'Recoge tu primera moneda' },
   { id:'boss',      name:'Cazajefes',       desc:'Vence a un jefe' },
   { id:'nohit',     name:'Intocable',       desc:'Completa un nivel sin recibir daño' },
-  { id:'speed',     name:'Veloz',           desc:'Termina un nivel en menos de 20s' },
+  { id:'speed',     name:'Veloz',           desc:'Termina un nivel en menos de 25s' },
+  { id:'threestar', name:'Perfeccionista',  desc:'Consigue 3 estrellas en un nivel' },
+  { id:'combo3',    name:'Combo aéreo',     desc:'Pisotea 3 enemigos sin tocar el suelo' },
+  { id:'kartrecord',name:'Piloto de élite', desc:'Marca un récord en una pista de kart' },
   { id:'rich',      name:'Millonario oso',  desc:'Acumula 500 monedas en total' },
   { id:'shopper',   name:'Comprador',       desc:'Compra algo en la tienda' },
   { id:'allchars',  name:'Equipo completo', desc:'Desbloquea todos los personajes' },
-  { id:'allworlds', name:'Leyenda',         desc:'Completa los 11 mundos' },
+  { id:'allworlds', name:'Leyenda',         desc:'Completa los 12 mundos' },
   { id:'pomworld',  name:'Amante pomerania', desc:'Visita el mundo Pomeranian' },
   { id:'bikiworld', name:'Vecino de la pecera', desc:'Visita el mundo Bikini' },
   { id:'coop',      name:'Equipo online',   desc:'Juega con un amigo en linea' },
@@ -674,6 +677,7 @@ function mkEnemies(data) {
       phase:'patrol', phaseTimer:3, chargeDir:1,
       // new-enemy state
       jumpTimer: 0.8+Math.random()*1.2, shootTimer: 1.2+Math.random()*1.2, bob: Math.random()*Math.PI*2,
+      windup: 0, charging: false,
     };
   });
 }
@@ -718,10 +722,19 @@ function updateEnemy(e, dt, plats, px, py, levelW) {
   } else if (e.type==='miniboss') {
     updateMiniBoss(e, dt, px, py);
   } else if (e.type==='armor') {
-    // Patrols slowly, but CHARGES when it spots the player at a similar height.
+    // Patrols slowly; when it spots the player it telegraphs ("!" + pause) then CHARGES.
     const dx = px - e.x;
-    if (Math.abs(dx) < 300 && Math.abs(py - e.y) < 90) {
-      e.dir = dx>0?1:-1; e.vx = e.dir * 210 * dm; e.charging = true;
+    const spotted = Math.abs(dx) < 300 && Math.abs(py - e.y) < 90;
+    if (e.windup > 0) {
+      e.windup -= dt; e.vx = 0;
+      if (e.windup <= 0) { e.charging = true; e.dir = px>e.x?1:-1; }
+    } else if (e.charging) {
+      if (!spotted) { e.charging = false; }
+      else e.vx = e.dir * 210 * dm;
+    } else if (spotted) {
+      e.windup = 0.35; e.vx = 0; e.dir = dx>0?1:-1;
+      spawnText(e.x+e.w/2, e.y-14, '!', '#ff5d5d', 22);
+      beep(180, 0.12, 'sawtooth', 0.14, 120);
     } else {
       if (e.x <= e.startX - e.range/2) e.dir = 1;
       if (e.x >= e.startX + e.range/2) e.dir = -1;

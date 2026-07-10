@@ -510,11 +510,17 @@ function mobGetHtmlMenuConfig() {
     };
   }
   if (gs.scene === 'levelcomplete') {
-    const stars = lcStats.time < 25 ? 3 : lcStats.time < 45 ? 2 : 1;
+    const stars = lcStats.rating || 1;
+    const extra = [];
+    if (lcStats.record) extra.push('¡RÉCORD ' + lcStats.time.toFixed(1) + 's!');
+    else extra.push(lcStats.time.toFixed(1) + 's');
+    if (lcStats.allCoins) extra.push('Monedas ✔');
+    if (lcStats.noHit) extra.push('Sin daño ✔');
+    if (lcStats.starReward) extra.push('+' + lcStats.starReward + ' monedas');
     return {
       type: 'list', theme: 'green', title: '¡NIVEL COMPLETO!',
       subtitle: 'Mundo ' + (lcStats.world + 1) + ' · Nivel ' + (lcStats.level + 1),
-      detail: '★'.repeat(stars) + '☆'.repeat(3 - stars) + ' · Score ' + gs.score,
+      detail: '★'.repeat(stars) + '☆'.repeat(3 - stars) + ' · ' + extra.join(' · ') + ' · Score ' + gs.score,
       items: ['CONTINUAR'],
       onPick: () => { sfx.select(); advanceLevel(); },
     };
@@ -621,9 +627,11 @@ function mobGetHtmlMenuConfig() {
   }
   if (gs.scene === 'kartresults' && race) {
     const sorted = [...race.karts].sort((a, b) => a.rank - b.rank);
+    const recTxt = race.newRecord ? ' · ¡NUEVO RÉCORD!'
+      : gs.kartBest?.[kartTrackSel] ? ' · Récord ' + gs.kartBest[kartTrackSel].toFixed(2) + 's' : '';
     return {
       type: 'list', theme: 'purple', title: 'RESULTADOS',
-      subtitle: sorted[0] ? 'Ganador: ' + sorted[0].name : '',
+      subtitle: (sorted[0] ? 'Ganador: ' + sorted[0].name : '') + recTxt,
       items: sorted.map((k, i) => {
         const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : (i + 1) + '. ';
         const me = k.idx === kartLocalIdx() ? ' (TÚ)' : '';
@@ -676,7 +684,8 @@ function mobMenuHtmlSync() {
   }
   if (detail) detail.textContent = cfg.detail || '';
   if (cfg.type === 'kartlobby' && subEl && typeof KART_TRACKS !== 'undefined') {
-    subEl.textContent = KART_TRACKS[kartTrackSel].name;
+    const kb = gs.kartBest?.[kartTrackSel];
+    subEl.textContent = KART_TRACKS[kartTrackSel].name + (kb ? ' · Récord ' + kb.toFixed(2) + 's' : '');
   }
 
   if (mobMenuHtmlScene !== gs.scene) {
@@ -762,7 +771,10 @@ function mobMenuHtmlSync() {
         const btn = document.createElement('button');
         btn.type = 'button'; btn.className = 'mmh-item';
         const done = gs.levelDone[wmSel]?.[lv];
-        btn.textContent = (done ? '★ ' : '') + 'NIVEL ' + (lv + 1);
+        const lvStars = (gs.levelStarsBest?.[wmSel]||[])[lv] || 0;
+        const best = (gs.levelBestTime?.[wmSel]||[])[lv] || 0;
+        const rating = done ? '★'.repeat(Math.max(1, lvStars)) + '☆'.repeat(Math.max(0, 3 - Math.max(1, lvStars))) + ' ' : '';
+        btn.textContent = rating + 'NIVEL ' + (lv + 1) + (best ? ' · ' + best.toFixed(1) + 's' : '');
         if (lv === wmLvl) btn.classList.add('sel');
         btn.addEventListener('click', e => {
           e.preventDefault();
@@ -841,7 +853,9 @@ function mobMenuHtmlSync() {
   if (meta) {
     if (cfg.showMeta && typeof gs !== 'undefined' && typeof CHARACTERS !== 'undefined') {
       const ch = CHARACTERS[gs.character] || CHARACTERS[0];
-      meta.innerHTML = '<span>Best: ' + gs.highScore + '</span><span>🪙 ' + gs.wallet + '</span><span>' + ch.name + '</span>';
+      let starTotal = 0;
+      if (Array.isArray(gs.levelStarsBest)) for (const w of gs.levelStarsBest) starTotal += (w||[]).reduce((a,b)=>a+(b||0),0);
+      meta.innerHTML = '<span>Best: ' + gs.highScore + '</span><span>🪙 ' + gs.wallet + '</span><span>★ ' + starTotal + '</span><span>' + ch.name + '</span>';
       meta.style.display = 'flex';
     } else {
       meta.innerHTML = '';
