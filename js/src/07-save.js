@@ -5,6 +5,8 @@ const SAVE_KEY='superbear_save_v1';
 function migrateProgress(){
   while(gs.worldUnlocked.length<WORLD_COUNT) gs.worldUnlocked.push(false);
   while(gs.levelDone.length<WORLD_COUNT) gs.levelDone.push([false,false,false]);
+  while(gs.levelStarsBest.length<WORLD_COUNT) gs.levelStarsBest.push([0,0,0]);
+  while(gs.levelBestTime.length<WORLD_COUNT) gs.levelBestTime.push([0,0,0]);
   for(let w=0;w<WORLD_COUNT-1;w++){
     if(gs.levelDone[w] && gs.levelDone[w].every(Boolean)) gs.worldUnlocked[w+1]=true;
   }
@@ -15,6 +17,9 @@ function loadSave(){
     if(typeof s.highScore==='number') gs.highScore=s.highScore;
     if(Array.isArray(s.worldUnlocked)) gs.worldUnlocked=s.worldUnlocked;
     if(Array.isArray(s.levelDone)) gs.levelDone=s.levelDone;
+    if(Array.isArray(s.levelStarsBest)) gs.levelStarsBest=s.levelStarsBest;
+    if(Array.isArray(s.levelBestTime)) gs.levelBestTime=s.levelBestTime;
+    if(s.kartBest && typeof s.kartBest==='object') gs.kartBest=s.kartBest;
     migrateProgress();
     if(typeof s.sound==='boolean') audio.sound=s.sound;
     if(typeof s.music==='boolean') audio.music=s.music;
@@ -39,7 +44,9 @@ function saveGame(){
   try{
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       highScore:gs.highScore, worldUnlocked:gs.worldUnlocked,
-      levelDone:gs.levelDone, sound:audio.sound, music:audio.music,
+      levelDone:gs.levelDone,
+      levelStarsBest:gs.levelStarsBest, levelBestTime:gs.levelBestTime,
+      kartBest:gs.kartBest, sound:audio.sound, music:audio.music,
       character:gs.character, difficulty:gs.difficulty,
       wallet:gs.wallet, bonusLives:gs.bonusLives, magnet:gs.magnet,
       bought:gs.bought, ach:gs.ach,

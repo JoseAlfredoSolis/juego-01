@@ -2,12 +2,17 @@
 // ── Game State ─────────────────────────────────────────────────────────────
 function freshUnlocked(){ return Array.from({length:WORLD_COUNT}, (_,i)=>i===0); }
 function freshLevelDone(){ return Array.from({length:WORLD_COUNT}, ()=>[false,false,false]); }
+function freshLevelStars(){ return Array.from({length:WORLD_COUNT}, ()=>[0,0,0]); }
+function freshLevelTimes(){ return Array.from({length:WORLD_COUNT}, ()=>[0,0,0]); }
 const gs = {
   scene: 'menu', // menu | worldmap | gameplay | pause | gameover | levelcomplete | victory | settings | credits | instructions | shop | achievements
   score: 0, highScore: 0, coins: 0, lives: 3,
   world: 0, level: 0, character: 0, difficulty: 1,
   worldUnlocked: freshUnlocked(),
   levelDone: freshLevelDone(),
+  levelStarsBest: freshLevelStars(), // best star rating per level (0-3)
+  levelBestTime: freshLevelTimes(),  // best clear time per level (0 = none)
+  kartBest: {},                      // best race time per kart track {trackIdx: seconds}
   wallet: 0,            // persistent coins for the shop
   bonusLives: 0,        // bought extra starting lives (0..3)
   magnet: false,        // bought coin magnet

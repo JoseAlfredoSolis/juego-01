@@ -9,8 +9,16 @@ function drawHUD(t) {
   if(player.lives>8) hud('+'+(player.lives-8), 28+8*22, 36, UI.red, 14);
   // Score center
   hud('SCORE '+gs.score, W/2, 38, UI.bright, 20, 'center');
-  // Coins right
-  drawCoinIcon(W-52, 28, 11); hud(''+gs.coins, W-28, 38, UI.gold, 20, 'right');
+  // Coins right: progreso de monedas del nivel (objetivo 2ª estrella)
+  const lvTotal = (levelData?.coins||[]).length;
+  const coinTxt = lvTotal ? levelCoins+'/'+lvTotal+(levelCoins>=lvTotal?' ✔':'') : ''+gs.coins;
+  drawCoinIcon(W-120, 28, 11);
+  hud(coinTxt, W-28, 38, levelCoins>=lvTotal&&lvTotal?UI.green:UI.gold, 20, 'right');
+  // Objetivo 3ª estrella: racha sin daño
+  if (runNoHit && gameTimer > 2) {
+    fillRR(W-208, 64, 190, 24, 8, 'rgba(60,200,90,0.18)');
+    hud('★ SIN DAÑO', W-113, 80, UI.green, 13, 'center');
+  }
   // Bottom info bar
   fillRR(8,H-52,W-16,40,12,'rgba(8,12,20,0.72)');
   strokeRR(8,H-52,W-16,40,12,'rgba(255,255,255,0.1)',1);
@@ -187,12 +195,15 @@ function drawMenuHeroPanel(t) {
   uiWalletBadge(px + 130, sy + 108, gs.wallet);
   uiBadge(px + pw - 56, sy + 108, 'Dif. ' + diff().name, diff().color, 'rgba(0,0,0,0.45)');
 
-  let cleared = 0;
-  for (let w = 0; w < WORLD_COUNT; w++) if (gs.levelDone[w].every(Boolean)) cleared++;
+  let cleared = 0, starTotal = 0;
+  for (let w = 0; w < WORLD_COUNT; w++) {
+    if (gs.levelDone[w].every(Boolean)) cleared++;
+    starTotal += (gs.levelStarsBest[w]||[]).reduce((a,b)=>a+(b||0),0);
+  }
   const unlocked = typeof worldsUnlockedCount === 'function' ? worldsUnlockedCount() : 1;
   hud('Mundos: ' + unlocked + '/' + WORLD_COUNT + ' · Completos: ' + cleared, px + 36, sy + 148, UI.dim, 14, 'left');
   uiBar(px + 36, sy + 162, pw - 72, 8, cleared / WORLD_COUNT, UI.green);
-  hud('Plataformas 2D/3D · PWA', px + 36, sy + 192, UI.dim, 13, 'left');
+  hud('★ ' + starTotal + '/' + (WORLD_COUNT*9) + ' estrellas · PWA', px + 36, sy + 192, UI.gold, 13, 'left');
 }
 
 function drawMenuDesktop(t) {
@@ -817,8 +828,10 @@ function drawWorldMapCard(wi, t) {
     ctx.fillText('BLOQ', cx, cy + 10);
   } else {
     const doneCount = gs.levelDone[wi].filter(Boolean).length;
-    if (doneCount === 3) uiBadge(cx, y + h - 44, '★ COMPLETO', UI.gold, 'rgba(0,0,0,0.5)');
-    else if (doneCount > 0) uiBadge(cx, y + h - 44, doneCount + '/3', UI.cyan, 'rgba(0,0,0,0.45)');
+    const starSum = (gs.levelStarsBest[wi]||[]).reduce((a,b)=>a+(b||0),0);
+    if (starSum >= 9) uiBadge(cx, y + h - 44, '★ 9/9 PERFECTO', UI.gold, 'rgba(0,0,0,0.5)');
+    else if (doneCount === 3) uiBadge(cx, y + h - 44, '★ ' + starSum + '/9', UI.gold, 'rgba(0,0,0,0.5)');
+    else if (doneCount > 0) uiBadge(cx, y + h - 44, doneCount + '/3 · ★' + starSum, UI.cyan, 'rgba(0,0,0,0.45)');
   }
 }
 
@@ -858,13 +871,14 @@ function drawWorldMapDesktopTile(wi, t) {
     for (let lv = 0; lv < 3; lv++) {
       const dx = cx - 22 + lv * 22, dy = y + bob + h - 10;
       const done = gs.levelDone[wi][lv], lvsel = sel && lv === wmLvl;
+      const lvStars = (gs.levelStarsBest[wi]||[])[lv] || 0;
       ctx.beginPath(); ctx.arc(dx, dy, lvsel ? 7 : 5, 0, Math.PI * 2);
-      ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = lvStars >= 3 ? UI.gold : done ? 'rgba(255,215,0,0.6)' : lvsel ? UI.green : 'rgba(255,255,255,0.3)';
       ctx.fill();
       if (lvsel) { ctx.strokeStyle = UI.gold; ctx.lineWidth = 2; ctx.stroke(); }
       if (done) {
         ctx.fillStyle = '#111'; ctx.font = 'bold 9px monospace';
-        ctx.fillText('★', dx, dy + 3);
+        ctx.fillText(lvStars > 0 ? String(lvStars) : '★', dx, dy + 3);
       }
     }
   }
@@ -930,19 +944,24 @@ function drawWorldMapDesktopDetail(t) {
     hud('Completa el mundo anterior para desbloquear', rx + rw / 2, ry + 424, UI.red, 15, 'center');
   } else {
     hud('Elige nivel', rx + 36, ry + 388, UI.dim, 14, 'left');
-    const lw = 118, lh = 52, gap = 12;
+    const lw = 118, lh = 62, gap = 12;
     const startX = rx + (rw - (lw * 3 + gap * 2)) / 2;
     for (let lv = 0; lv < 3; lv++) {
-      const bx = startX + lv * (lw + gap), by = ry + 408;
+      const bx = startX + lv * (lw + gap), by = ry + 404;
       const lvsel = lv === wmLvl, done = gs.levelDone[wmSel][lv];
+      const lvStars = (gs.levelStarsBest[wmSel]||[])[lv] || 0;
+      const best = (gs.levelBestTime[wmSel]||[])[lv] || 0;
       fillRR(bx, by, lw, lh, 14, lvsel ? 'rgba(255,215,0,0.22)' : 'rgba(255,255,255,0.06)');
       strokeRR(bx, by, lw, lh, 14, lvsel ? UI.gold : 'rgba(255,255,255,0.12)', lvsel ? 2 : 1);
-      ctx.textAlign = 'center'; ctx.font = 'bold 17px monospace';
+      ctx.textAlign = 'center'; ctx.font = 'bold 16px monospace';
       ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : UI.bright;
-      ctx.fillText('NIVEL ' + (lv + 1), bx + lw / 2, by + 24);
-      ctx.font = '12px monospace';
-      ctx.fillStyle = done ? UI.gold : UI.dim;
-      ctx.fillText(done ? '★ Completado' : lvsel ? 'Seleccionado' : 'Pulsa ' + (lv + 1), bx + lw / 2, by + 42);
+      ctx.fillText('NIVEL ' + (lv + 1), bx + lw / 2, by + 21);
+      ctx.font = '13px monospace';
+      ctx.fillStyle = done ? UI.gold : 'rgba(255,255,255,0.25)';
+      ctx.fillText(done ? '★'.repeat(lvStars) + '☆'.repeat(Math.max(0, 3 - lvStars)) : '☆☆☆', bx + lw / 2, by + 39);
+      ctx.font = '11px monospace';
+      ctx.fillStyle = best ? UI.cyan : UI.dim;
+      ctx.fillText(best ? best.toFixed(1) + 's' : (lvsel ? 'Seleccionado' : 'Pulsa ' + (lv + 1)), bx + lw / 2, by + 55);
       mobRegisterRow(bx, by, lw, lh, lv);
     }
     fillRR(rx + 24, ry + 478, rw - 48, 52, 14, 'rgba(255,215,0,0.12)');
@@ -972,12 +991,13 @@ function drawWorldMapDetail() {
     for (let lv = 0; lv < 3; lv++) {
       const lx = W / 2 - 80 + lv * 88, ly = py + 78;
       const lvsel = lv === wmLvl, done = gs.levelDone[wmSel][lv];
+      const lvStars = (gs.levelStarsBest[wmSel]||[])[lv] || 0;
       fillRR(lx - 36, ly - 22, 72, 44, 10, lvsel ? 'rgba(255,215,0,0.2)' : 'rgba(255,255,255,0.06)');
       if (lvsel) strokeRR(lx - 36, ly - 22, 72, 44, 10, UI.gold, 2);
       ctx.textAlign = 'center'; ctx.font = 'bold 16px monospace';
       ctx.fillStyle = done ? UI.gold : lvsel ? UI.green : UI.bright;
       ctx.fillText('NIVEL ' + (lv + 1), lx, ly + 2);
-      if (done) { ctx.font = '12px monospace'; ctx.fillStyle = UI.gold; ctx.fillText('★', lx, ly + 18); }
+      if (done) { ctx.font = '12px monospace'; ctx.fillStyle = UI.gold; ctx.fillText('★'.repeat(Math.max(1, lvStars)), lx, ly + 18); }
       mobRegisterRow(lx - 36, ly - 22, 72, 44, lv);
     }
   }
@@ -1137,9 +1157,20 @@ function drawPause() {
   for (const e of enemies) drawEnemy(e);
   drawPlayer(player);
   fillRR(0,0,W,H,0,'rgba(0,0,0,0.6)');
-  uiPanel(W/2-230,H/2-175,460,350,22);
-  uiTitle('PAUSA', H/2-125, 36);
-  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-55+i*68, i===pauseSel, 380, 46, i);
+  uiPanel(W/2-230,H/2-205,460,410,22);
+  uiTitle('PAUSA', H/2-155, 36);
+  // Objetivos de estrellas del nivel en curso
+  const lvTotal = (levelData?.coins||[]).length;
+  const goals = [
+    ['★ Completar el nivel', true],
+    ['★ Monedas '+levelCoins+'/'+lvTotal, lvTotal>0 && levelCoins>=lvTotal],
+    ['★ Sin recibir daño', runNoHit],
+  ];
+  goals.forEach((g,i)=>{
+    const y=H/2-108+i*22;
+    hud((g[1]?'✔ ':'· ')+g[0], W/2-190, y, g[1]?UI.green:UI.dim, 14, 'left');
+  });
+  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-15+i*68, i===pauseSel, 380, 46, i);
 }
 
 // ── Game Over ──────────────────────────────────────────────────────────────
@@ -1186,21 +1217,29 @@ function drawLevelComplete() {
   if (document.body.classList.contains('mob-menu-html')) return;
   uiBgGrad('#06340f','#0a5a1e');
   const bob=Math.sin(lcT*3)*6;
-  uiTitle('NIVEL COMPLETO!', 130+bob, 50);
-  uiPanel(W/2-280,175,560,380,20);
-  hud('Mundo '+(lcStats.world+1)+' - Nivel '+(lcStats.level+1), W/2, 210, UI.bright, 26, 'center');
-  const stars = lcStats.time<25 ? 3 : lcStats.time<45 ? 2 : 1;
+  uiTitle('NIVEL COMPLETO!', 118+bob, 50);
+  uiPanel(W/2-300,160,600,430,20);
+  hud('Mundo '+(lcStats.world+1)+' - Nivel '+(lcStats.level+1), W/2, 196, UI.bright, 26, 'center');
+  const stars = lcStats.rating || 1;
+  const starLbl = ['','COMPLETADO','+ TODAS LAS MONEDAS','+ SIN DAÑO'];
   for(let i=0;i<3;i++){
     const sx=W/2-60+i*60;
-    fillRR(sx-22,228,44,44,10, i<stars?'rgba(255,215,0,0.25)':'rgba(255,255,255,0.06)');
-    ctx.font='36px monospace'; ctx.textAlign='center'; ctx.fillStyle=i<stars?UI.gold:'#444'; ctx.fillText('*',sx,262);
+    const pop = Math.min(1, Math.max(0,(lcT-0.25-i*0.3)*4));
+    fillRR(sx-22,214,44,44,10, i<stars?'rgba(255,215,0,'+(0.25*pop)+')':'rgba(255,255,255,0.06)');
+    ctx.font=(28+8*pop)+'px monospace'; ctx.textAlign='center';
+    ctx.fillStyle=i<stars&&pop>0.1?UI.gold:'#444'; ctx.fillText('★',sx,248);
   }
-  const rows=[['Tiempo',lcStats.time.toFixed(1)+'s'],['Monedas / Estrellas',lcStats.coins+' / '+lcStats.stars],
-    ['Bonus nivel','+'+lcStats.base],['Bonus tiempo','+'+lcStats.bonus],['Score total',''+gs.score]];
+  hud(starLbl[stars]||'', W/2, 282, UI.gold, 15, 'center');
+  const timeTxt = lcStats.time.toFixed(1)+'s'+(lcStats.record?'  ¡RÉCORD!':lcStats.prevBest?'  (mejor '+lcStats.prevBest.toFixed(1)+'s)':'');
+  const rows=[['Tiempo',timeTxt],
+    ['Monedas',lcStats.coins+' / '+(lcStats.totalCoins||'?')+(lcStats.allCoins?' ✔':'')],
+    ['Bonus nivel','+'+lcStats.base],['Bonus tiempo','+'+lcStats.bonus]];
+  if (lcStats.starReward) rows.push(['Estrellas nuevas','+'+lcStats.starReward+' monedas']);
+  rows.push(['Score total',''+gs.score]);
   rows.forEach((r,i)=>{
-    const y=310+i*44;
-    ctx.textAlign='left'; ctx.fillStyle=UI.green; ctx.font='22px monospace'; ctx.fillText(r[0],W/2-240,y);
-    ctx.textAlign='right'; ctx.fillStyle=UI.bright; ctx.fillText(r[1],W/2+240,y);
+    const y=322+i*40;
+    ctx.textAlign='left'; ctx.fillStyle=UI.green; ctx.font='20px monospace'; ctx.fillText(r[0],W/2-260,y);
+    ctx.textAlign='right'; ctx.fillStyle=r[1].includes('RÉCORD')?UI.gold:UI.bright; ctx.fillText(r[1],W/2+260,y);
   });
   uiFooter('Enter / Salto para continuar');
 }
@@ -1223,10 +1262,14 @@ function drawVictory() {
   }
   const sc=1.1+Math.sin(vicT*3)*0.06;
   ctx.save(); ctx.translate(W/2,140); ctx.scale(sc,sc); uiTitle('VICTORIA!', 0, 58); ctx.restore();
-  uiPanel(W/2-280,200,560,220,20);
+  uiPanel(W/2-280,200,560,260,20);
   hud('Completaste los '+WORLD_COUNT+' mundos!', W/2, 250, UI.bright, 24, 'center');
   hud('Score final: '+gs.score, W/2, 300, UI.gold, 26, 'center');
   hud('Record: '+gs.highScore, W/2, 345, UI.cyan, 22, 'center');
+  let starTotal = 0;
+  for (const w of gs.levelStarsBest) starTotal += (w||[]).reduce((a,b)=>a+(b||0),0);
+  hud('★ '+starTotal+' / '+(WORLD_COUNT*9)+' estrellas', W/2, 390, UI.gold, 20, 'center');
+  if (starTotal < WORLD_COUNT*9) hud('¡Consigue 3★ en cada nivel para el 100%!', W/2, 425, UI.dim, 15, 'center');
   uiFooter('Enter para volver al menu');
 }
 

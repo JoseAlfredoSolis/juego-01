@@ -1,6 +1,9 @@
 // === 08-effects.js (from index.html lines 629-729) ===
   gs.worldUnlocked=freshUnlocked();
   gs.levelDone=freshLevelDone();
+  gs.levelStarsBest=freshLevelStars();
+  gs.levelBestTime=freshLevelTimes();
+  gs.kartBest={};
   gs.wallet=0; gs.bonusLives=0; gs.magnet=false; gs.bought={}; gs.ach={};
   saveGame();
 }

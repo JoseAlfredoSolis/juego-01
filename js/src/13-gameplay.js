@@ -118,6 +118,8 @@ function drawPlatforms(plats, world) {
 let player, enemies, items, hazards, checkpoints, goalPos, levelData, gameTimer;
 let levelCoins = 0, levelStars = 0, runNoHit = true;
 let lcStats = null, lcT = 0; // level-complete screen data
+let hitPause = 0;            // freeze-frame timer (juice on impacts)
+function hitStop(t){ hitPause = Math.max(hitPause, t); }
 
 function startLevel() {
   levelData = mkLevel(gs.world, gs.level);
@@ -135,6 +137,7 @@ function startLevel() {
   goalPos = levelData.goal;
   gameTimer = 0;
   levelCoins = 0; levelStars = 0; runNoHit = true;
+  hitPause = 0;
   particles = [];
   fx = []; shake = 0; flash = null; banner = null;
   if (typeof camOrbitReset === 'function') camOrbitReset();
@@ -166,10 +169,16 @@ function startLevel() {
 }
 
 function updateGameplay(dt) {
+  if (hitPause > 0) {
+    hitPause -= dt;
+    if (pressed('Escape')||pressed('KeyP')) { gs.scene='pause'; pauseSel=0; }
+    return;
+  }
   gameTimer += dt;
   const ld = levelData;
 
   updatePlayer(player, dt, ld.platforms, ld.levelW);
+  if (player.onGround) player.stompCombo = 0;
   applyHazardModifiers(player);
   for (const e of enemies) updateEnemy(e, dt, ld.platforms, player.x, player.y, ld.levelW);
   updateHazards(dt);
@@ -210,9 +219,9 @@ function updateGameplay(dt) {
       if (!rectOverlap(hx,player.y,hw,player.h, e.x,e.y,e.w,e.h)) continue;
       const ecx=e.x+e.w/2, ecy=e.y+e.h/2;
       if (e.type==='boss') {
-        e.hp--; e.hitFlash=0.25; e.range=Math.floor(e.range*1.15);
+        e.hp--; e.hitFlash=0.25; e.range=Math.floor(e.range*1.15); hitStop(0.06);
         spawnSparks(ecx,ecy,'#fff',14,360); spawnRing(ecx,ecy,'#ffcf3a',60,0.35); addShake(0.16); addFlash('#fff',0.08);
-        if (e.hp<=0) { e.active=false; gs.score+=BOSS_PTS; spawnParticles(ecx,ecy,'#FFD700',26,300); spawnRing(ecx,ecy,'#FFD700',110,0.5); spawnText(ecx,ecy-10,'+'+BOSS_PTS,'#FFD700',22); addShake(0.3); addFlash('#fff',0.15); dropReward(ecx,ecy,true); }
+        if (e.hp<=0) { e.active=false; gs.score+=BOSS_PTS; hitStop(0.14); spawnParticles(ecx,ecy,'#FFD700',26,300); spawnRing(ecx,ecy,'#FFD700',110,0.5); spawnText(ecx,ecy-10,'+'+BOSS_PTS,'#FFD700',22); addShake(0.3); addFlash('#fff',0.15); dropReward(ecx,ecy,true); }
         else { gs.score+=100; spawnText(ecx,ecy-10,'HIT! '+e.hp,'#fff',16); }
         player.attackTimer = 0; // one hit per punch
       } else if (e.type==='miniboss') {
@@ -236,7 +245,16 @@ function updateGameplay(dt) {
       const stomp = player.vy>=6 && (player.y+player.h) <= e.y+(e.h/2+12);
       const ecx=e.x+e.w/2, ecy=e.y+e.h/2;
       if (stomp) {
-        player.vy = STOMP_BOUNCE; sfx.stomp();
+        // Stomp combo: cadena de pisotones sin tocar el suelo → más puntos y rebote.
+        player.stompCombo = (player.stompCombo||0) + 1;
+        const combo = player.stompCombo;
+        player.vy = STOMP_BOUNCE * Math.min(1.35, 1 + (combo-1)*0.09);
+        sfx.stomp();
+        if (combo >= 2) {
+          beep(440 + combo*110, 0.09, 'square', 0.16, 660 + combo*130);
+          spawnText(player.x+player.w/2, player.y-24, 'COMBO x'+combo, '#ffd24d', Math.min(26, 14+combo*2));
+          if (combo >= 3) { hitStop(0.05); addShake(0.08); unlockAch('combo3'); }
+        }
         if (e.type==='armor') {
           // Armored: stomping just clangs off — must be hit with a special.
           e.hitFlash=0.12; spawnSparks(ecx,ecy,'#dde',10,220); spawnText(ecx,ecy-8,'CLANC!','#cdd',14);
@@ -254,10 +272,12 @@ function updateGameplay(dt) {
           else { gs.score+=100; spawnText(ecx,ecy-10,'HIT! '+e.hp,'#fff',16); }
         } else {
           spawnParticles(ecx,ecy,'#fff',10); spawnDust(ecx,ecy+e.h/2,6,'#ddd');
-          e.active=false; gs.score+=ENEMY_PTS; spawnText(ecx,ecy-8,'+'+ENEMY_PTS,'#fff',14);
+          const comboPts = ENEMY_PTS * Math.min(4, player.stompCombo||1);
+          e.active=false; gs.score+=comboPts; spawnText(ecx,ecy-8,'+'+comboPts,'#fff',14);
         }
       } else {
         sfx.hurt(); gs.lives--; player.lives=gs.lives; runNoHit=false;
+        hitStop(0.09);
         addFlash('#ff2b2b',0.22); addShake(0.2);
         spawnText(player.x+player.w/2, player.y-6, '-1', '#ff4d4d', 20);
         if (gs.lives<=0) { gameOver(); return; }
@@ -278,6 +298,7 @@ function updateGameplay(dt) {
       else { hx+=6; hy+=6; hw-=12; hh-=12; }
       if (!rectOverlap(player.x+4,player.y+4,player.w-8,player.h-4, hx,hy,hw,hh)) continue;
       sfx.hurt(); gs.lives--; player.lives=gs.lives; runNoHit=false;
+      hitStop(0.09);
       addFlash('#ff2b2b',0.22); addShake(0.2); maybeVibrate(40);
       spawnText(player.x+player.w/2, player.y-6, '-1', '#ff4d4d', 20);
       if (gs.lives<=0) { gameOver(); return; }
@@ -295,6 +316,7 @@ function updateGameplay(dt) {
     const protectedNow = player.invTimer>0 || player.respawnTimer>0 || player.power==='inv';
     if (protectedNow) { spawnSparks(cxp,cyp,'#b06bff',8,220); continue; }
     sfx.hurt(); gs.lives--; player.lives=gs.lives; runNoHit=false;
+    hitStop(0.09);
     addFlash('#ff2b2b',0.22); addShake(0.18);
     spawnParticles(cxp,cyp,'#b06bff',10,200);
     spawnText(player.x+player.w/2, player.y-6, '-1', '#ff4d4d', 20);
@@ -325,11 +347,26 @@ function updateGameplay(dt) {
     if (gs.score > gs.highScore) gs.highScore = gs.score;
     gs.levelDone[gs.world][gs.level] = true;
     if (gs.level===2 && gs.world<LAST_WORLD) gs.worldUnlocked[gs.world+1]=true;
+    // Star rating: 1 completar · 2 todas las monedas · 3 sin daño.
+    const totalCoins = (levelData.coins||[]).length;
+    const allCoins = totalCoins>0 && levelCoins>=totalCoins;
+    const starsEarned = 1 + (allCoins?1:0) + (runNoHit?1:0);
+    const prevStars = gs.levelStarsBest[gs.world][gs.level]||0;
+    const newStars = Math.max(0, starsEarned - prevStars);
+    const starReward = newStars*25;
+    if (starReward>0) { gs.wallet += starReward; checkCollectAch(); }
+    if (starsEarned > prevStars) gs.levelStarsBest[gs.world][gs.level] = starsEarned;
+    const prevBest = gs.levelBestTime[gs.world][gs.level]||0;
+    const isRecord = !prevBest || gameTimer < prevBest;
+    if (isRecord) gs.levelBestTime[gs.world][gs.level] = gameTimer;
     if (runNoHit) unlockAch('nohit');
     if (gameTimer < 25) unlockAch('speed');
+    if (starsEarned >= 3) unlockAch('threestar');
     checkCollectAch();
     saveGame();
-    lcStats = { world:gs.world, level:gs.level, time:gameTimer, bonus:timeBonus, base:base, coins:levelCoins, stars:levelStars };
+    lcStats = { world:gs.world, level:gs.level, time:gameTimer, bonus:timeBonus, base:base,
+      coins:levelCoins, stars:levelStars, totalCoins, allCoins, noHit:runNoHit,
+      rating:starsEarned, starReward, record:isRecord, prevBest };
     changeScene('levelcomplete'); lcT=0;
     return;
   }
