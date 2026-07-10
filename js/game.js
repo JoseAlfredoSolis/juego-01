@@ -249,7 +249,7 @@ function gameTestInstall() {
 
 // === 01-constants.js (from index.html lines 1-11) ===
 // ── Constants ──────────────────────────────────────────────────────────────
-const GAME_VERSION = 'v90';
+const GAME_VERSION = 'v91';
 const W = 1280, H = 720;
 let threeCtx = null;
 const WORLD_COUNT = 12;           // FOREST..COSMOS + POMERANIAN + BIKINI
@@ -9988,7 +9988,7 @@ function threeAddLights(scene, warm) {
   sun.shadow.bias = -0.0008;
   const rim = new THREE.DirectionalLight(warm ? 0xa0d080 : 0x80b0ff, 0.45);
   rim.position.set(-35, 25, -45);
-  scene.add(hemi, amb, sun, rim);
+  scene.add(hemi, amb, sun, sun.target, rim);
   return [hemi, amb, sun, rim];
 }
 
@@ -10092,9 +10092,16 @@ function threeMkTree(x, z, scale) {
 }
 
 function threeMkBear(color) {
+  // Group origin = the bear's FEET (y=0), so callers can sit it flush on the ground.
   const g = new THREE.Group();
   const col = threeHexColor(color || '#c87830');
   const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 });
+  for (const side of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.0, 0.7), mat);
+    leg.position.set(side * 0.55, 0.5, 0);
+    leg.castShadow = true;
+    g.add(leg);
+  }
   const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.8, 1.4), mat);
   body.position.y = 2.2;
   body.castShadow = true;
@@ -10662,7 +10669,7 @@ function threeBuildMainMenuScene(ctx) {
   const menuGroup = new THREE.Group();
   const ch = (typeof CHARACTERS !== 'undefined' && CHARACTERS[gs.character]) ? CHARACTERS[gs.character] : null;
   const bear = threeMkBear(ch?.color || '#c87830');
-  bear.position.y = 0.2;
+  bear.position.y = 1.4; // encima de la plataforma (tapa del cilindro)
   menuGroup.add(bear);
 
   const platform = new THREE.Mesh(
@@ -10982,11 +10989,13 @@ function threeBuildGameplayScene(ctx, ld, world) {
   const sideMat = new THREE.MeshStandardMaterial({ color: threeHexColor(sideCol), roughness: 0.92 });
 
   ctx.gameGroup = new THREE.Group();
+  // Terreno base bajo las plataformas (la parte de abajo de las plataformas de
+  // suelo del nivel 2D llega a y≈720 → top del slab alineado justo debajo).
   const ground = new THREE.Mesh(
     new THREE.BoxGeometry(ld.levelW * THREE_GP_SCALE + 20, 1.2, 24),
     new THREE.MeshStandardMaterial({ map: threeTexGrass(sideCol), roughness: 1 })
   );
-  ground.position.set(ld.levelW * THREE_GP_SCALE * 0.5, 0.6, 0);
+  ground.position.set(ld.levelW * THREE_GP_SCALE * 0.5, -720 * THREE_GP_SCALE - 0.6, 0);
   ground.receiveShadow = true;
   ctx.gameGroup.add(ground);
 
@@ -11013,11 +11022,15 @@ function threeBuildGameplayScene(ctx, ld, world) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     ctx.gameGroup.add(mesh);
+    const capH = Math.min(0.35, ph * THREE_GP_SCALE * 0.12);
     const cap = new THREE.Mesh(
-      new THREE.BoxGeometry(pw * THREE_GP_SCALE, Math.min(0.35, ph * THREE_GP_SCALE * 0.12), 3.4),
+      new THREE.BoxGeometry(pw * THREE_GP_SCALE, capH, 3.4),
       topMat
     );
-    cap.position.set(c.x, -py * THREE_GP_SCALE, 0.05);
+    // Tapa enrasada con el techo lógico de la plataforma (no sobresale):
+    // así los pies del jugador apoyan exactos sobre la superficie visible.
+    cap.position.set(c.x, -py * THREE_GP_SCALE - capH / 2, 0.05);
+    cap.receiveShadow = true; // sombra de contacto del jugador sobre la tapa
     ctx.gameGroup.add(cap);
   }
   ctx.scene.add(ctx.gameGroup);
@@ -11103,12 +11116,14 @@ function threeRebuildGameplayEntities(ctx) {
   ctx.hazardMeshes = [];
   if (typeof checkpoints !== 'undefined') {
     for (const c of checkpoints) {
+      // c.y es la parte alta del poste 2D; el poste baja 64px hasta la plataforma.
       const cp = threeGpPos(c.x, c.y);
+      const poleBottom = -(c.y + 64) * THREE_GP_SCALE;
       const pole = new THREE.Mesh(
         new THREE.CylinderGeometry(0.12, 0.12, 2.8, 6),
         new THREE.MeshStandardMaterial({ color: 0x6a5640, roughness: 0.9 })
       );
-      pole.position.set(cp.x, cp.y + 1.4, 0.6);
+      pole.position.set(cp.x, poleBottom + 1.4, 0.6);
       ctx.entityGroup.add(pole);
       const flag = new THREE.Mesh(
         new THREE.BoxGeometry(1.4, 0.9, 0.08),
@@ -11118,7 +11133,7 @@ function threeRebuildGameplayEntities(ctx) {
           emissiveIntensity: c.reached ? 0.4 : 0.1,
         })
       );
-      flag.position.set(cp.x + 0.8, cp.y + 2.2, 0.9);
+      flag.position.set(cp.x + 0.8, poleBottom + 2.35, 0.9);
       flag.userData.isCpFlag = true;
       ctx.entityGroup.add(flag);
       ctx.hazardMeshes.push({ kind: 'cp', c, mesh: flag });
@@ -11173,10 +11188,21 @@ function threeSyncGameplay(ctx, t) {
   const px = player.x + player.w / 2;
   const py = player.y + player.h / 2;
   const pp = threeGpPos(px, py);
-  ctx.playerMesh.position.set(pp.x, pp.y + 1.2, 0.6);
+  // Ancla los PIES del modelo (origen del grupo) a los pies del jugador 2D:
+  // en 2D los pies (player.y + h) apoyan sobre el techo de la plataforma.
+  const feetY = -(player.y + player.h) * THREE_GP_SCALE;
+  ctx.playerMesh.position.set(pp.x, feetY, 0.6);
   const sc = 0.55;
   ctx.playerMesh.rotation.y = player.facing < 0 ? Math.PI : 0;
   ctx.playerMesh.scale.set(sc * Math.abs(player.facing), sc, sc);
+
+  // La sombra del sol sigue al jugador para mantener la sombra de contacto
+  // visible en todo el nivel (el frustum de sombras es limitado).
+  const sun = ctx.lights?.[2];
+  if (sun?.isDirectionalLight) {
+    sun.position.set(pp.x + 40, pp.y + 90, 35);
+    sun.target.position.set(pp.x, pp.y, 0);
+  }
 
   for (const { it, mesh } of ctx.itemMeshes) {
     mesh.visible = !it.taken;

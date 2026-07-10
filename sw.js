@@ -1,7 +1,7 @@
 // Service worker for Super Bear Adventure (PWA).
 // Network-first for HTML/JS so PC and mobile always pick up new builds.
-const SW_VERSION = 'v90';
-const CACHE = 'super-bear-v90';
+const SW_VERSION = 'v91';
+const CACHE = 'super-bear-v91';
 const SHELL = [
   './',
   './index.html',
