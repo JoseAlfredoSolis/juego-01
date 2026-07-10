@@ -411,9 +411,13 @@ function mobGetHtmlMenuConfig() {
     };
   }
   if (gs.scene === 'pause') {
+    const lvTotal = (typeof levelData !== 'undefined' && levelData?.coins) ? levelData.coins.length : 0;
+    const goalTxt = '★ Monedas ' + levelCoins + '/' + lvTotal + (lvTotal>0&&levelCoins>=lvTotal?' ✔':'')
+      + ' · ★ Sin daño' + (runNoHit?' ✔':' ✘');
     return {
       type: 'list', theme: 'blue', title: 'PAUSA',
       subtitle: 'W' + (gs.world + 1) + '-' + (gs.level + 1),
+      detail: goalTxt,
       items: ['CONTINUAR', 'REINICIAR NIVEL', 'MENU PRINCIPAL'],
       getSel: () => pauseSel,
       setSel: v => { pauseSel = v; },

@@ -125,6 +125,24 @@ function gameTestMeta() {
   };
 }
 
+function gameTestProgressInfo() {
+  return {
+    levelStarsBest: gs.levelStarsBest,
+    levelBestTime: gs.levelBestTime,
+    kartBest: gs.kartBest,
+    wallet: gs.wallet,
+    ach: Object.keys(gs.ach || {}),
+  };
+}
+
+function gameTestTeleportToGoal() {
+  if (gs.scene !== 'gameplay' || typeof player === 'undefined' || !player || !goalPos) return false;
+  player.x = goalPos[0];
+  player.y = goalPos[1] + 20;
+  player.vx = 0; player.vy = 0;
+  return true;
+}
+
 function gameTestShopInfo() {
   if (typeof buildShop !== 'function') return { count: 0, chars: [] };
   const list = buildShop();
@@ -212,6 +230,8 @@ function gameTestInstall() {
     gameplayInfo: gameTestGameplayInfo,
     kartInfo: gameTestKartInfo,
     shopInfo: gameTestShopInfo,
+    progressInfo: gameTestProgressInfo,
+    teleportToGoal: gameTestTeleportToGoal,
     canvasHasContent: gameTestCanvasHasContent,
     wait: (ms) => new Promise(r => setTimeout(r, ms)),
     waitUntil: async (fn, timeout = 8000, step = 40) => {

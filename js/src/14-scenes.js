@@ -9,8 +9,16 @@ function drawHUD(t) {
   if(player.lives>8) hud('+'+(player.lives-8), 28+8*22, 36, UI.red, 14);
   // Score center
   hud('SCORE '+gs.score, W/2, 38, UI.bright, 20, 'center');
-  // Coins right
-  drawCoinIcon(W-52, 28, 11); hud(''+gs.coins, W-28, 38, UI.gold, 20, 'right');
+  // Coins right: progreso de monedas del nivel (objetivo 2ª estrella)
+  const lvTotal = (levelData?.coins||[]).length;
+  const coinTxt = lvTotal ? levelCoins+'/'+lvTotal+(levelCoins>=lvTotal?' ✔':'') : ''+gs.coins;
+  drawCoinIcon(W-120, 28, 11);
+  hud(coinTxt, W-28, 38, levelCoins>=lvTotal&&lvTotal?UI.green:UI.gold, 20, 'right');
+  // Objetivo 3ª estrella: racha sin daño
+  if (runNoHit && gameTimer > 2) {
+    fillRR(W-208, 64, 190, 24, 8, 'rgba(60,200,90,0.18)');
+    hud('★ SIN DAÑO', W-113, 80, UI.green, 13, 'center');
+  }
   // Bottom info bar
   fillRR(8,H-52,W-16,40,12,'rgba(8,12,20,0.72)');
   strokeRR(8,H-52,W-16,40,12,'rgba(255,255,255,0.1)',1);
@@ -1149,9 +1157,20 @@ function drawPause() {
   for (const e of enemies) drawEnemy(e);
   drawPlayer(player);
   fillRR(0,0,W,H,0,'rgba(0,0,0,0.6)');
-  uiPanel(W/2-230,H/2-175,460,350,22);
-  uiTitle('PAUSA', H/2-125, 36);
-  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-55+i*68, i===pauseSel, 380, 46, i);
+  uiPanel(W/2-230,H/2-205,460,410,22);
+  uiTitle('PAUSA', H/2-155, 36);
+  // Objetivos de estrellas del nivel en curso
+  const lvTotal = (levelData?.coins||[]).length;
+  const goals = [
+    ['★ Completar el nivel', true],
+    ['★ Monedas '+levelCoins+'/'+lvTotal, lvTotal>0 && levelCoins>=lvTotal],
+    ['★ Sin recibir daño', runNoHit],
+  ];
+  goals.forEach((g,i)=>{
+    const y=H/2-108+i*22;
+    hud((g[1]?'✔ ':'· ')+g[0], W/2-190, y, g[1]?UI.green:UI.dim, 14, 'left');
+  });
+  for (let i=0;i<pauseItems.length;i++) uiMenuRow(pauseItems[i], H/2-15+i*68, i===pauseSel, 380, 46, i);
 }
 
 // ── Game Over ──────────────────────────────────────────────────────────────
@@ -1243,10 +1262,14 @@ function drawVictory() {
   }
   const sc=1.1+Math.sin(vicT*3)*0.06;
   ctx.save(); ctx.translate(W/2,140); ctx.scale(sc,sc); uiTitle('VICTORIA!', 0, 58); ctx.restore();
-  uiPanel(W/2-280,200,560,220,20);
+  uiPanel(W/2-280,200,560,260,20);
   hud('Completaste los '+WORLD_COUNT+' mundos!', W/2, 250, UI.bright, 24, 'center');
   hud('Score final: '+gs.score, W/2, 300, UI.gold, 26, 'center');
   hud('Record: '+gs.highScore, W/2, 345, UI.cyan, 22, 'center');
+  let starTotal = 0;
+  for (const w of gs.levelStarsBest) starTotal += (w||[]).reduce((a,b)=>a+(b||0),0);
+  hud('★ '+starTotal+' / '+(WORLD_COUNT*9)+' estrellas', W/2, 390, UI.gold, 20, 'center');
+  if (starTotal < WORLD_COUNT*9) hud('¡Consigue 3★ en cada nivel para el 100%!', W/2, 425, UI.dim, 15, 'center');
   uiFooter('Enter para volver al menu');
 }
 

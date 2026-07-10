@@ -814,9 +814,10 @@ function updateCheckpoints() {
       c.reached = true;
       player.respawnX = c.x - player.w/2;
       player.respawnY = c.y - 10;
+      gs.score += 50;
       sfx.power();
       spawnRing(c.x, c.y+20, '#39d353', 50, 0.4);
-      spawnText(c.x, c.y-6, 'CHECKPOINT', '#39d353', 16);
+      spawnText(c.x, c.y-6, 'CHECKPOINT +50', '#39d353', 16);
     }
   }
 }
