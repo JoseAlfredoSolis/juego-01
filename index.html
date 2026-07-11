@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta http-equiv="Cache-Control" content="no-cache">
-<meta name="build-version" content="v88">
+<meta name="build-version" content="v92">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a5c1a">
 <meta name="mobile-web-app-capable" content="yes">
@@ -13,15 +13,20 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <title>Super Bear Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { width: 100%; height: 100%; }
 body {
-  background: radial-gradient(ellipse at 50% 30%, #1a3a1a 0%, #050a08 70%);
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(255, 210, 70, 0.12) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 30%, #1a4a22 0%, #061208 68%);
   display: flex; justify-content: center; align-items: center;
   height: 100vh; height: 100dvh; overflow: hidden;
   touch-action: none; user-select: none; -webkit-user-select: none;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Fredoka', 'Segoe UI', system-ui, sans-serif;
 }
 body.touch {
   padding:
@@ -108,21 +113,27 @@ body.touch.playing #touch { display: block; pointer-events: auto; }
   position: relative;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 26px;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  background: linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.06));
-  border: 2px solid rgba(255,255,255,0.35);
+  font-family: 'Fredoka', 'Segoe UI', system-ui, sans-serif;
+  background: linear-gradient(160deg, rgba(255,255,255,0.28), rgba(255,255,255,0.06));
+  border: 2.5px solid rgba(255,255,255,0.4);
   border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+  box-shadow:
+    0 6px 0 rgba(0,0,0,0.35),
+    0 8px 20px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.28);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   touch-action: none;
   transition: transform 0.08s, background 0.08s, box-shadow 0.08s;
 }
 .tbtn.active {
-  transform: scale(0.94);
-  background: linear-gradient(145deg, rgba(255,215,0,0.55), rgba(255,180,0,0.25));
+  transform: translateY(3px) scale(0.96);
+  background: linear-gradient(160deg, rgba(255,215,0,0.65), rgba(255,170,0,0.3));
   border-color: #ffd700;
-  box-shadow: 0 2px 12px rgba(255,215,0,0.35), inset 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow:
+    0 2px 0 rgba(0,0,0,0.35),
+    0 4px 14px rgba(255,215,0,0.35),
+    inset 0 2px 8px rgba(0,0,0,0.15);
 }
 
 /* D-pad layout (cross) */
@@ -207,9 +218,9 @@ body.touch.kart-race #bSp { font-size: 9px; }
   justify-content: center;
   gap: 8px;
   padding: 10px 10px calc(12px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(0deg, rgba(0,0,0,0.97) 0%, rgba(16,20,32,0.92) 100%);
-  border-top: 3px solid rgba(255, 215, 0, 0.35);
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(0deg, rgba(0,0,0,0.97) 0%, rgba(12,22,18,0.94) 100%);
+  border-top: 3px solid rgba(255, 215, 0, 0.45);
+  box-shadow: 0 -10px 36px rgba(0, 0, 0, 0.55);
   pointer-events: auto;
   touch-action: manipulation;
 }
@@ -222,29 +233,29 @@ body.touch.mob-menu { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0p
   max-width: 84px;
   min-height: 56px;
   padding: 0 8px;
-  font: bold 22px monospace;
+  font: 700 22px 'Fredoka', system-ui, sans-serif;
   color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.08));
+  border: 2px solid rgba(255, 255, 255, 0.24);
   border-radius: 14px;
   touch-action: manipulation;
-  box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+  box-shadow: 0 5px 0 rgba(0,0,0,0.4);
 }
 .mnav:active, .mnav.active {
-  background: rgba(255, 215, 0, 0.35);
+  background: linear-gradient(180deg, rgba(255, 215, 0, 0.5), rgba(255, 180, 0, 0.28));
   border-color: #ffd700;
   color: #fff;
-  transform: translateY(2px);
+  transform: translateY(3px);
   box-shadow: 0 2px 0 rgba(0,0,0,0.35);
 }
 #mobOk {
   flex: 1.4;
   max-width: 110px;
-  background: linear-gradient(180deg, #4ade80, #16a34a);
+  background: linear-gradient(180deg, #5aef90, #16a34a);
   color: #fff;
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.4);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 800;
   text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 #mobLeft, #mobRight { display: none; }
@@ -275,13 +286,15 @@ body.touch.mob-nav-wide #mobRight { display: flex; }
     max(12px, env(safe-area-inset-right))
     12px
     max(12px, env(safe-area-inset-left));
-  background: linear-gradient(180deg, #0a2010 0%, #1a5c1a 55%, #0d3010 100%);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 210, 70, 0.16) 0%, transparent 45%),
+    linear-gradient(180deg, #072214 0%, #1a5c28 52%, #0a2812 100%);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 body.mob-menu-html #mobMenuHtml {
   display: flex;
-  animation: mmhIn 0.22s ease;
+  animation: mmhIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 body:not(.touch).mob-menu-html #mobMenuHtml {
   inset: 0;
@@ -301,11 +314,15 @@ body.mob-menu-html.three-menu canvas#three-c {
   pointer-events: auto;
 }
 body.mob-menu-html.three-menu #mobMenuHtml {
-  background: linear-gradient(180deg, rgba(10,32,16,0.92) 0%, rgba(13,48,16,0.88) 100%);
+  background: linear-gradient(180deg, rgba(8,28,16,0.82) 0%, rgba(10,40,18,0.9) 100%);
 }
 @keyframes mmhIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
   to { opacity: 1; transform: none; }
+}
+@keyframes mmhPulse {
+  0%, 100% { box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 0 0 rgba(255,215,0,0); }
+  50% { box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 0 22px rgba(255,215,0,0.28); }
 }
 body:not(.touch).mob-menu-html #mobMenuHtmlList {
   display: grid;
@@ -315,17 +332,24 @@ body:not(.touch).mob-menu-html #mobMenuHtmlList {
 }
 body:not(.touch) .mmh-item { cursor: pointer; }
 .mmh-item:hover:not(.sel) {
-  background: rgba(255,255,255,0.11);
-  border-color: rgba(255,255,255,0.28);
+  background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07));
+  border-color: rgba(255,255,255,0.32);
+  transform: translateY(-1px);
 }
 #mobMenuHtml.theme-purple {
-  background: linear-gradient(180deg, #1a0830 0%, #301858 55%, #180828 100%);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 120, 220, 0.14) 0%, transparent 45%),
+    linear-gradient(180deg, #160828 0%, #301858 55%, #120820 100%);
 }
 #mobMenuHtml.theme-blue {
-  background: linear-gradient(180deg, #0a1428 0%, #1a2848 55%, #0a1830 100%);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(90, 200, 255, 0.14) 0%, transparent 45%),
+    linear-gradient(180deg, #081428 0%, #1a2848 55%, #0a1830 100%);
 }
 #mobMenuHtml.theme-orange {
-  background: linear-gradient(180deg, #3a2010 0%, #6a3818 55%, #2a1808 100%);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 180, 80, 0.16) 0%, transparent 45%),
+    linear-gradient(180deg, #2a1808 0%, #6a3818 55%, #1e1008 100%);
 }
 body.touch.landscape.mob-menu-html #mobMenuHtml {
   inset: 0 0 calc(62px + env(safe-area-inset-bottom, 0px)) 0;
@@ -345,36 +369,39 @@ body.touch.landscape.mob-menu-html .mmh-title { font-size: 22px; }
 body.touch.landscape.mob-menu-html .mmh-sub { font-size: 15px; margin-bottom: 8px; }
 #mmhDetail {
   text-align: center;
-  font: 600 14px system-ui, sans-serif;
+  font: 600 14px 'Fredoka', system-ui, sans-serif;
   color: #bdf;
   margin-bottom: 12px;
 }
 .mmh-start {
-  background: linear-gradient(180deg, #4ade80, #16a34a) !important;
+  background: linear-gradient(180deg, #5aef90, #16a34a) !important;
   color: #fff !important;
-  border-color: rgba(255,255,255,0.35) !important;
+  border-color: rgba(255,255,255,0.4) !important;
   font-size: 20px !important;
   min-height: 58px !important;
+  animation: mmhPulse 1.6s ease-in-out infinite;
 }
 .mmh-wait {
   text-align: center;
   color: #bdf;
-  font: 600 16px system-ui, sans-serif;
+  font: 600 16px 'Fredoka', system-ui, sans-serif;
   padding: 24px 12px;
 }
 body.touch.portrait.playing #touch { z-index: 100; }
 .mmh-title {
-  font: 900 28px system-ui, sans-serif;
+  font: 800 30px 'Fredoka', system-ui, sans-serif;
   color: #ffd700;
   text-align: center;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   margin-bottom: 2px;
+  text-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 0 24px rgba(255,215,0,0.25);
 }
 .mmh-sub {
-  font: 700 18px system-ui, sans-serif;
+  font: 700 17px 'Fredoka', system-ui, sans-serif;
   color: #fff;
   text-align: center;
   margin-bottom: 14px;
+  opacity: 0.92;
 }
 #mmhMeta {
   display: flex;
@@ -382,14 +409,15 @@ body.touch.portrait.playing #touch { z-index: 100; }
   gap: 8px;
   justify-content: center;
   margin-bottom: 14px;
-  font: 600 13px monospace;
+  font: 600 13px 'Fredoka', system-ui, sans-serif;
   color: #8cf;
 }
 #mmhMeta span {
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.38);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.25);
 }
 #mobMenuHtmlList {
   display: flex;
@@ -399,36 +427,40 @@ body.touch.portrait.playing #touch { z-index: 100; }
 }
 .mmh-item {
   width: 100%;
-  min-height: 52px;
+  min-height: 54px;
   padding: 14px 16px;
-  font: bold 18px system-ui, sans-serif;
-  color: #dce8f0;
+  font: 700 17px 'Fredoka', system-ui, sans-serif;
+  color: #e8f0f8;
   text-align: center;
-  border: 2px solid rgba(255,255,255,0.14);
-  border-radius: 14px;
-  background: rgba(255,255,255,0.07);
+  border: 2.5px solid rgba(255,255,255,0.16);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05));
   touch-action: manipulation;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.32);
+  transition: transform 0.08s, background 0.12s, border-color 0.12s;
 }
 .mmh-item.sel {
-  color: #ffd700;
+  color: #111;
   border-color: #ffd700;
-  background: rgba(255,215,0,0.18);
-  box-shadow: 0 0 20px rgba(255,215,0,0.15);
+  background: linear-gradient(180deg, #ffe566, #f0b400);
+  box-shadow: 0 5px 0 #9a7000, 0 0 20px rgba(255,215,0,0.28);
+  animation: mmhPulse 1.4s ease-in-out infinite;
 }
-.mmh-item:active { transform: scale(0.98); }
+.mmh-item:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.32); }
+.mmh-item.sel:active { box-shadow: 0 2px 0 #9a7000; }
 .mmh-item .mmh-desc {
   display: block;
-  font: 600 12px monospace;
-  color: rgba(255,255,255,0.55);
+  font: 600 12px 'Fredoka', system-ui, sans-serif;
+  color: rgba(255,255,255,0.58);
   margin-top: 4px;
 }
-.mmh-item.sel .mmh-desc { color: rgba(255,215,0,0.75); }
-.mmh-item.mmh-afford { border-color: rgba(74,222,128,0.35); }
-.mmh-item.mmh-locked { opacity: 0.72; }
+.mmh-item.sel .mmh-desc { color: rgba(40,30,0,0.7); }
+.mmh-item.mmh-afford { border-color: rgba(74,222,128,0.45); }
+.mmh-item.mmh-locked { opacity: 0.68; }
 .mmh-section {
-  font: 800 13px monospace;
-  letter-spacing: 0.12em;
-  color: rgba(255,215,0,0.85);
+  font: 700 12px 'Fredoka', system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  color: rgba(255,215,0,0.9);
   text-align: left;
   margin: 8px 4px 4px;
   padding-top: 6px;
@@ -436,7 +468,7 @@ body.touch.portrait.playing #touch { z-index: 100; }
 #mmhVer {
   margin-top: 10px;
   text-align: center;
-  font: 12px monospace;
+  font: 12px 'Fredoka', system-ui, sans-serif;
   color: rgba(255,255,255,0.35);
 }
 
@@ -453,7 +485,7 @@ body.touch.portrait.playing #touch { z-index: 100; }
   padding: 24px;
   background: rgba(4, 8, 16, 0.96);
   color: #ffd700;
-  font: bold 18px system-ui, sans-serif;
+  font: 700 18px 'Fredoka', system-ui, sans-serif;
   text-align: center;
   pointer-events: none;
 }
@@ -483,15 +515,16 @@ body.touch.mob-join #mobNav { display: none !important; }
 #mpCodeInput {
   width: 100%;
   padding: 16px 20px;
-  font: bold 32px monospace;
+  font: 700 32px 'Fredoka', system-ui, sans-serif;
   text-align: center;
   letter-spacing: 0.4em;
   text-transform: uppercase;
-  border: 2px solid rgba(255,215,0,0.65);
-  border-radius: 14px;
+  border: 2.5px solid rgba(255,215,0,0.7);
+  border-radius: 16px;
   background: rgba(8,12,24,0.96);
   color: #ffd700;
   outline: none;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.4);
   -webkit-user-select: text;
   user-select: text;
 }
@@ -499,12 +532,14 @@ body.touch.mob-join #mobNav { display: none !important; }
 #mpJoinBtn {
   width: 100%;
   padding: 14px;
-  font: bold 22px monospace;
+  font: 800 22px 'Fredoka', system-ui, sans-serif;
   border: none;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffd700, #c9a000);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffe566, #c9a000);
   color: #111;
+  box-shadow: 0 5px 0 #8a7000;
 }
+#mpJoinBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 #8a7000; }
 </style>
 </head>
 <body>
@@ -555,7 +590,7 @@ body.touch.mob-join #mobNav { display: none !important; }
   <button id="mpJoinBtn" type="button">UNIRSE</button>
 </div>
 
-<script>window.__APP_BUILD__='v91';</script>
+<script>window.__APP_BUILD__='v92';</script>
 <script src="vendor/peer.min.js"></script>
 <script>
 if (typeof Peer === 'undefined') {
@@ -568,6 +603,6 @@ if (typeof THREE === 'undefined') {
   document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
 }
 </script>
-<script src="js/game.js?v=91"></script>
+<script src="js/game.js?v=92"></script>
 </body>
 </html>

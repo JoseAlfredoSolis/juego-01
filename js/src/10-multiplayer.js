@@ -5,10 +5,14 @@ function drawCoinIcon(x,y,r){
   ctx.fillStyle='#7a5500'; ctx.font=`bold ${Math.round(r*1.1)}px monospace`; ctx.textAlign='center'; ctx.fillText('C',x,y+r*0.38);
 }
 function uiBtn(x,y,w,h,label,sel,color=UI.gold){
-  fillRR(x,y,w,h, sel?color:'rgba(255,255,255,0.08)',12);
-  strokeRR(x,y,w,h, sel?UI.gold:'rgba(255,255,255,0.2)',12, sel?2:1);
-  ctx.fillStyle=sel?'#111':UI.bright; ctx.font=`bold ${sel?22:20}px monospace`; ctx.textAlign='center';
-  ctx.fillText(label,x+w/2,y+h/2+7);
+  const r = 14;
+  fillRR(x, y + 4, w, h, r, 'rgba(0,0,0,0.35)');
+  fillRR(x, y, w, h, r, sel ? color : 'rgba(255,255,255,0.08)');
+  strokeRR(x, y, w, h, r, sel ? UI.gold : 'rgba(255,255,255,0.22)', sel ? 2.5 : 1.5);
+  ctx.fillStyle = sel ? '#111' : UI.bright;
+  ctx.font = `900 ${sel ? 21 : 19}px ${UI.font}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(label, x + w / 2, y + h / 2 + 7);
 }
 
 // ── Scene transitions ────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ function updateAchievements(dt){
 function drawAchievements(){
   if (document.body.classList.contains('mob-menu-html')) return;
   const desktop = uiIsDesktop();
-  uiBgGrad('#0a1018','#101820', false);
+  uiPlayBg('night', performance.now() * 0.001, false);
   const got=ACHIEVEMENTS.filter(a=>gs.ach[a.id]).length;
   if (desktop) {
     uiDesktopHeader('LOGROS', got + ' / ' + ACHIEVEMENTS.length + ' desbloqueados');
