@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<meta name="build-version" content="v92">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a5c1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Super Bear">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Super Bear Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; }
+body {
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(255, 210, 70, 0.12) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 30%, #1a4a22 0%, #061208 68%);
+  display: flex; justify-content: center; align-items: center;
+  height: 100vh; height: 100dvh; overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  font-family: 'Fredoka', 'Segoe UI', system-ui, sans-serif;
+}
+body.touch {
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+canvas {
+  display: block; image-rendering: pixelated;
+  border-radius: 8px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,215,0,0.08);
+}
+body.touch canvas {
+  border-radius: 0;
+  box-shadow: none;
+  max-width: 100%;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+#three-c {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: none;
+  pointer-events: none;
+}
+body.three-on #three-c { display: block; }
+body.three-on canvas#c {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+body.three-race canvas#c {
+  image-rendering: auto;
+}
+body.three-gameplay canvas#c,
+body.three-play canvas#c {
+  image-rendering: auto;
+  background: transparent;
+}
+body.three-play canvas#c {
+  pointer-events: none;
+}
+body.three-play #three-c {
+  pointer-events: auto;
+  z-index: 2;
+  touch-action: none;
+}
+body.touch.playing #touch {
+  z-index: 100;
+  pointer-events: auto;
+}
+body.three-menu.mob-menu-html #mobMenuHtml {
+  background: linear-gradient(180deg, rgba(8,12,24,0.55) 0%, rgba(8,12,24,0.82) 100%);
+}
+body.three-main-menu.mob-menu-html #mobMenuHtml {
+  background: linear-gradient(180deg, rgba(10,32,16,0.5) 0%, rgba(10,40,18,0.85) 100%);
+}
+body.touch.mob-menu {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: max(4px, env(safe-area-inset-top));
+  padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+}
+body.touch.mob-join {
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: max(4px, env(safe-area-inset-top));
+}
+
+/* ── On-screen touch controls (solo al jugar) ── */
+#touch { display: none; pointer-events: none; }
+body.touch.playing #touch { display: block; pointer-events: auto; }
+
+#touch .pad, #touch .btns { position: fixed; bottom: 28px; z-index: 10; }
+#touch .pad  { left: 20px; }
+#touch .btns { right: 20px; display: flex; align-items: flex-end; gap: 16px; }
+
+.tbtn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 26px;
+  font-family: 'Fredoka', 'Segoe UI', system-ui, sans-serif;
+  background: linear-gradient(160deg, rgba(255,255,255,0.28), rgba(255,255,255,0.06));
+  border: 2.5px solid rgba(255,255,255,0.4);
+  border-radius: 18px;
+  box-shadow:
+    0 6px 0 rgba(0,0,0,0.35),
+    0 8px 20px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.28);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  touch-action: none;
+  transition: transform 0.08s, background 0.08s, box-shadow 0.08s;
+}
+.tbtn.active {
+  transform: translateY(3px) scale(0.96);
+  background: linear-gradient(160deg, rgba(255,215,0,0.65), rgba(255,170,0,0.3));
+  border-color: #ffd700;
+  box-shadow:
+    0 2px 0 rgba(0,0,0,0.35),
+    0 4px 14px rgba(255,215,0,0.35),
+    inset 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* D-pad layout (cross) */
+.pad { display: grid; grid-template-columns: repeat(3, 68px); grid-template-rows: repeat(3, 68px); gap: 5px; }
+#bUp    { grid-column: 2; grid-row: 1; }
+#bLeft  { grid-column: 1; grid-row: 2; }
+#bDown  { grid-column: 2; grid-row: 3; }
+#bRight { grid-column: 3; grid-row: 2; }
+
+/* Action buttons */
+#bJump  {
+  width: 100px; height: 100px; border-radius: 50%; font-size: 15px; letter-spacing: 0.5px;
+  background: linear-gradient(145deg, rgba(80,220,100,0.45), rgba(40,140,60,0.35));
+  border-color: rgba(120,255,140,0.75);
+  box-shadow: 0 4px 20px rgba(60,200,80,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+#bSp    {
+  width: 78px; height: 78px; border-radius: 50%; font-size: 18px;
+  background: linear-gradient(145deg, rgba(255,210,77,0.45), rgba(200,150,30,0.35));
+  border-color: rgba(255,210,77,0.85);
+  box-shadow: 0 4px 18px rgba(255,200,50,0.2), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+#bPause {
+  position: fixed; top: 18px; right: 18px; width: 52px; height: 52px;
+  font-size: 18px; border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+}
+
+/* Celular: controles mas compactos para no tapar el juego */
+body.touch.playing #touch .pad,
+body.touch.playing #touch .btns { bottom: max(8px, env(safe-area-inset-bottom)); }
+body.touch.playing #touch .pad { left: max(8px, env(safe-area-inset-left)); }
+body.touch.playing #touch .btns { right: max(8px, env(safe-area-inset-right)); gap: 8px; }
+body.touch .pad {
+  grid-template-columns: repeat(3, 50px);
+  grid-template-rows: repeat(3, 50px);
+  gap: 3px;
+}
+body.touch .tbtn {
+  font-size: 18px;
+  border-radius: 12px;
+  border-width: 1.5px;
+}
+body.touch #bJump {
+  width: 68px; height: 68px;
+  font-size: 11px;
+}
+body.touch #bSp {
+  width: 54px; height: 54px;
+  font-size: 11px;
+}
+body.touch #bPause {
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  width: 40px; height: 40px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+body.touch.kart-race #bJump,
+body.touch.kart-race #bSp { font-size: 9px; }
+
+@media (orientation: portrait) {
+  body.touch.playing #touch .pad,
+  body.touch.playing #touch .btns { bottom: max(14px, env(safe-area-inset-bottom)); }
+  body.touch .pad {
+    grid-template-columns: repeat(3, 46px);
+    grid-template-rows: repeat(3, 46px);
+  }
+  body.touch #bJump { width: 62px; height: 62px; }
+  body.touch #bSp { width: 50px; height: 50px; }
+}
+
+/* Barra de navegacion tactil en menus — ancho completo, siempre visible */
+#mobNav {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(0deg, rgba(0,0,0,0.97) 0%, rgba(12,22,18,0.94) 100%);
+  border-top: 3px solid rgba(255, 215, 0, 0.45);
+  box-shadow: 0 -10px 36px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+body.touch.mob-menu #mobNav { display: flex; }
+body.touch.mob-menu { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+.mnav {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 0;
+  max-width: 84px;
+  min-height: 56px;
+  padding: 0 8px;
+  font: 700 22px 'Fredoka', system-ui, sans-serif;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.08));
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  border-radius: 14px;
+  touch-action: manipulation;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.4);
+}
+.mnav:active, .mnav.active {
+  background: linear-gradient(180deg, rgba(255, 215, 0, 0.5), rgba(255, 180, 0, 0.28));
+  border-color: #ffd700;
+  color: #fff;
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+}
+#mobOk {
+  flex: 1.4;
+  max-width: 110px;
+  background: linear-gradient(180deg, #5aef90, #16a34a);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+  font-size: 17px;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+#mobLeft, #mobRight { display: none; }
+body.touch.mob-nav-wide #mobLeft,
+body.touch.mob-nav-wide #mobRight { display: flex; }
+
+@media (max-width: 480px) {
+  .mnav { min-height: 52px; font-size: 20px; }
+  #mobOk { font-size: 16px; }
+  body.touch.mob-menu { padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #mobNav { padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  .mnav { min-height: 46px; font-size: 18px; }
+  body.touch.mob-menu { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Menu HTML nativo en celular vertical (legible, tactil) */
+#mobMenuHtml {
+  display: none;
+  position: fixed;
+  inset: 0 0 calc(78px + env(safe-area-inset-bottom, 0px)) 0;
+  z-index: 150;
+  flex-direction: column;
+  align-items: stretch;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    12px
+    max(12px, env(safe-area-inset-left));
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 210, 70, 0.16) 0%, transparent 45%),
+    linear-gradient(180deg, #072214 0%, #1a5c28 52%, #0a2812 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+body.mob-menu-html #mobMenuHtml {
+  display: flex;
+  animation: mmhIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+body:not(.touch).mob-menu-html #mobMenuHtml {
+  inset: 0;
+  bottom: 0;
+  max-width: 760px;
+  margin: 0 auto;
+  left: 0;
+  right: 0;
+}
+body.mob-menu-html canvas#c {
+  visibility: hidden;
+  pointer-events: none;
+}
+body.mob-menu-html.three-menu canvas#c,
+body.mob-menu-html.three-menu canvas#three-c {
+  visibility: visible;
+  pointer-events: auto;
+}
+body.mob-menu-html.three-menu #mobMenuHtml {
+  background: linear-gradient(180deg, rgba(8,28,16,0.82) 0%, rgba(10,40,18,0.9) 100%);
+}
+@keyframes mmhIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mmhPulse {
+  0%, 100% { box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 0 0 rgba(255,215,0,0); }
+  50% { box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 0 22px rgba(255,215,0,0.28); }
+}
+body:not(.touch).mob-menu-html #mobMenuHtmlList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+body:not(.touch) .mmh-item { cursor: pointer; }
+.mmh-item:hover:not(.sel) {
+  background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07));
+  border-color: rgba(255,255,255,0.32);
+  transform: translateY(-1px);
+}
+#mobMenuHtml.theme-purple {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 120, 220, 0.14) 0%, transparent 45%),
+    linear-gradient(180deg, #160828 0%, #301858 55%, #120820 100%);
+}
+#mobMenuHtml.theme-blue {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(90, 200, 255, 0.14) 0%, transparent 45%),
+    linear-gradient(180deg, #081428 0%, #1a2848 55%, #0a1830 100%);
+}
+#mobMenuHtml.theme-orange {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 180, 80, 0.16) 0%, transparent 45%),
+    linear-gradient(180deg, #2a1808 0%, #6a3818 55%, #1e1008 100%);
+}
+body.touch.landscape.mob-menu-html #mobMenuHtml {
+  inset: 0 0 calc(62px + env(safe-area-inset-bottom, 0px)) 0;
+  padding-top: max(8px, env(safe-area-inset-top));
+}
+body.touch.landscape.mob-menu-html #mobMenuHtmlList {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  align-content: start;
+}
+body.touch.landscape.mob-menu-html .mmh-item {
+  min-height: 48px;
+  font-size: 15px;
+}
+body.touch.landscape.mob-menu-html .mmh-title { font-size: 22px; }
+body.touch.landscape.mob-menu-html .mmh-sub { font-size: 15px; margin-bottom: 8px; }
+#mmhDetail {
+  text-align: center;
+  font: 600 14px 'Fredoka', system-ui, sans-serif;
+  color: #bdf;
+  margin-bottom: 12px;
+}
+.mmh-start {
+  background: linear-gradient(180deg, #5aef90, #16a34a) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.4) !important;
+  font-size: 20px !important;
+  min-height: 58px !important;
+  animation: mmhPulse 1.6s ease-in-out infinite;
+}
+.mmh-wait {
+  text-align: center;
+  color: #bdf;
+  font: 600 16px 'Fredoka', system-ui, sans-serif;
+  padding: 24px 12px;
+}
+body.touch.portrait.playing #touch { z-index: 100; }
+.mmh-title {
+  font: 800 30px 'Fredoka', system-ui, sans-serif;
+  color: #ffd700;
+  text-align: center;
+  letter-spacing: 1.5px;
+  margin-bottom: 2px;
+  text-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 0 24px rgba(255,215,0,0.25);
+}
+.mmh-sub {
+  font: 700 17px 'Fredoka', system-ui, sans-serif;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 14px;
+  opacity: 0.92;
+}
+#mmhMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 14px;
+  font: 600 13px 'Fredoka', system-ui, sans-serif;
+  color: #8cf;
+}
+#mmhMeta span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.38);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 3px 0 rgba(0,0,0,0.25);
+}
+#mobMenuHtmlList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.mmh-item {
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 16px;
+  font: 700 17px 'Fredoka', system-ui, sans-serif;
+  color: #e8f0f8;
+  text-align: center;
+  border: 2.5px solid rgba(255,255,255,0.16);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05));
+  touch-action: manipulation;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.32);
+  transition: transform 0.08s, background 0.12s, border-color 0.12s;
+}
+.mmh-item.sel {
+  color: #111;
+  border-color: #ffd700;
+  background: linear-gradient(180deg, #ffe566, #f0b400);
+  box-shadow: 0 5px 0 #9a7000, 0 0 20px rgba(255,215,0,0.28);
+  animation: mmhPulse 1.4s ease-in-out infinite;
+}
+.mmh-item:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.32); }
+.mmh-item.sel:active { box-shadow: 0 2px 0 #9a7000; }
+.mmh-item .mmh-desc {
+  display: block;
+  font: 600 12px 'Fredoka', system-ui, sans-serif;
+  color: rgba(255,255,255,0.58);
+  margin-top: 4px;
+}
+.mmh-item.sel .mmh-desc { color: rgba(40,30,0,0.7); }
+.mmh-item.mmh-afford { border-color: rgba(74,222,128,0.45); }
+.mmh-item.mmh-locked { opacity: 0.68; }
+.mmh-section {
+  font: 700 12px 'Fredoka', system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  color: rgba(255,215,0,0.9);
+  text-align: left;
+  margin: 8px 4px 4px;
+  padding-top: 6px;
+}
+#mmhVer {
+  margin-top: 10px;
+  text-align: center;
+  font: 12px 'Fredoka', system-ui, sans-serif;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Aviso rotar pantalla en vertical (menus y juego) */
+#rotateHint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(4, 8, 16, 0.96);
+  color: #ffd700;
+  font: 700 18px 'Fredoka', system-ui, sans-serif;
+  text-align: center;
+  pointer-events: none;
+}
+body.touch.portrait.mob-menu:not(.mob-menu-html) #rotateHint { display: flex; }
+#rotateHint .rh-icon { font-size: 56px; line-height: 1; }
+#rotateHint .rh-sub { font-size: 14px; color: rgba(255,255,255,0.75); font-weight: 600; max-width: 280px; }
+@media (orientation: landscape) {
+  body.touch #rotateHint { display: none !important; }
+}
+
+/* Campo de codigo multijugador (movil) */
+#mpJoinUi {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 20;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(92vw, 380px);
+}
+body.touch.mob-join #mpJoinUi { display: flex; }
+body.touch.mob-join #touch,
+body.touch.mob-join #mobNav { display: none !important; }
+#mpCodeInput {
+  width: 100%;
+  padding: 16px 20px;
+  font: 700 32px 'Fredoka', system-ui, sans-serif;
+  text-align: center;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  border: 2.5px solid rgba(255,215,0,0.7);
+  border-radius: 16px;
+  background: rgba(8,12,24,0.96);
+  color: #ffd700;
+  outline: none;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.4);
+  -webkit-user-select: text;
+  user-select: text;
+}
+#mpCodeInput::placeholder { color: rgba(255,215,0,0.35); letter-spacing: 0.2em; }
+#mpJoinBtn {
+  width: 100%;
+  padding: 14px;
+  font: 800 22px 'Fredoka', system-ui, sans-serif;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffe566, #c9a000);
+  color: #111;
+  box-shadow: 0 5px 0 #8a7000;
+}
+#mpJoinBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 #8a7000; }
+</style>
+</head>
+<body>
+<canvas id="three-c"></canvas>
+<canvas id="c"></canvas>
+
+<!-- Touch controls overlay -->
+<div id="touch">
+  <div class="pad">
+    <div class="tbtn" id="bUp"    data-code="ArrowUp">▲</div>
+    <div class="tbtn" id="bLeft"  data-code="ArrowLeft">◀</div>
+    <div class="tbtn" id="bDown"  data-code="ArrowDown">▼</div>
+    <div class="tbtn" id="bRight" data-code="ArrowRight">▶</div>
+  </div>
+  <div class="btns">
+    <div class="tbtn" id="bSp"   data-code="KeyJ">SP</div>
+    <div class="tbtn" id="bJump" data-code="Space">JUMP</div>
+  </div>
+  <div class="tbtn" id="bPause" data-code="Escape">II</div>
+</div>
+
+<div id="mobMenuHtml">
+  <div class="mmh-title">SUPER BEAR</div>
+  <div class="mmh-sub">ADVENTURE</div>
+  <div id="mmhMeta"></div>
+  <div id="mmhDetail"></div>
+  <div id="mobMenuHtmlList"></div>
+  <div id="mmhVer"></div>
+</div>
+
+<div id="mobNav">
+  <button type="button" id="mobBack" class="mnav">←</button>
+  <button type="button" id="mobLeft" class="mnav">◀</button>
+  <button type="button" id="mobUp" class="mnav">▲</button>
+  <button type="button" id="mobDown" class="mnav">▼</button>
+  <button type="button" id="mobRight" class="mnav">▶</button>
+  <button type="button" id="mobOk" class="mnav">OK</button>
+</div>
+
+<div id="rotateHint">
+  <div class="rh-icon">📱↔</div>
+  <div>Gira el celular en horizontal</div>
+  <div class="rh-sub">Mejor experiencia en horizontal al jugar. En menus usa los botones de abajo.</div>
+</div>
+
+<div id="mpJoinUi">
+  <input id="mpCodeInput" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" inputmode="text" placeholder="CODIGO">
+  <button id="mpJoinBtn" type="button">UNIRSE</button>
+</div>
+
+<script>window.__APP_BUILD__='v92';</script>
+<script src="vendor/peer.min.js"></script>
+<script>
+if (typeof Peer === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>');
+}
+</script>
+<script src="vendor/three.min.js"></script>
+<script>
+if (typeof THREE === 'undefined') {
+  document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>');
+}
+</script>
+<script src="js/game.js?v=92"></script>
+</body>
+</html>

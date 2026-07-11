@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Full-bleed background so the icon works as "maskable" on Android -->
+  <rect width="512" height="512" fill="#1a5c1a"/>
+  <rect width="512" height="256" fill="#0d2b0d"/>
+  <!-- Bear (kept inside the central safe zone) -->
+  <g>
+    <!-- Ears -->
+    <rect x="150" y="150" width="70" height="70" rx="14" fill="#8B4513"/>
+    <rect x="292" y="150" width="70" height="70" rx="14" fill="#8B4513"/>
+    <!-- Head -->
+    <rect x="150" y="180" width="212" height="150" rx="26" fill="#A0522D"/>
+    <!-- Snout -->
+    <rect x="206" y="250" width="100" height="64" rx="20" fill="#D2A679"/>
+    <!-- Nose -->
+    <rect x="236" y="252" width="40" height="26" rx="10" fill="#5a2d2d"/>
+    <!-- Eyes -->
+    <circle cx="206" cy="226" r="16" fill="#000"/>
+    <circle cx="306" cy="226" r="16" fill="#000"/>
+    <circle cx="211" cy="221" r="5" fill="#fff"/>
+    <circle cx="311" cy="221" r="5" fill="#fff"/>
+    <!-- Body -->
+    <rect x="176" y="320" width="160" height="80" rx="24" fill="#8B4513"/>
+    <rect x="206" y="338" width="100" height="56" rx="18" fill="#D2A679"/>
+  </g>
+  <!-- Title star accent -->
+  <text x="256" y="468" font-family="monospace" font-size="56" font-weight="bold" fill="#FFD700" text-anchor="middle"></text>
+</svg>
