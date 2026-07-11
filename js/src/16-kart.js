@@ -1644,7 +1644,7 @@ function updateKartResults(dt) {
 }
 function drawKartResults() {
   if (document.body.classList.contains('mob-menu-html')) return;
-  uiBgGrad('#0a1420', '#1a2840');
+  uiPlayBg('victory', kartResultsT);
   uiTitle('RESULTADOS', 80, 44);
   if (!race) { uiFooter('Enter para volver'); return; }
   uiPanel(W / 2 - 300, 110, 600, 420, 20);
@@ -1677,7 +1677,7 @@ function drawKartResults() {
 }
 
 // ── Kart menu / lobby scenes ─────────────────────────────────────────────────
-const kartMenuItems = ['COPA KART', 'CARRERA RAPIDA', 'CREAR CARRERA', 'UNIRSE A CARRERA', 'VOLVER'];
+const kartMenuItems = ['🏆 COPA KART', '⚡ CARRERA RÁPIDA', '📡 CREAR CARRERA', '🔗 UNIRSE', '⌂ VOLVER'];
 
 function updateKartMenu(dt) {
   mobBindMenu(() => kartMenuSel, v => { kartMenuSel = v; });
@@ -1692,28 +1692,28 @@ function updateKartMenu(dt) {
   if (pressed('Escape')) { changeScene('menu'); return; }
   if (pressed('Enter') || pressed('Space')) {
     sfx.select();
-    const it = kartMenuItems[kartMenuSel];
-    if (it === 'COPA KART') { mp.gameMode = 'kart'; kartRaceMode = 'cup'; changeScene('kartcup'); }
-    else if (it === 'CARRERA RAPIDA') {
+    const sel = kartMenuSel;
+    if (sel === 0) { mp.gameMode = 'kart'; kartRaceMode = 'cup'; changeScene('kartcup'); }
+    else if (sel === 1) {
       mp.gameMode = 'kart'; kartRaceMode = 'single';
       kartSelectDriver = gs.character;
       changeScene('kartselect');
     }
-    else if (it === 'CREAR CARRERA') {
+    else if (sel === 2) {
       mp.gameMode = 'kart'; kartRaceMode = 'online';
       kartSelectDriver = gs.character;
       mpHostCreate(); changeScene('kartselect'); mp.createT = 0;
     }
-    else if (it === 'UNIRSE A CARRERA') { mp.gameMode = 'kart'; mp.joinBuf = ''; mp.errMsg = ''; changeScene('kartjoin'); }
-    else if (it === 'VOLVER') { mpDisconnect(); changeScene('menu'); }
+    else if (sel === 3) { mp.gameMode = 'kart'; mp.joinBuf = ''; mp.errMsg = ''; changeScene('kartjoin'); }
+    else if (sel === 4) { mpDisconnect(); changeScene('menu'); }
   }
 }
 function drawKartMenu(t) {
-  uiBgGrad('#1a0830', '#301858'); uiSparkles(t * 0.5, 24);
+  uiPlayBg('race', t);
   const lay = mobMenuLayout(kartMenuItems.length);
   if (lay.mode !== 'desktop') {
     if (document.body.classList.contains('mob-menu-html')) {
-      if (!document.body.classList.contains('three-menu')) uiBgGrad('#1a0830', '#301858');
+      if (!document.body.classList.contains('three-menu')) uiPlayBg('race', t);
       return;
     }
     uiTitle('MARIO KART', lay.mode === 'port' ? 50 : 68, lay.mode === 'port' ? 32 : 44);
@@ -1740,7 +1740,7 @@ function updateKartCreate(dt) {
   if (pressed('Escape')) { mpDisconnect(); changeScene('kartmenu'); }
 }
 function drawKartCreate(t) {
-  uiBgGrad('#200818', '#401028'); uiSparkles(t * 0.4, 14);
+  uiPlayBg('race', t);
   uiTitle('SALA DE CARRERA', 80, 40);
   uiPanel(W / 2 - 280, 130, 560, 380, 20);
   if (mp.roomCode) {
@@ -1766,7 +1766,7 @@ function updateKartJoin(dt) {
   if (pressed('Escape')) { mpDisconnect(); changeScene('kartmenu'); }
 }
 function drawKartJoin(t) {
-  uiBgGrad('#140828', '#281848'); uiSparkles(t * 0.4, 14);
+  uiPlayBg('race', t);
   uiTitle('UNIRSE A CARRERA', 90, 40);
   uiPanel(W / 2 - 260, 150, 520, 320, 18);
   hud('Codigo de 6 letras del anfitrion', W / 2, 195, UI.dim, 17, 'center');
@@ -1825,11 +1825,15 @@ function updateKartLobby(dt) {
 }
 function drawKartLobby(t) {
   if (document.body.classList.contains('mob-menu-html')) {
-    if (!document.body.classList.contains('three-menu')) uiBgGrad('#1a0830', '#301858');
+    if (!document.body.classList.contains('three-menu')) uiPlayBg('race', t);
     return;
   }
   const tr = KART_TRACKS[kartTrackSel];
-  uiBgGrad(tr.bg[0], tr.bg[1]); uiSparkles(t * 0.3, 16);
+  uiPlayBg('race', t);
+  // track-tinted overlay
+  const og = ctx.createLinearGradient(0, 0, 0, H);
+  og.addColorStop(0, tr.bg[0] + '88'); og.addColorStop(1, tr.bg[1] + '66');
+  ctx.fillStyle = og; ctx.fillRect(0, 0, W, H);
   uiTitle('PISTA DE CARRERA', 70, 40);
   uiPanel(W / 2 - 320, 110, 640, 420, 20);
   hud('PISTA', W / 2, 150, UI.dim, 16, 'center');

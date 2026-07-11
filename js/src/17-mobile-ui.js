@@ -418,7 +418,7 @@ function mobGetHtmlMenuConfig() {
       type: 'list', theme: 'blue', title: 'PAUSA',
       subtitle: 'W' + (gs.world + 1) + '-' + (gs.level + 1),
       detail: goalTxt,
-      items: ['CONTINUAR', 'REINICIAR NIVEL', 'MENU PRINCIPAL'],
+      items: ['▶ CONTINUAR', '↺ REINICIAR NIVEL', '⌂ MENÚ PRINCIPAL'],
       getSel: () => pauseSel,
       setSel: v => { pauseSel = v; },
       onPick: idx => {

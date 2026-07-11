@@ -415,11 +415,10 @@ function updateKartSelect(dt) {
 }
 function drawKartSelect(t) {
   if (document.body.classList.contains('mob-menu-html')) {
-    if (!document.body.classList.contains('three-menu')) uiBgGrad('#0a1830', '#1a2848');
+    if (!document.body.classList.contains('three-menu')) uiPlayBg('race', t);
     return;
   }
-  uiBgGrad('#0a1830', '#1a2848');
-  uiSparkles(t * 0.4, 18);
+  uiPlayBg('race', t);
   const port = mobTouchPortrait();
   uiTitle('PERSONALIZAR KART', port ? 48 : 70, port ? 28 : 38);
   const tabY = port ? 82 : 115;
@@ -483,11 +482,10 @@ function updateKartCup(dt) {
 }
 function drawKartCup(t) {
   if (document.body.classList.contains('mob-menu-html')) {
-    if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
+    if (!document.body.classList.contains('three-menu')) uiPlayBg('race', t);
     return;
   }
-  if (!document.body.classList.contains('three-menu')) uiBgGrad('#180828', '#301848');
-  uiSparkles(t * 0.5, 20);
+  if (!document.body.classList.contains('three-menu')) uiPlayBg('race', t);
 
   const desktop = uiIsDesktop();
   if (desktop) {
@@ -554,7 +552,7 @@ function updateKartCupResults(dt) {
   }
 }
 function drawKartCupResults() {
-  uiBgGrad('#0a1420', '#1a2840');
+  uiPlayBg('victory', kartResultsT);
   uiTitle('RESULTADOS COPA', 70, 40);
   if (!kartCupState) { uiFooter('Enter volver'); return; }
   const cup = kartCupState.cup;
